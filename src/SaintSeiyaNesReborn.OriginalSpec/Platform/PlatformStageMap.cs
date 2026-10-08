@@ -118,7 +118,15 @@ public sealed class PlatformStageMap
             UpperCenter: Sample(CollisionProbeId.UpperCenter));
     }
 
-    public static bool CanMoveRight(PlatformCollisionDescriptors probes, bool airborne = false)
+    /// <summary>
+    /// Grounded movement uses the upper side probes only in special substates
+    /// $0C-$0E. Airborne movement uses its own probe rules for every substate.
+    /// substate defaults to zero only for backward-compatible/synthetic tests.
+    /// </summary>
+    public static bool CanMoveRight(
+        PlatformCollisionDescriptors probes,
+        int substate = 0,
+        bool airborne = false)
     {
         if (airborne)
         {
@@ -126,11 +134,17 @@ public sealed class PlatformStageMap
                 && !BlocksAirborneRightUpper(probes.UpperRight);
         }
 
-        return !BlocksGroundedRight(probes.LowerRight)
-            && !BlocksGroundedRight(probes.UpperRight);
+        if (BlocksGroundedRight(probes.LowerRight))
+            return false;
+
+        return !UsesGroundedUpperSideProbe(substate)
+            || !BlocksGroundedRight(probes.UpperRight);
     }
 
-    public static bool CanMoveLeft(PlatformCollisionDescriptors probes, bool airborne = false)
+    public static bool CanMoveLeft(
+        PlatformCollisionDescriptors probes,
+        int substate = 0,
+        bool airborne = false)
     {
         if (airborne)
         {
@@ -138,8 +152,11 @@ public sealed class PlatformStageMap
                 && !BlocksAirborneLeftUpper(probes.UpperLeft);
         }
 
-        return !BlocksGroundedLeftLower(probes.LowerLeft)
-            && !BlocksGroundedLeftUpper(probes.UpperLeft);
+        if (BlocksGroundedLeftLower(probes.LowerLeft))
+            return false;
+
+        return !UsesGroundedUpperSideProbe(substate)
+            || !BlocksGroundedLeftUpper(probes.UpperLeft);
     }
 
     /// <summary>
@@ -157,6 +174,8 @@ public sealed class PlatformStageMap
 
         return lowNibble < 6 ? playerY & 0xF0 : null;
     }
+
+    private static bool UsesGroundedUpperSideProbe(int substate) => substate is >= 0x0C and < 0x0F;
 
     private static bool In(byte? descriptor, int lo, int hi) =>
         descriptor is byte value && value >= lo && value < hi;
