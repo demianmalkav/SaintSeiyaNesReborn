@@ -1,60 +1,56 @@
-# Platform combat — projectile hit detection and damage
+# Platform combat — bidirectional damage and hit detection
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: attack power, projectile-slot selection, point-vs-expanded-entity overlap and ordinary enemy HP subtraction are statically reconstructed. Enemy-type special cases and reward semantics still need fuller classification.
+Status: player attack power, projectile-vs-entity overlap, enemy HP subtraction, entity-vs-player overlap, Life/Cosmo drain and the post-hit invulnerability timer are statically reconstructed. Enemy-type naming/reward semantics remain open.
 
-## Damage value `$72`
+## Player attack damage value `$72`
 
 Fixed gameplay path `$C52F` maps PRG bank 1 and calls `$8616` once during active platform processing before bank-3 entity/combat updates.
 
-Bank 1 `$8616-$86CA` computes the value stored at `$72`. Bank 3 `$99BA+` later subtracts exactly `$72` from an enemy record's HP field.
+Bank 1 `$8616-$86CA` computes `$72`. Bank 3 `$99BA+` subtracts exactly `$72` from an enemy record's HP field.
 
 Therefore:
 
-`$72 = platform attack damage/power for the current Saint and current Cosmo`
+`$72 = platform_attack_damage`
 
 ## Per-Saint base coefficients
 
-Bank 1 table `$8611` contains, in internal Saint order:
+Bank 1 table `$8611`, in internal order `[Seiya, Shun, Hyoga, Shiryu, Ikki]`:
 
-| Internal index | Saint | Base coefficient |
-|---:|---|---:|
-| 0 | Seiya | 19 |
-| 1 | Shun | 25 |
-| 2 | Hyoga | 21 |
-| 3 | Shiryu | 17 |
-| 4 | Ikki | 15 |
+| Saint | Base |
+|---|---:|
+| Seiya | 19 |
+| Shun | 25 |
+| Hyoga | 21 |
+| Shiryu | 17 |
+| Ikki | 15 |
 
-This means Shun has the largest raw platform-damage coefficient at equal Cosmo; Ikki the smallest. Range/lifetime is a separate character/Cosmo-dependent system documented in `PLATFORM_PLAYER.md`.
+Shun has the largest raw platform-damage coefficient at equal Cosmo; Ikki the smallest. Attack range/lifetime is a separate system.
 
-## Exact damage formula
+## Exact player damage formula
 
-Let current Cosmo be the three decimal digits:
+Let:
 
 `Cosmo = 100*H + 10*T + O`
 
-and `B` be the Saint's coefficient above.
+and `B` be the Saint coefficient.
 
-The original routine performs repeated BCD-digit multiplication and deliberately truncates at intermediate decimal places.
-
-### Cosmo below 100 (`H = 0`)
-
-The exact result is:
+### Cosmo below 100
 
 `damage = floor(B * Cosmo / 100)`
 
-### Cosmo 100 or above (`H > 0`)
+### Cosmo 100 or above
 
-The ones digit is not used at all:
+The ones digit is deliberately ignored:
 
 `damage = B*H + floor(B*T/10)`
 
-Equivalent form:
+Equivalent:
 
 `damage = floor(B * floor(Cosmo/10) / 10)`
 
-This creates visible plateaus: e.g. Cosmo 990..999 all produce the same damage.
+Thus 990..999 are one damage plateau.
 
 Representative values:
 
@@ -67,140 +63,219 @@ Representative values:
 | 500 | 95 | 125 | 105 | 85 | 75 |
 | 999 | 188 | 247 | 207 | 168 | 148 |
 
-A reproducible implementation that reads the coefficients from a user-supplied canonical ROM lives at `tools/physics/platform_damage.py`.
+Reproducible calculator: `tools/physics/platform_damage.py`.
 
-## Attack slots
+## Player attack slots
 
-Bank 3 `$9915` checks up to three attack/projectile sprite slots through helpers:
+Bank 3 `$9915` checks up to three OAM-like attack records:
 
-- `$9A3F` -> OAM-like record `$0730`, counter/state `$038E`
-- `$9A4C` -> record `$0738`, counter/state `$038F`
-- `$9A59` -> record `$0740`, counter/state `$0390`
+- `$0730`, associated counter/state `$038E`
+- `$0738`, associated counter/state `$038F`
+- `$0740`, associated counter/state `$0390`
 
-The attack record uses NES OAM-compatible coordinate positions:
+OAM-compatible coordinates:
 
-- offset `0` = sprite Y
-- offset `3` = sprite X
+- attack offset `0` = Y
+- attack offset `3` = X
 
-The hit routine accepts active attack tiles/signatures whose offset-1 value, after clearing bit 0, matches `$64` or `$54`.
+The routine accepts active attack tile/signature values whose offset-1 byte, after clearing bit 0, matches `$64` or `$54`.
 
-## Enemy/entity record coordinates
+## Platform enemy/entity record — confirmed fields
 
-The entity pointer is held in `$16/$17`.
+Entity pointer: `$16/$17`.
 
-The collision routine and coordinate-copy helper `$9CD5` establish:
+Static consumers establish:
 
-- entity offset `0` = high-level state/status family
-- entity offset `1` = X
-- entity offset `2` = Y
-- entity offset `9` = entity/enemy type/class
-- entity offset `$0C` = HP for the ordinary damaging path
-- entity offset `$0F` = value consumed on death/reward processing
+| Offset | Meaning |
+|---:|---|
+| `0` | high-level entity state/status family |
+| `1` | X coordinate |
+| `2` | Y coordinate |
+| `9` | entity/enemy type/class |
+| `$0C` | HP for ordinary damaging entities |
+| `$0D` | Cosmo-drain tick count inflicted on player |
+| `$0E` | Life-drain tick count inflicted on player |
+| `$0F` | death/reward/event value consumed on kill |
 
-Other offsets remain under classification.
+Other fields remain under classification.
 
-## Generic projectile-vs-entity overlap — `$9915/$992A`
+## Projectile-vs-entity overlap — `$9915/$992A`
 
-`$9915` receives three extent parameters in A/X/Y and uses a fourth preloaded value in `$79`:
+`$9915` receives A/X/Y extent parameters and uses a fourth preloaded value in `$79`:
 
-- `$79` = vertical/entity-origin offset
-- `$7A` = horizontal/entity-origin offset
+- `$79` = vertical origin offset
+- `$7A` = horizontal origin offset
 - `$7B` = vertical extent
 - `$7C` = horizontal extent
 
-For each active attack slot, `$992A` performs two interval tests using the attack sprite's point coordinate against an expanded entity rectangle.
+For each active attack slot, `$992A` tests the projectile coordinate as a point against an expanded entity rectangle.
 
-### Vertical axis
-
-Using `entity_y = record[2]` and `attack_y = projectile[0]`:
+Using `entity_y = record[2]`, `attack_y = projectile[0]`:
 
 `low_y = entity_y + $79 - $7B - 6`
 
 `high_y = entity_y + $79 + $7B`
 
-Hit requires:
-
-`low_y < attack_y <= high_y`
-
-(up to exact unsigned-boundary behavior of the 6502 comparisons).
-
-### Horizontal axis
-
-Using `entity_x = record[1]` and `attack_x = projectile[3]`:
+Using `entity_x = record[1]`, `attack_x = projectile[3]`:
 
 `low_x = entity_x + $7A - $7C - 8`
 
 `high_x = entity_x + $7A + $7C`
 
-Hit requires attack X to lie within that interval as well.
+Both axes must pass the unsigned 6502 comparisons.
 
-The constants `6` and `8` compensate for sprite/origin conventions rather than representing general entity half-widths.
-
-Different entity update paths call `$9915` with different extents. Examples include:
+Call sites use different extent sets, so enemy hitboxes are parameterized rather than globally fixed. Observed examples include:
 
 - `$79=16`, A=`8`, X=`14`, Y=`4`
 - `$79=8`, A=`8`, X=`6`, Y=`6`
-- generic entity path from `$9CD5`: normally `$79=8`, A=`8`, X=`5`, Y=`5`; a special mode uses `$79=4`, A=`4`, X=`2`, Y=`2`.
+- generic path: `$79=8`, A=`8`, X=`5`, Y=`5`
+- reduced special path: `$79=4`, A=`4`, X=`2`, Y=`2`
 
-Thus hitboxes are data/parameter driven at the call site rather than one universal rectangle.
+## Enemy HP damage — `$99BA+`
 
-## Ordinary damage application — `$99BA+`
+After collision/type-specific gates:
 
-After a valid collision survives enemy-type special handling:
+1. read enemy HP from offset `$0C`;
+2. subtract `$72`;
+3. if positive, store remaining HP and enter a hit/reaction state (commonly family `$40`);
+4. if zero/underflow, pass offset `$0F` to death/reward processing;
+5. transition to death/removal state, usually `$D0`, with an `$A0` case for type `$0D`.
 
-1. read enemy HP at record offset `$0C`;
-2. subtract current platform damage `$72`;
-3. if result remains positive, store remaining HP;
-4. transition the entity to a hit/reaction state (commonly state-family `$40`);
-5. if subtraction reaches zero or underflows, use record offset `$0F` in death/reward processing;
-6. transition to a death/removal state, usually `$D0`, with an `$A0` special case for type `$0D`.
+High-level chain:
 
-This establishes a complete high-level semantic chain:
+`Saint + Cosmo -> $72 -> projectile overlap -> enemy HP -= $72 -> reaction/death`
 
-`Cosmo + Saint coefficient -> $72 damage -> projectile overlap -> enemy HP -= $72 -> reaction/death`
+## Character-specific attack retirement
 
-## Character-specific projectile consumption
+Helper `$9A27` does not forcibly retire the current attack record for:
 
-Helper `$9A27` conditionally retires the attacking sprite/object after certain hits.
-
-It leaves the attack object untouched for internal indices:
-
-- 0 Seiya
-- 1 Shun
-- 4 Ikki
+- Seiya (internal 0)
+- Shun (internal 1)
+- Ikki (internal 4)
 
 For:
 
-- 2 Hyoga
-- 3 Shiryu
+- Hyoga (internal 2)
+- Shiryu (internal 3)
 
-it writes hidden/inactive values (`Y=$F0`, tile/state `$FE`) to the current attack record.
+it hides/deactivates the current attack record (`Y=$F0`, tile/state `$FE`).
 
-This does **not** yet prove a general design statement such as "piercing attacks" for the other three; it only proves the original helper's consumption behavior at this collision point.
+Do not overinterpret this as a universal "piercing" rule yet; it is the exact behavior of this collision helper.
+
+## Entity-to-player overlap — `$98BA`
+
+The opposite direction is a separate collision routine. It rejects hits when, among other gates:
+
+- the player is in one excluded action family;
+- player Y is too low/outside the active region;
+- invulnerability timer `$76` is nonzero.
+
+It compares the player's origin (`$3F/$40`) against a rectangle built from entity X/Y and the call-site extent parameters `$79-$7C`.
+
+Using `entity_y = record[2]`, `player_y = $40`:
+
+`low_y = entity_y + $79 - $7B - 30`
+
+`high_y = entity_y + $79 + $7B`
+
+Using `entity_x = record[1]`, `player_x = $3F`:
+
+`low_x = entity_x + $7A - $7C - 12`
+
+`high_x = entity_x + $7A + $7C`
+
+The larger fixed subtractions (`30` vertical, `12` horizontal) account for the player's body/origin convention.
+
+## What an enemy hit actually stores
+
+When entity-to-player overlap succeeds and `$76 == 0`:
+
+- entity offset `$0E` -> `$7F`
+- entity offset `$0D` -> `$80`
+- `$76 = $20` (32 decimal)
+- hit sound/effect `$26` is triggered
+
+These two copied bytes are **damage-duration counters**, not direct damage amounts.
+
+### `$7F` — pending Life-drain ticks
+
+Bank 1 `$927A/$9292+` runs during platform updates.
+
+While `$7F > 0`:
+
+1. decrement `$7F` by one;
+2. subtract **2 Life** from the current Saint's packed-decimal `$59-$62` value.
+
+Therefore an ordinary enemy hit configured with `record[0x0E] = N` inflicts nominally:
+
+`2*N Life`
+
+unless another state transition/death interrupts the drain.
+
+### `$80` — pending Cosmo-drain ticks
+
+Bank 1 `$930A+`:
+
+While `$80 > 0`:
+
+1. decrement `$80` by one;
+2. subtract **1 Cosmo** from current Saint `$63-$6C`.
+
+So `record[0x0D] = N` inflicts nominally:
+
+`N Cosmo`
+
+## `$76` — 32-frame post-hit invulnerability/flashing timer
+
+A successful entity hit sets:
+
+`$76 = $20` = 32 frames/update ticks.
+
+Bank 3 `$B94B+` decrements `$76` once per platform update. While nonzero:
+
+- `$98BA` refuses new entity-to-player hits;
+- rendering logic conditionally takes an alternate sprite path based on frame-state bit `$3C & 4`, producing the characteristic hit flashing/blinking behavior.
+
+This promotes `$76` from a generic timer to:
+
+`player_hit_invulnerability_timer`
+
+with an original duration of 32 platform update frames.
+
+There are separate hazard/fall paths that also manipulate `$76` (including special `$F8/$F9` floor classes), so "32 after ordinary entity hit" should not be generalized to every possible damage/hazard event.
+
+## Life/Cosmo exhaustion
+
+The Life decrement path zeroes the current Life record and moves the engine into a fail/death transition when subtraction crosses below zero.
+
+The Cosmo decrement path likewise zeroes Cosmo on underflow and enters the same major transition path.
+
+Thus in this platform mode **both Life depletion and Cosmo depletion can trigger the failure transition** in the original implementation.
 
 ## Enemy type special cases
 
-Entity type/class is read from record offset 9. The hit routine contains explicit branches for at least `$0A`, `$0B`, `$0D`, and other ranges before reaching ordinary HP damage.
+Type/class is read from entity offset 9. Attack handling has explicit branches for at least `$0A`, `$0B`, `$0D` and other ranges before ordinary HP subtraction.
 
-These special cases likely correspond to enemies/objects with distinct response rules. They remain to be mapped to named stage entities before assigning narrative labels.
+These IDs remain numeric until stage/entity tables identify them reliably.
 
 ## ORIGINAL SPEC consequences
 
-Platform combat is substantially more systemic than a fixed `1 damage per hit` model:
+Platform combat is data-driven on both sides:
 
-- attack damage scales with current Cosmo;
-- each Saint has a distinct damage coefficient;
-- attack reach/lifetime separately scales by Cosmo and Saint;
-- entity hitboxes are parameterized by caller/type;
-- entities maintain explicit HP and hit/death state transitions;
-- some Saints' attack objects are consumed differently on collision.
+- player damage depends on Saint + current Cosmo;
+- player attack range depends separately on Saint + Cosmo;
+- enemies have explicit HP;
+- hitboxes are call-site parameterized;
+- enemy contact carries independent Life-damage and Cosmo-damage tick counts;
+- successful contact grants 32 frames of ordinary-hit invulnerability/flashing;
+- Life and Cosmo are both survival resources in platform mode.
 
-For REBORN, damage and reach should therefore remain separate data-driven dimensions even if animation, hitboxes and feel are modernized.
+REBORN can modernize animation and collision shapes while preserving these relationships as tunable data rather than flattening them into one generic damage number.
 
 ## Next work
 
-1. map enemy record offsets 3-15 more completely;
-2. classify type IDs and their special hit responses;
-3. identify the meaning of death/reward byte at offset `$0F`;
-4. trace enemy-to-player damage and invulnerability timer `$76`;
-5. convert platform damage/range/hitbox rules into clean-room parity tests.
+1. map enemy record offsets 3-8 and 10-11;
+2. identify type IDs and special response rules;
+3. identify offset `$0F` death/reward semantics;
+4. trace environmental hazard damage separately from enemy contact;
+5. convert damage/range/hitbox/drain behavior into clean-room parity test vectors.
