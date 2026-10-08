@@ -22,6 +22,12 @@ foreach (SaintId saint in Enum.GetValues<SaintId>())
 Equal(PlatformSaintIndex.Shun, SaintIndexMap.ToPlatform(SaintId.Shun), "Shun internal index");
 Equal(PlatformSaintIndex.Hyoga, SaintIndexMap.ToPlatform(SaintId.Hyoga), "Hyoga internal index");
 
+// Packed-decimal primitives used throughout original stats/password state.
+Equal(99, PackedBcd.DecodeByte(0x99), "BCD decode 99");
+Equal((byte)0x42, PackedBcd.EncodeByte(42), "BCD encode 42");
+Equal(9999, PackedBcd.DecodeFourDigits(0x99, 0x99), "BCD four-digit decode");
+Equal(((byte)0x34, (byte)0x12), PackedBcd.EncodeFourDigits(1234), "BCD four-digit encode");
+
 // Reconstructed platform damage fixtures.
 Equal(18, PlatformDamage.FromCosmo(PlatformSaintIndex.Seiya, 99), "Seiya damage @99");
 Equal(19, PlatformDamage.FromCosmo(PlatformSaintIndex.Seiya, 100), "Seiya damage @100");
@@ -33,6 +39,11 @@ Equal(
     PlatformDamage.FromCosmo(PlatformSaintIndex.Hyoga, 990),
     PlatformDamage.FromCosmo(PlatformSaintIndex.Hyoga, 999),
     "Three-digit Cosmo ones digit is ignored");
+
+// Enemy-death Seventh Sense reward: one packed-BCD byte, $02==0 gate, clamp 9999.
+Equal(1276, SeventhSense.AddPlatformReward(1234, 0x42, engineSubstate02: 1), "Seventh Sense reward");
+Equal(1234, SeventhSense.AddPlatformReward(1234, 0x42, engineSubstate02: 0), "Seventh Sense mode gate");
+Equal(9999, SeventhSense.AddPlatformReward(9990, 0x42, engineSubstate02: 1), "Seventh Sense clamp");
 
 // Contact drain: one Life tick costs 2, one Cosmo tick costs 1.
 var drain = ContactDrain.Step(
