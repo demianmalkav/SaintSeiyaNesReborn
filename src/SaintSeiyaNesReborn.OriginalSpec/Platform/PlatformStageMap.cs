@@ -121,8 +121,12 @@ public sealed class PlatformStageMap
     /// <summary>
     /// Grounded movement uses the upper side probes only in special substates
     /// $0C-$0E. Airborne movement uses its own probe rules for every substate.
+    /// substate defaults to zero only for backward-compatible/synthetic tests.
     /// </summary>
-    public bool CanMoveRight(PlatformCollisionDescriptors probes, bool airborne = false)
+    public static bool CanMoveRight(
+        PlatformCollisionDescriptors probes,
+        int substate = 0,
+        bool airborne = false)
     {
         if (airborne)
         {
@@ -133,11 +137,14 @@ public sealed class PlatformStageMap
         if (BlocksGroundedRight(probes.LowerRight))
             return false;
 
-        return !UsesGroundedUpperSideProbe(Substate)
+        return !UsesGroundedUpperSideProbe(substate)
             || !BlocksGroundedRight(probes.UpperRight);
     }
 
-    public bool CanMoveLeft(PlatformCollisionDescriptors probes, bool airborne = false)
+    public static bool CanMoveLeft(
+        PlatformCollisionDescriptors probes,
+        int substate = 0,
+        bool airborne = false)
     {
         if (airborne)
         {
@@ -148,7 +155,7 @@ public sealed class PlatformStageMap
         if (BlocksGroundedLeftLower(probes.LowerLeft))
             return false;
 
-        return !UsesGroundedUpperSideProbe(Substate)
+        return !UsesGroundedUpperSideProbe(substate)
             || !BlocksGroundedLeftUpper(probes.UpperLeft);
     }
 
