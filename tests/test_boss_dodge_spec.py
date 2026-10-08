@@ -21,7 +21,7 @@ class BossDodgeSpecTests(unittest.TestCase):
         self.assertTrue(enough.evaded)
         self.assertEqual(enough.final_offset, 0x10)
 
-    def test_right_requires_nine_net_ticks_from_center(self):
+    def test_right_requires_nine_ticks_when_moving_right_from_center_only(self):
         short = simulate_dodge([DodgeDirection.RIGHT] * 8, blocked_direction=DodgeDirection.LEFT)
         enough = simulate_dodge([DodgeDirection.RIGHT] * 9, blocked_direction=DodgeDirection.LEFT)
         self.assertFalse(short.valid_movement)
@@ -38,15 +38,19 @@ class BossDodgeSpecTests(unittest.TestCase):
         result = simulate_dodge([DodgeDirection.LEFT] * 8, blocked_direction=DodgeDirection.RIGHT)
         self.assertTrue(result.evaded)
 
-    def test_direction_changes_use_net_offset_and_last_direction(self):
+    def test_direction_change_preserves_original_asymmetric_validation_quirk(self):
         result = simulate_dodge(
             [DodgeDirection.LEFT] * 10 + [DodgeDirection.RIGHT] * 3,
-            blocked_direction=DodgeDirection.RIGHT,
+            blocked_direction=DodgeDirection.LEFT,
         )
-        # Net offset = +14, but last direction is RIGHT and the right-side
-        # validation requires the wrapped negative range below 0xF0.
-        self.assertFalse(result.valid_movement)
-        self.assertEqual(result.final_direction, DodgeDirection.NONE)
+        # Net offset is still +14 (0x0E), but the last direction is RIGHT.
+        # The ROM only checks `$AF < $F0` for a RIGHT-ending dodge, so this
+        # unusual mixed-direction sequence is accepted as valid despite never
+        # entering the wrapped negative-right range.
+        self.assertTrue(result.valid_movement)
+        self.assertEqual(result.final_direction, DodgeDirection.RIGHT)
+        self.assertTrue(result.evaded)
+        self.assertEqual(result.final_offset, 0x0E)
 
     def test_success_and_failure_feed_separate_rom_counters(self):
         success = simulate_dodge([DodgeDirection.LEFT] * 8, blocked_direction=DodgeDirection.RIGHT)
