@@ -2,77 +2,95 @@
 
 Target: verified Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM documented in `CANONICAL_ROM.md`.
 
-This file distinguishes what the original code itself proves from semantic names still awaiting runtime confirmation.
+This document separates structural facts proven by the ROM from semantic names that still need runtime confirmation.
 
-## CONFIRMED structures
+## Five active Saint records
 
-### `$0059-$0062` — five 2-byte numeric slots
+### `$0059-$0062` — Life, five packed-decimal two-byte values
 
-The code indexes this range as `2 * $03`, so it is structurally an array of five two-byte values. Arithmetic routines treat the two bytes as decimal digits packed into nibbles and perform explicit decimal correction after subtraction.
+The engine indexes this region as five two-byte values using `2 * current_saint_index`.
 
-External cheat documentation identifies these values as the five Saints' Cosmo values. Static code strongly agrees with that interpretation.
+Semantic identification is now strong enough to treat this as Life/Health rather than Cosmo:
 
-Provisional semantic name: `saint_cosmo_bcd[5]`.
+- initialization around bank 1 `$95B2+` gives the first four slots `099` and the fifth slot `499`;
+- the published `Start with 999 Health` Game Genie code patches the Life hundreds initialization immediate at `$95B9`;
+- the published `Infinite Health Except Battles` code neutralizes the store in the decrement path around `$92DA`;
+- bank 1 performs manual packed-decimal correction when subtracting from this array.
 
-Evidence anchors:
+Working symbol: `saint_life_bcd[5]`.
 
-- bank 1 `$9299+` selects `2 * $03` and subtracts two units from the `$59/$5A` pair with decimal-nibble correction;
-- bank 1 `$951F` snapshots all five pairs into `$058C-$05A4`;
-- bank 1 `$9720` restores them;
-- UI code in bank 1 reads the same array for display.
+### `$0063-$006C` — Cosmo, five packed-decimal two-byte values
 
-### `$0063-$006C` — five 2-byte numeric slots
+Same five-slot/two-byte packed-decimal structure.
 
-Same five-character / two-byte layout as `$0059-$0062`. The game performs packed-decimal arithmetic and converts the current character's value for gameplay use.
+Semantic identification:
 
-External cheat documentation identifies these values as Life/Energy. Static behavior supports that interpretation.
+- first four slots initialize to `099`, fifth to `499`;
+- the published `Start with 999 Cosmo` code patches the hundreds initialization immediate at `$95C9`;
+- the published `Infinite Cosmo Except Battles` code neutralizes the store in the decrement path around `$9354`;
+- platform attack range/lifetime is derived from the selected Saint's Cosmo hundreds digit.
 
-Provisional semantic name: `saint_life_bcd[5]`.
+Working symbol: `saint_cosmo_bcd[5]`.
 
-Evidence anchors:
+### `$006D-$0071` — one auxiliary byte per Saint
 
-- bank 1 `$8616` uses `2 * $03` and reads `$63/$64` for the selected Saint;
-- `$9311+` decrements the pair with manual BCD correction;
-- `$951F` snapshots all five values;
-- `$9720` restores them.
+Snapshot/restore code treats these as the fifth byte of each Saint record. Display/gameplay routines consume the nibbles, so they are meaningful state rather than padding.
 
-### `$006D-$0071` — five one-byte per-Saint values
+Exact meaning remains unknown.
 
-`$951F/$9720` snapshot and restore one byte per Saint alongside Cosmo and Life. Display code consumes their nibbles as quantities when constructing the stat UI, so this is not merely an arbitrary auxiliary byte.
+Working symbol: `saint_aux_stat[5]`.
 
-Exact meaning is still unresolved.
+### `$03` — current Saint index
 
-Name remains `saint_unknown_6d[5]`.
+Repeatedly doubled to index the five Life/Cosmo arrays. Valid structure is `0..4`.
 
-### `$0076` — timer-like gameplay state
+Working symbol: `current_saint_index`.
 
-Initialized to zero by bank 1 `$98BA`. Collision/gameplay paths set it to `$20` and other code tests it while processing interactions.
+Full identity mapping is still being proven. Current behavioral evidence strongly suggests slot 0 = Seiya and slot 4 = Ikki; slot 3 is a strong Shun candidate because its attack path uses multiple projectile/OAM slots. Keep those identities `INFERRED` until ROM-side mapping is closed.
 
-Community cheats call this invulnerability/flashing state. Static behavior proves that it is a countdown/cooldown-like state associated with interaction handling; exact visible semantics still need runtime confirmation.
+## Persistent Saint snapshot
 
-Provisional semantic name: `invulnerability_timer`.
+### `$058C-$05A4` — five 5-byte records
 
-### `$020A` — controller held-state byte
+Bank 1 `$951F/$9720` snapshot and restore active Saint state using this order:
 
-Bank 0 `$8B1F` strobes `$4016`, shifts eight controller reads into `$020A`, and retains the resulting current-button bitfield.
+- slot 0 `$058C-$0590` <- `$59,$5A,$63,$64,$6D`
+- slot 1 `$0591-$0595` <- `$5D,$5E,$67,$68,$6F`
+- slot 2 `$0596-$059A` <- `$5B,$5C,$65,$66,$6E`
+- slot 3 `$059B-$059F` <- `$5F,$60,$69,$6A,$70`
+- slot 4 `$05A0-$05A4` <- `$61,$62,$6B,$6C,$71`
 
-Provisional semantic name: `menu_input_held`.
+Each record is therefore:
 
-### `$020B` — controller newly-pressed byte
+`[Life low-two BCD digits, Life hundreds, Cosmo low-two BCD digits, Cosmo hundreds, auxiliary]`
 
-The same routine computes `(current XOR previous) AND current` and stores it in `$020B`.
+Only snapshot slots 0-3 are serialized into the password. Slot 4 is active gameplay state but intentionally excluded from the 31-symbol password.
 
-Provisional semantic name: `menu_input_pressed`.
+## Seventh Sense / progression
 
-### `$0203-$0204` — monotonically incremented 16-bit counter
+### `$05AA-$05AB` — Seventh Sense
 
-Incremented once at the end of the bank-0 controller polling routine, with carry from `$0203` to `$0204`.
+Four packed-decimal digits. The clean-room password decoder reconstructs `9999` from the known maximum-stat password.
 
-Likely a frame/update counter, but runtime cadence should be confirmed before assigning the final name.
+Working symbol: `seventh_sense_bcd`.
+
+### `$067D` — persistent story progression
+
+Incremented by progression/event sequences, compared against `$0C`, serialized into the password and restored on continue.
+
+Working symbol: `story_progress_index`.
+
+### `$06CD` — persistent progression descriptor
+
+Derived from progression tables and serialized/restored alongside `$067D`.
+
+Exact semantic label remains provisional.
+
+## Input
 
 ### `$3D/$3E` — platform controller held state
 
-Fixed-bank `$C4E4` reads controllers 1 and 2 into these bytes. For `$3D` the bit layout is:
+Fixed `$C4E4` reads controller 1/2. `$3D` bit layout:
 
 - `$80` A
 - `$40` B
@@ -83,145 +101,120 @@ Fixed-bank `$C4E4` reads controllers 1 and 2 into these bytes. For `$3D` the bit
 - `$02` Left
 - `$01` Right
 
-`$3D` is consumed directly by bank-3 platform movement and attack logic.
+### `$020A/$020B` — menu/password input
 
-### `$03` — current Saint index
+Bank 0 `$8B1F` stores held input in `$020A` and newly pressed input in `$020B`.
 
-Multiple routines use `$03`, double it, and index the five-entry Cosmo/Life arrays. Fixed-bank table `$E505` also assigns values including `0,2,1,3,4` according to game state.
+## Platform player core
 
-Structurally, valid values `0..4` select one of five active Saint slots.
+- `$3F` — player horizontal coordinate
+- `$40` — principal vertical coordinate
+- `$41` — vertical high/page component candidate
+- `$42` — facing/direction
+- `$44/$45` — horizontal camera/scroll pair
+- `$49` — jump phase/index counter
+- `$4A` — jump/airborne latch
+- `$4B/$4C` — attack/busy timing state
+- `$4D` — current/next player action/animation state
+- `$4E` — latched frame-start action state; fixed gameplay code copies `$4D -> $4E` before bank-3 processing
+- `$4F-$56` — collision/environment sample block; exact spatial positions still pending
+- `$76` — hit/invulnerability-like timer; set to `$20` by interaction paths
+- `$0387-$0389` — horizontal movement increments used in ground/air control
+- `$038A` — high-jump modifier; A+Up straight jump stores `$30` here
 
-Provisional semantic name: `current_saint_index`.
+Important action families currently observed:
 
-The exact identity/order of all five indices is still being mapped; do not attach character names yet.
+- `$00` idle/neutral
+- `$10-$1F` locomotion/animation
+- `$20` crouch
+- `$30-$33` jump family
+- `$50` fall/vertical transition family
+- `$80` damage/fall/death-related family
 
-### `$058C-$05A4` — 25-byte Saint-stat snapshot
+## Table-driven jump physics
 
-Bank 1 `$951F` copies all five Saints' active stat records into five 5-byte snapshot records, and `$9720` restores them.
+Jump physics are not a conventional velocity-plus-gravity accumulator. Bank 3 selects signed displacement tables and a duration by current Saint and jump mode.
 
-The copy order is not simply linear in zero page:
+Static extraction currently yields:
 
-- snapshot slot 0 `$058C-$0590` <- `$59,$5A,$63,$64,$6D`
-- slot 1 `$0591-$0595` <- `$5D,$5E,$67,$68,$6F`
-- slot 2 `$0596-$059A` <- `$5B,$5C,$65,$66,$6E`
-- slot 3 `$059B-$059F` <- `$5F,$60,$69,$6A,$70`
-- slot 4 `$05A0-$05A4` <- `$61,$62,$6B,$6C,$71`
+| Slot | High jump duration | High max ascent | Forward jump duration | Forward max ascent |
+|---:|---:|---:|---:|---:|
+| 0 | 60 | 103 px | 54 | 39 px |
+| 1 | 50 | 88 px | 40 | 33 px |
+| 2 | 40 | 71 px | 44 | 34 px |
+| 3 | 40 | 71 px | 44 | 34 px |
+| 4 | 50 | 88 px | 54 | 39 px |
 
-This is a persistent/snapshot representation distinct from the active zero-page arrays.
+A normal straight A jump without Up uses a common 32-frame table with about 58 px maximum ascent. After the table phase, the fall path uses `+3 px/frame` until collision/landing resolution.
 
-**Password consequence:** only snapshot slots 0-3 (`$058C-$059F`) are serialized into the 31-character password. Slot 4 (`$05A0-$05A4`) is deliberately excluded. This proves the game distinguishes four password-persistent Saint records from a fifth active but non-persistent slot. The fifth character's identity remains intentionally unnamed until the selection/progression mapping proves it.
+The extraction is reproducible with `tools/physics/extract_platform_profiles.py`.
 
-### `$05AA-$05AB` — Seventh Sense packed-decimal value
+## Platform attack/projectile state
 
-The fixed bank extracts four decimal nibbles from these two bytes and converts them into display tiles. `$F31E` performs packed-decimal addition and clamps at `$99` where appropriate.
+Attack creation uses sprite/projectile records around:
 
-The public 9999 password decodes through the reconstructed password algorithm to `$05AA=$99`, `$05AB=$99`, independently validating the community identification as Seventh Sense.
+- `$0730/$0731`
+- `$0738/$0739`
+- `$0740/$0741`
 
-Provisional semantic name: `seventh_sense_bcd`.
+and counters/metadata around `$038E-$0390`.
 
-### `$0700-$07FF` — OAM shadow page
+`$038E` is consumed as a projectile lifetime/range counter by bank-3 attack update logic.
 
-NMI writes `$07` to `$4014`, causing sprite DMA from page `$0700`. Multiple routines also write sprite-related values throughout this page.
+For Saint slots 0-3, the initial range/lifetime parameter is indexed by:
 
-## Mapper/NMI coordination
+`floor(Cosmo_hundreds / 2) * 4 + saint_index`
 
-### `$3A`
+The 20-byte table at bank 3 `$BCAE` gives:
 
-NMI writes `1` here before resetting the MMC1 shift register. Interrupt-safe MMC1 writers clear/test it and retry a five-write serial transaction if an NMI occurred during the transaction.
+| Cosmo hundreds | slot 0 | slot 1 | slot 2 | slot 3 |
+|---|---:|---:|---:|---:|
+| 0-1 | 3 | 1 | 4 | 6 |
+| 2-3 | 6 | 3 | 10 | 10 |
+| 4-5 | 12 | 8 | 16 | 14 |
+| 6-7 | 24 | 12 | 22 | 18 |
+| 8-9 | 48 | 16 | 28 | 22 |
 
-Provisional name: `mmc1_write_interrupted`.
+Slot 4 bypasses this table and receives a constant `60`.
 
-### `$3B`
+This proves an important gameplay rule: **Cosmo affects platform attack reach/lifetime**, not only battle statistics.
 
-Used by the protected PRG-bank writer and reloaded by NMI before returning. This tracks the PRG bank that should be restored after NMI performs temporary bank switches.
+## OAM / mapper coordination
 
-Provisional name: `persistent_prg_bank`.
+### `$0700-$07FF`
+
+OAM shadow page. NMI writes `$07` to `$4014` for sprite DMA.
+
+### `$3A/$3B`
+
+- `$3A` — NMI-interrupted MMC1 serial-write flag
+- `$3B` — persistent PRG bank restored by NMI
 
 ### `$0639/$063A/$063E/$063F`
 
-A second mapper-coordination path around `$E589/$E5B7` uses these bytes to coordinate bank requests and critical sections with an alternate NMI path.
+Second synchronized PRG-bank path around fixed `$E589/$E5B7`; working roles are requested/transient bank plus critical-section flags.
 
-Provisional roles:
+## Password serialization
 
-- `$0639`: requested/persistent bank for synchronized path;
-- `$063A`: transient bank value;
-- `$063E/$063F`: mapper-write critical-section markers.
+Fixed `$C458` stages:
 
-## High-level state candidates
-
-### `$00/$01`
-
-RESET initializes both to `$50`. NMI dispatches large branches of engine behavior from these values, including exact states and state families (`$20`, `$40`, `$60`, `$70`, `$80`, `$90` ranges).
-
-They are confirmed as high-level engine/state-machine bytes; their division of responsibility remains unknown.
-
-### `$0200/$0201`
-
-The main initializer at `$DA13+` feeds these bytes into bank-0 inline jump-table dispatchers. They are confirmed scene/substate dispatcher indices; exact scene names remain to be assigned.
-
-### `$050E`
-
-Banks 4 and 5 use this heavily as an index into scenario-dependent tables. Strong candidate for current scenario/temple identifier.
-
-Status: `INFERRED`.
-
-### `$0533`
-
-Fixed-bank code indexes table `$E505` with `$0533` and writes the result to current Saint index `$03`. Therefore `$0533` is a character/progression selector that influences which Saint becomes active.
-
-Status: structure confirmed; semantic label pending.
-
-### `$067D`
-
-Incremented when a progression/event sequence completes, compared against `$0C`, serialized in the password pipeline, and restored when continuing.
-
-This is confirmed persistent progression state. Exact numbering-to-temple mapping is still being reconstructed.
-
-Provisional name: `story_progress_index`.
-
-### `$06CD`
-
-Derived from progression tables, serialized/restored alongside `$067D`, and used to construct later event state.
-
-Confirmed persistent progression descriptor; exact semantic meaning pending.
-
-## Password serialization — CONFIRMED
-
-The earlier serialization hypothesis is now proven end-to-end. Fixed-bank `$C458` stages durable state, bank 0 packs it, generates 31 six-bit symbols with XOR checksum and a 10-symbol XOR-`$3F` obfuscation window, and the inverse decoder restores the state.
-
-Staging:
-
-- `$058C-$059F` -> `$0110-$0123` (four 5-byte Saint records)
+- `$058C-$059F` -> `$0110-$0123` (four Saint records)
 - `$05AA-$05AC` -> `$0130-$0132`
 - `$067D` -> `$0133`
 - `$06CD` -> `$0134`
 - `$0587-$058A` -> `$0135-$0138`
 
-Detailed format is documented in `PASSWORD_SYSTEM.md`, with a clean-room decoder in `tools/password/password_codec.py`.
+Detailed bit packing/checksum/obfuscation is documented in `PASSWORD_SYSTEM.md`.
 
-The public 999 password is a validated fixture: the clean-room decoder produces Life 999, Cosmo 999 for all four persistent Saint records and Seventh Sense 9999.
+## External battle-mode candidates
 
-## Platform/player state
-
-See `PLATFORM_PLAYER.md` for the first movement skeleton. Important current addresses:
-
-- `$3F`: player horizontal coordinate;
-- `$40`: principal vertical coordinate/motion component;
-- `$42`: facing/direction;
-- `$44/$45`: horizontal scroll/camera pair;
-- `$4D/$4E`: action/animation state family;
-- `$4F-$56`: collision/environment sample block (spatial meanings pending);
-- `$0387-$0389`: movement increment candidates.
-
-## External battle-mode candidates not yet promoted
-
-Community cheats identify `$05BC/$05BD` as battle Cosmo and `$05CE/$05CF` as battle Life, with `$05BE` / `$05D0` related maxima. These have not yet been statically tied to sufficient callers and remain `INFERRED` pending tracing.
+Community cheat material points to `$05BC/$05BD` and `$05CE/$05CF` as battle-mode Cosmo/Life structures with nearby maxima. These are not yet promoted because their exact relationship to the platform/persistent arrays still requires tracing.
 
 ## Next tests
 
-1. Resolve current-Saint indices 0..4 to character identities without assumption.
-2. Assign spatial meaning to `$4F-$56` collision samples.
-3. Enumerate `$4D/$4E` action states.
-4. Trace `$067D/$06CD/$050E/$0533` across the Twelve Houses progression.
-5. Map `$05BC-$05D0` battle structures and reconcile them with the five active Saint slots.
-6. Add dynamic watches/breakpoints when a debugger-capable emulator becomes available in the workflow.
+1. Close the internal Saint index -> character identity mapping.
+2. Assign spatial meaning to collision samples `$4F-$56`.
+3. Trace projectile hit detection and damage application, not only lifetime/range.
+4. Enumerate the remaining `$4D/$4E` action states and transitions.
+5. Map `$05BC-$05D0` boss-battle structures.
+6. Add runtime breakpoints when a debugger-capable NES emulator becomes available in the execution environment.
