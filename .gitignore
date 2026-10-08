@@ -1,0 +1,49 @@
+# Original / copyrighted binaries
+*.nes
+*.fds
+*.rom
+*.bin
+*.chr
+*.prg
+
+# Emulator state / traces
+*.sav
+*.state
+*.savestate
+*.trace
+*.log
+
+# Captures and large reference media
+*.mp4
+*.mkv
+*.avi
+*.wav
+*.flac
+
+# Build outputs
+bin/
+obj/
+build/
+dist/
+export/
+
+# Godot
+.godot/
+.import/
+export.cfg
+export_presets.cfg
+
+# IDE / OS
+.vs/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local private workspace
+private/
+reference/
+roms/
+dumps/
+traces/
+states/
