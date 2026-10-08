@@ -67,9 +67,11 @@ class BattleExchangeSpecTests(unittest.TestCase):
             opponent_technique_index=0,
         )
         # Player attack drains opponent Cosmo by 26 -> 474. The Aioria slot-0
-        # counter therefore uses 474 Cosmo: floor(474*.48)=227, floor(474*.32)=151.
+        # counter therefore requests floor(474*.48)=227 Cosmo and
+        # floor(474*.32)=151 Life from the player. Effective Cosmo consumption
+        # is capped by the player's remaining 100 points.
         self.assertEqual(result.opponent.cosmo, 474)
-        self.assertEqual(result.player_cosmo_drain_taken, 227)
+        self.assertEqual(result.player_cosmo_drain_taken, 100)
         self.assertEqual(result.player_life_drain_taken, 151)
         self.assertEqual(result.player, CombatantState(life=349, cosmo=0))
 
