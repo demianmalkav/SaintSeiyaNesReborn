@@ -1,0 +1,1 @@
+"""Executable specifications for SaintSeiyaNesReborn."""
