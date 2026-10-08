@@ -34,7 +34,6 @@ Equal(19, PlatformDamage.FromCosmo(PlatformSaintIndex.Seiya, 100), "Seiya damage
 Equal(93, PlatformDamage.FromCosmo(PlatformSaintIndex.Seiya, 499), "Seiya damage @499");
 Equal(247, PlatformDamage.FromCosmo(PlatformSaintIndex.Shun, 999), "Shun damage @999");
 Equal(148, PlatformDamage.FromCosmo(PlatformSaintIndex.Ikki, 999), "Ikki damage @999");
-// Original three-digit quirk: ones digit no longer contributes.
 Equal(
     PlatformDamage.FromCosmo(PlatformSaintIndex.Hyoga, 990),
     PlatformDamage.FromCosmo(PlatformSaintIndex.Hyoga, 999),
@@ -80,7 +79,6 @@ Equal(new ProbePoint(0x140, 0x50), probes.UpperLeft, "Upper left probe");
 Equal(new ProbePoint(0x138, 0x72), probes.FloorLeft, "Floor left probe");
 Equal(new ProbePoint(0x148, 0x50), probes.UpperCenter, "Upper center probe");
 
-// Special y==$88 lower-side sampler uses +$18 instead of +$10 after alignment.
 var specialYProbes = CollisionProbeLayout.FromPlayer(playerX: 0, playerY: 0x88, scrollX: 0);
 Equal(0xA8, specialYProbes.LowerRight.Y, "Special lower-side Y offset at $88");
 
@@ -94,12 +92,11 @@ True(TileDescriptorRules.StopsUpwardMotionAtUpperCenter(0xE0), "$E0 ceiling bloc
 True(!TileDescriptorRules.StopsUpwardMotionAtUpperCenter(0xF0), "$F0 special non-ceiling branch");
 True(TileDescriptorRules.IsSpecialF8F9Floor(0xF8), "$F8 special floor");
 
-// Stage model: synthetic descriptors exercise page lookup, collision sampling and snap rules
-// without embedding any original stage data in the repository.
+// Stage model: synthetic descriptors exercise page lookup, collision sampling and snap rules.
 var page0Descriptors = new byte[PlatformStagePage.DescriptorCount];
 var page1Descriptors = new byte[PlatformStagePage.DescriptorCount];
-page0Descriptors[7 * PlatformStagePage.Columns + 4] = 0x90; // floor-center at the fixture position
-page0Descriptors[6 * PlatformStagePage.Columns + 5] = 0x80; // grounded right blocker
+page0Descriptors[7 * PlatformStagePage.Columns + 4] = 0x90;
+page0Descriptors[6 * PlatformStagePage.Columns + 5] = 0x80;
 page1Descriptors[0] = 0xE0;
 
 var stage = new PlatformStageMap(
@@ -118,11 +115,33 @@ True(stage.DescriptorAt(0x200, 0) is null, "Past-stage coordinate is outside");
 var sampledStage = stage.SamplePlayer(playerX: 0x40, playerY: 0x52, scrollX: 0);
 Equal((byte)0x90, sampledStage.FloorCenter!.Value, "Stage floor-center sample");
 Equal((byte)0x80, sampledStage.LowerRight!.Value, "Stage lower-right sample");
-True(!PlatformStageMap.CanMoveRight(sampledStage), "Stage right collision blocks grounded movement");
-True(PlatformStageMap.CanMoveLeft(sampledStage), "Stage left side remains open");
+True(!stage.CanMoveRight(sampledStage), "Stage right collision blocks grounded movement");
+True(stage.CanMoveLeft(sampledStage), "Stage left side remains open");
 Equal(0x50, PlatformStageMap.OrdinaryCenterFloorSnap(0x90, 0x52)!.Value, "Normal floor snap");
 Equal(0x58, PlatformStageMap.OrdinaryCenterFloorSnap(0xF0, 0x5A)!.Value, "Half-row floor snap");
 True(PlatformStageMap.OrdinaryCenterFloorSnap(0xFF, 0x5A) is null, "$FF uses dynamic floor path");
+
+// Grounded upper-side probes are a special-map rule: only substates $0C-$0E consult them.
+var upperRightOnly = new PlatformCollisionDescriptors(
+    FloorCenter: null,
+    LowerRight: null,
+    UpperRight: 0x80,
+    FloorRight: null,
+    LowerLeft: null,
+    UpperLeft: null,
+    FloorLeft: null,
+    UpperCenter: null);
+var upperLeftOnly = upperRightOnly with { UpperRight = null, UpperLeft = 0x88 };
+var normalProbeStage = new PlatformStageMap(0x00, [new PlatformStagePage(0, new byte[PlatformStagePage.DescriptorCount])]);
+var specialProbeStage = new PlatformStageMap(0x0C, [new PlatformStagePage(0, new byte[PlatformStagePage.DescriptorCount])]);
+True(normalProbeStage.CanMoveRight(upperRightOnly), "Normal grounded stage ignores upper-right $80");
+True(!specialProbeStage.CanMoveRight(upperRightOnly), "$0C grounded stage checks upper-right $80");
+True(normalProbeStage.CanMoveLeft(upperLeftOnly), "Normal grounded stage ignores upper-left $88");
+True(!specialProbeStage.CanMoveLeft(upperLeftOnly), "$0C grounded stage checks upper-left $88");
+var airborneUpperSolid = upperRightOnly with { UpperRight = 0xE0 };
+True(!normalProbeStage.CanMoveRight(airborneUpperSolid, airborne: true), "Airborne upper-side $E0 blocks in normal stages too");
+True(PlatformStageMap.UsesGroundedUpperSideProbe(0x0E), "$0E uses grounded upper-side probe");
+True(!PlatformStageMap.UsesGroundedUpperSideProbe(0x0F), "$0F no longer uses grounded upper-side probe");
 
 // Platform completion is a coordinate gate plus jump-phase predicate, not raw stage width.
 var mainExitGate = PlatformExitGate.ForSubstate(0x00);
