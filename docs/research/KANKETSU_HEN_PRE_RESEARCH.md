@@ -1,112 +1,83 @@
-# Kanketsu Hen — investigación previa a la decompilación
+# Kanketsu Hen — pre-research and external anchors
 
-Este documento reúne pistas externas útiles. Ninguna etiqueta semántica de RAM o fórmula pasa a ORIGINAL SPEC sólo por aparecer aquí: debe reproducirse contra la ROM canónica.
+This document records external material useful to reverse engineering the canonical Japanese ROM. External claims remain secondary to ROM evidence.
 
-## ROM / comunidad de TAS
+## Canonical target
 
-TASVideos mantiene una entrada específica para el juego y reconoce como good dump la misma revisión que usamos:
+The project targets the verified Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM documented in `docs/reverse-engineering/CANONICAL_ROM.md`.
 
-- SHA-1 `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`
-- MD5 `3B0F17C2B6EFC928B3D3FE9B1A389680`
+## Community RAM / TAS work
 
-También publica un archivo RAM Watch `.wch` específico para Kanketsu Hen.
+TASVideos has material for this exact game/revision, including RAM watches and modern runs. These are useful as hypotheses and test vectors, particularly for:
 
-Fuentes:
-- https://tasvideos.org/1074G
-- https://tasvideos.org/UserFiles/Game/1074
+- Life/Cosmo state;
+- player position/camera;
+- progression/event flags;
+- boss-dialogue thresholds;
+- timing-dependent parry/defense behavior.
 
-## Estructura sistémica documentada
+All addresses/semantics are reproduced against our own static/dynamic analysis before promotion to `CONFIRMED`.
 
-El juego alterna dos contextos principales:
+## Existing English translation hack
 
-1. plataforma / desplazamiento hacia los templos;
-2. combate 1 contra 1 de tipo RPG contra personajes importantes.
+A public soft-patch repository contains the aishsha/Djinn English translation package for this game:
 
-La selección/configuración de personaje constituye además un tercer contexto de UI/estado relevante.
+- `SS_ODKH_en_Djinn_Aishsha_v1.01.ips`
+- IPS size: 19,773 bytes
+- Git blob SHA: `3af03b06e9e3b8479d03f773972694c7c7ff0cde`
+- companion readme: `SS_ODKH_en_Djinn_Aishsha_v1.01_readme.txt`
 
-La guía moderna documenta:
+The readme states that the hacking work included:
 
-- Cosmo por personaje;
-- Life por personaje;
-- Seven Senses como recurso compartido;
-- conversión 1:1 entre Seven Senses y Life/Cosmo durante configuración;
-- un personaje muere si Life o Cosmo llegan a cero;
-- cambiar de personaje durante combate cuenta como muerte de ese personaje;
-- el Gold Saint conserva el daño acumulado entre personajes;
-- los Bronze Saints reviven después de derrotar al Gold Saint;
-- tras 30 segundos sin desplazamiento en plataforma empiezan a caer rocas;
-- fórmula reportada para técnicas: `daño total = Cosmos × (Daño / 100)`.
+- Huffman encoding to provide substantially more translated-text space;
+- graphics editing;
+- misc translation work;
+- v1.01 fix to password output after game over.
 
-Fuente secundaria para reproducir y verificar:
-- https://gamefaqs.gamespot.com/nes/562974-saint-seiya-ougon-densetsu-kanketsu-hen/faqs/74512/2-como-jugar
+### Why this matters
 
-## Personajes y bosses
+The IPS is not a replacement source ROM and is not our localization source. It is a highly valuable **binary differential**:
 
-Valores iniciales reportados para aliados:
+`canonical Japanese ROM + IPS records -> locations changed by translation hack`
 
-- Seiya: Life 99, Cosmo 99
-- Shiryu: Life 99, Cosmo 99
-- Hyoga: Life 99, Cosmo 99
-- Shun: Life 99, Cosmo 99
-- Ikki: Life 499, Cosmo 499
+Once its binary records are materialized locally, we can classify changed ranges by PRG/CHR bank and cross-reference them with our existing code map. That should sharply reduce the search space for:
 
-La guía también enumera Life/Cosmo/EXP de bosses y técnicas. Estos valores sirven como patrones de búsqueda y validación de tablas de datos.
+- text renderer;
+- original text storage/index tables;
+- any inserted Huffman decoder;
+- font/CHR modifications;
+- password-output modifications.
 
-Fuente:
-- https://gamefaqs.gamespot.com/nes/562974-saint-seiya-ougon-densetsu-kanketsu-hen/faqs/74512/3-personajes
+Current connector access exposes the IPS metadata/path but rejects its binary body as non-UTF-8, so the patch has not yet been locally diffed. Do not infer its internal offsets until we possess the actual IPS records.
 
-## Mecánicas de combate observadas por TAS
+## Portuguese/French derivatives
 
-La investigación TAS de eien86 describe una ventana temporal para parry de ataques de Gold Saints con probabilidad aproximada del 50%. También señala que Cosmo y HP pueden ajustarse al llegar a un templo y que el password system fue descifrado empíricamente por el autor.
+Other translations were based on the English hack. They are secondary technical evidence only. They must not become the canonical source for Spanish text.
 
-La optimización de Maomao (2026) aporta condiciones observables adicionales:
+## Localization rule
 
-- Life > 109 evita determinadas secuencias de diálogo de boss;
-- elección de técnica afecta no sólo daño sino duración de animación y resolución;
-- el estado del boss puede resolverse por evento narrativo sin una muerte convencional (Gemini);
-- rutas y glitches dependen de X/Y y posición de cámara;
-- daño intencional en un templo puede preparar un estado favorable varios templos después;
-- distribución anticipada de Cosmo entre personajes afecta estrategias posteriores.
+Narrative/text authority remains:
 
-Fuentes:
-- https://tasvideos.org/8397S
-- https://tasvideos.org/10683S
+`Japanese ROM -> semantic extraction/context -> direct Spanish localization`
 
-Estas observaciones sugieren que ORIGINAL SPEC debe modelar explícitamente diálogo/flags, persistencia entre templos, cámara y battle resolution, no sólo HP/daño.
+English, Portuguese and French patches may help recover engineering details or resolve ambiguous context, but Spanish must not be produced by mechanically translating those patches.
 
-## RAM anchors externos
+## Public guides as behavioral evidence
 
-GameHacking.org publica cheats para la revisión con CRC de payload `9561798D`. Entre las direcciones reportadas:
+Modern guides independently document:
 
-- `$0059/$005A`: Cosmo (fuente VisitntX)
-- `$0063/$0064`: Energy/Life (fuente VisitntX)
-- `$05AA/$05AB`: Seven Senses
-- `$05BC`: Cosmo (fuente ReyVGM)
-- `$05CF`: Energy/Life (fuente ReyVGM)
-- `$0076`: invulnerability/flashing
+- five playable Bronze Saints: Seiya, Shiryu, Hyoga, Shun and Ikki;
+- platform controls including crouch, normal/high jump and attack;
+- initial character-specific Life/Cosmo differences;
+- story-specific character availability and forced-character sequences;
+- known 31-kana passwords including maximum-stat fixtures.
 
-Fuente:
-- https://gamehacking.org/game/30740
+These guides are useful test vectors, not substitutes for code evidence.
 
-La existencia de dos ubicaciones distintas para conceptos similares hace especialmente importante distinguir valores canónicos de copias/buffers y contextos (plataforma vs combate vs configuración).
+## Research priorities derived from external work
 
-## Traducciones / romhacks como diferenciales
-
-La traducción inglesa aishsha/Djinn v1.01 documenta explícitamente:
-
-- hacking del juego;
-- edición gráfica;
-- trabajo sobre codificación Huffman para disponer de mucho más espacio de texto;
-- corrección posterior del password mostrado tras game over.
-
-Esto la convierte en un excelente binario diferencial para localizar texto, renderer, password y expansión/relocalización de datos.
-
-Una traducción PT-BR posterior declara estar basada en esa traducción inglesa. No se usará como fuente canónica para español.
-
-Referencias:
-- romhacking.net translation 1487 / mirrors de documentación pública
-- https://joao13traducoes.com/2018/03/nes-saint-seiya-ougon-densetsu-kanketsu-kanketsu-hen-luis-victor/
-
-## Política de localización
-
-El texto final de REBORN será español, traducido desde la fuente japonesa siempre que sea posible. Inglés, portugués y guías modernas son referencias contextuales y técnicas, no cadena de traducción primaria.
+1. Use public password fixtures to validate the clean-room password decoder.
+2. Map internal Saint indices to names from ROM behavior, not guide ordering assumptions.
+3. Recover the English IPS bytes and classify its changed ranges.
+4. Compare text-hack modifications against bank 6/fixed-bank rendering routines.
+5. Reproduce TAS RAM-watch semantics dynamically when debugger execution becomes available.
