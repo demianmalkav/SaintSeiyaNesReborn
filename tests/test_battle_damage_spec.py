@@ -49,8 +49,8 @@ class BattleDamageSpecTests(unittest.TestCase):
 
     def test_any_mitigation_tier_above_one_is_only_quarter(self):
         self.assertEqual(
-            opponent_attack_drain(999, 10, 2),
-            opponent_attack_drain(999, 10, 99),
+            opponent_attack_drain(999, 10, 2, mitigation_tier=2),
+            opponent_attack_drain(999, 10, 2, mitigation_tier=99),
         )
 
 
