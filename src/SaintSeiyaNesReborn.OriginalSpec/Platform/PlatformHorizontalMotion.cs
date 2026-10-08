@@ -86,7 +86,7 @@ public static class PlatformHorizontalMotion
         PlatformCollisionDescriptors probes,
         byte step)
     {
-        if (!stage.CanMoveRight(probes))
+        if (!PlatformStageMap.CanMoveRight(probes, stage.Substate))
             return new PlatformHorizontalStepResult(state, false, false, true, false);
 
         var cap = ScrollHighCapForSubstate(stage.Substate);
@@ -137,7 +137,7 @@ public static class PlatformHorizontalMotion
         PlatformCollisionDescriptors probes,
         byte step)
     {
-        if (!stage.CanMoveLeft(probes))
+        if (!PlatformStageMap.CanMoveLeft(probes, stage.Substate))
             return new PlatformHorizontalStepResult(state, false, false, true, false);
 
         // The grounded left path never scrolls the camera backward. It only
