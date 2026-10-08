@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Clean-room decoder for Saint Seiya: Ougon Densetsu Kanketsu Hen passwords.
 
-This implements the behavior reverse engineered from the canonical Japanese
-ROM. Input is the 31 numeric grid indices (0-based) used by the game's
-password screen, not Japanese text glyphs.
+This implements behavior reverse engineered from the canonical Japanese ROM.
+Input is the 31 numeric grid indices (0-based) used by the game's password
+screen, not Japanese text glyphs.
 
 The current tool focuses on decoding because it is already sufficient for
 compatibility/import tests. The original encoder has an asymmetry in its
@@ -25,21 +25,26 @@ class PasswordError(ValueError):
 
 @dataclass(frozen=True)
 class SaintRecord:
-    """One persistent Saint record reconstructed from the password payload."""
+    """One persistent Saint record reconstructed from the password payload.
 
-    cosmo_low_bcd: int
-    cosmo_hundreds: int
+    Original five-byte order is:
+    [Life low-two BCD digits, Life hundreds, Cosmo low-two BCD digits,
+     Cosmo hundreds, auxiliary].
+    """
+
     life_low_bcd: int
     life_hundreds: int
+    cosmo_low_bcd: int
+    cosmo_hundreds: int
     auxiliary: int
-
-    @property
-    def cosmo(self) -> int:
-        return self.cosmo_hundreds * 100 + bcd_byte_to_int(self.cosmo_low_bcd)
 
     @property
     def life(self) -> int:
         return self.life_hundreds * 100 + bcd_byte_to_int(self.life_low_bcd)
+
+    @property
+    def cosmo(self) -> int:
+        return self.cosmo_hundreds * 100 + bcd_byte_to_int(self.cosmo_low_bcd)
 
 
 @dataclass(frozen=True)
@@ -121,17 +126,30 @@ def decode_symbols(values: Iterable[int]) -> DecodedPassword:
 
     saints: list[SaintRecord] = []
     for i in range(4):
-        a, c, e, packed_high = payload[i * 4 : i * 4 + 4]
-        b = (packed_high >> 4) & 0x0F
-        d = packed_high & 0x0F
+        life_low, cosmo_low, auxiliary, packed_high = payload[i * 4 : i * 4 + 4]
+        life_hundreds = (packed_high >> 4) & 0x0F
+        cosmo_hundreds = packed_high & 0x0F
 
         # The original decoder validates the decimal-bearing fields.
-        bcd_byte_to_int(a)
-        bcd_byte_to_int(c)
-        if b > 9 or d > 9 or e >= 0x9A or (e & 0x0F) > 9:
+        bcd_byte_to_int(life_low)
+        bcd_byte_to_int(cosmo_low)
+        if (
+            life_hundreds > 9
+            or cosmo_hundreds > 9
+            or auxiliary >= 0x9A
+            or (auxiliary & 0x0F) > 9
+        ):
             raise PasswordError(f"invalid Saint record {i}")
 
-        saints.append(SaintRecord(a, b, c, d, e))
+        saints.append(
+            SaintRecord(
+                life_low,
+                life_hundreds,
+                cosmo_low,
+                cosmo_hundreds,
+                auxiliary,
+            )
+        )
 
     # $05AA is the lower two decimal digits, $05AB the upper two.
     low_ss = bcd_byte_to_int(payload[16])
@@ -186,10 +204,10 @@ def known_999_fixture() -> list[int]:
 def _self_test() -> None:
     decoded = decode_symbols(known_999_fixture())
     assert len(decoded.saints) == 4
-    assert all(s.cosmo == 999 for s in decoded.saints)
     assert all(s.life == 999 for s in decoded.saints)
+    assert all(s.cosmo == 999 for s in decoded.saints)
     assert decoded.seventh_sense == 9999
-    print("OK: public 999 password decodes to four Saints at 999/999 and Seventh Sense 9999")
+    print("OK: public 999 password -> four Saints at Life/Cosmo 999, Seventh Sense 9999")
     print("payload:", " ".join(f"{b:02X}" for b in decoded.payload))
 
 
