@@ -124,6 +124,36 @@ Equal(0x50, PlatformStageMap.OrdinaryCenterFloorSnap(0x90, 0x52)!.Value, "Normal
 Equal(0x58, PlatformStageMap.OrdinaryCenterFloorSnap(0xF0, 0x5A)!.Value, "Half-row floor snap");
 True(PlatformStageMap.OrdinaryCenterFloorSnap(0xFF, 0x5A) is null, "$FF uses dynamic floor path");
 
+// Platform completion is a coordinate gate plus jump-phase predicate, not raw stage width.
+var mainExitGate = PlatformExitGate.ForSubstate(0x00);
+Equal(0xD0, mainExitGate.MinimumPlayerX, "Main exit min X");
+Equal(0x40, mainExitGate.RequiredPlayerY, "Main exit Y");
+Equal(
+    PlatformExitTransitionKind.State3DReload,
+    PlatformExitGate.Evaluate(0x00, PlatformSaintIndex.Seiya, 0xD0, 0x40, jumpPhase: 0)!.Value,
+    "Main stage exit transition");
+True(
+    PlatformExitGate.Evaluate(0x00, PlatformSaintIndex.Seiya, 0xCF, 0x40, jumpPhase: 0) is null,
+    "Main exit rejects X before threshold");
+True(
+    PlatformExitGate.Evaluate(0x00, PlatformSaintIndex.Seiya, 0xD0, 0x40, jumpPhase: 1) is null,
+    "Main exit rejects active jump");
+
+var special0C = PlatformExitGate.ForSubstate(0x0C);
+Equal(0x88, special0C.MinimumPlayerX, "$0C exit X");
+Equal(0x20, special0C.RequiredPlayerY, "$0C exit Y");
+True(
+    PlatformExitGate.Evaluate(0x10, PlatformSaintIndex.Shun, 0xB4, 0x70, jumpPhase: 0) is null,
+    "$10 exit explicitly rejects Shun");
+Equal(
+    PlatformExitTransitionKind.State3DReload,
+    PlatformExitGate.Evaluate(0x10, PlatformSaintIndex.Seiya, 0xB4, 0x70, jumpPhase: 0)!.Value,
+    "$10 exit accepts another Saint");
+Equal(
+    PlatformExitTransitionKind.State70Special,
+    PlatformExitGate.Evaluate(0x11, PlatformSaintIndex.Seiya, 0xD0, 0x50, jumpPhase: 0)!.Value,
+    "$11 uses special state-70 exit");
+
 // State-family extraction keeps low directional bits separate.
 Equal((byte)0x30, PlatformActionState.Family(0x33), "Jump family mask");
 Equal(3, PlatformActionState.JumpDirectionalBits(0x33), "Jump low directional bits");
