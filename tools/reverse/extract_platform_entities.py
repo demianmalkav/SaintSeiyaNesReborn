@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Extract neutral platform entity archetypes/schedules from the canonical ROM.
+"""Extract secondary platform spawn archetypes/schedules from the canonical ROM.
 
 The script contains no ROM payload. It reads a user-owned iNES image and emits
-JSON describing the reverse-engineered spawn schedule and five numeric entity
-archetypes. Visual graphics remain in the ROM and are not exported.
+JSON describing the reverse-engineered *secondary spawn* schedule and five
+numeric archetypes used by the $03DA/$03EA object path. These must not be
+conflated with the two common movable entity slots at $03BA/$03CA.
+
+Visual graphics remain in the ROM and are not exported.
 """
 
 from __future__ import annotations
@@ -60,7 +63,7 @@ def main() -> None:
 
     banks = load_banks(args.rom, args.force)
 
-    # Bank 1 $9C92-$9CA5: five 4-byte archetypes.
+    # Bank 1 $9C92-$9CA5: five 4-byte secondary-spawn archetypes.
     raw_archetypes = switched(banks, 1, 0x9C92, 5 * 4)
     visual_types = fixed(banks, 0xC169, 5)
     archetypes = []
@@ -75,7 +78,7 @@ def main() -> None:
                 "life_drain_ticks": life_ticks,
                 "seventh_sense_reward": reward,
                 "reward_packed_bcd": f"0x{reward_bcd:02X}",
-                "visual_object_type": f"0x{visual_types[entity_id]:02X}",
+                "initial_visual_tile": f"0x{visual_types[entity_id]:02X}",
             }
         )
 
@@ -93,23 +96,25 @@ def main() -> None:
         values = schedule_by_pointer.get(pointer)
         schedules.append(
             {
-                "engine_substate_02": f"0x{substate:02X}",
+                "platform_substate_02": f"0x{substate:02X}",
                 "pointer": f"0x{pointer:04X}",
-                "page_archetypes": values if values is not None else [],
+                "page_secondary_archetypes": values if values is not None else [],
             }
         )
 
     payload = {
-        "format": "SaintSeiyaNesReborn.PlatformEntitySchedule.v1",
+        "format": "SaintSeiyaNesReborn.PlatformSecondarySpawnSchedule.v2",
         "source_core_crc32": f"{CANONICAL_CORE_CRC32:08X}",
         "notes": {
             "page_index_ram": "$45",
-            "substate_ram": "$02",
+            "platform_substate_ram": "$02",
+            "secondary_records": "$03DA/$03EA",
+            "common_entity_records_not_described_here": "$03BA/$03CA",
             "archetype_table": "PRG bank 1 $9C92-$9CA5",
             "schedule_pointer_table": "PRG bank 1 $9C24-$9C47",
-            "visual_type_table": "fixed bank $C169",
+            "initial_visual_tile_table": "fixed bank $C169",
         },
-        "archetypes": archetypes,
+        "secondary_archetypes": archetypes,
         "schedules": schedules,
     }
 
