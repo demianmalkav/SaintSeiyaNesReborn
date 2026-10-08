@@ -24,6 +24,14 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$E589` | `mmc1_set_prg_synchronized` | PROVISIONAL | synchronized persistent PRG path |
 | `$E5B7` | `mmc1_set_prg_transient_sync` | PROVISIONAL | synchronized transient PRG switch |
 | `$E99F` | `upload_selector_palette` | CONFIRMED | `$0616-$0625` -> PPU `$3F00-$3F0F` |
+| `$F31E` | `add_scripted_seventh_sense_hundreds_bcd` | CONFIRMED | adds packed BCD to upper two Seventh-Sense digits; scripted rewards in hundreds |
+| `$FBCF` | `increment_active_life` | CONFIRMED | +1 Life if below selected Saint cap |
+| `$FC2E` | `decrement_active_life` | CONFIRMED | -1 Life if nonzero |
+| `$FCC7` | `increment_active_cosmo` | CONFIRMED | +1 Cosmo if below selected Saint cap |
+| `$FD26` | `decrement_active_cosmo` | CONFIRMED | -1 Cosmo if nonzero |
+| `$FDE0` | `increment_seventh_sense_one` | CONFIRMED | +1 Seventh Sense, cap 9999 |
+| `$FE26` | `decrement_seventh_sense_one` | CONFIRMED | -1 Seventh Sense if nonzero |
+| `$FEC6` | `format_seventh_sense_digits` | CONFIRMED | expands `$05AA/$05AB` nibbles for display |
 
 ## PRG bank 0
 
@@ -43,7 +51,7 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$B595` | `select_tilemap_column` | CONFIRMED role | converts world X to 16-pixel tile column/address |
 | `$B5C6` | `read_tilemap_cell` | CONFIRMED role | adds 16-pixel Y row and returns tile/class byte |
 
-## PRG bank 1 — Saint stats / movement / combat scaling
+## PRG bank 1 — Saint stats / movement / resource economy
 
 | Address | Symbol | Status | Meaning |
 |---:|---|---|---|
@@ -59,6 +67,8 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$98BA` | `clear_platform_temporaries` | PROVISIONAL | clears gameplay temporary state including `$76/$7F/$80` |
 | `$9F29` | `upload_one_palette_triplet` | CONFIRMED | writes universal `$0F` plus three colors to PPU palette |
 | `$9F46` | `internal_saint_palette_ptrs` | CONFIRMED table role | five internal-index pointers to 3-color player palettes |
+| `$AB10` | `load_store_selected_saint_resources` | CONFIRMED role | moves selected persistent Life/Cosmo/caps to/from `$05BC-$05D0` |
+| `$AB4E` | `unpack_selected_saint_cap_byte` | CONFIRMED role | low nibble -> Cosmo boundary `$05BE`; high nibble -> Life boundary `$05D0` |
 
 ## PRG bank 3 — platform player/combat
 
@@ -120,7 +130,7 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$56` | `collision_upper_center` | CONFIRMED geometry |
 | `$59-$62` | `saint_life_bcd[5]` | CONFIRMED semantic |
 | `$63-$6C` | `saint_cosmo_bcd[5]` | CONFIRMED semantic |
-| `$6D-$71` | `saint_aux_stat[5]` | UNKNOWN semantic |
+| `$6D-$71` | `saint_resource_caps[5]` | CONFIRMED — high nibble Life boundary, low nibble Cosmo boundary |
 | `$72` | `platform_attack_damage` | CONFIRMED |
 | `$76` | `player_hit_invulnerability_timer` | CONFIRMED ordinary-hit duration 32 |
 | `$7F` | `pending_life_drain_ticks` | CONFIRMED — 2 Life/tick |
@@ -133,6 +143,10 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$0533` | `current_saint_canonical_selector` | CONFIRMED — `0 Seiya, 1 Hyoga, 2 Shun, 3 Shiryu, 4 Ikki` |
 | `$058C-$05A4` | `saint_stat_snapshot[5][5]` | CONFIRMED canonical character order |
 | `$05AA/$05AB` | `seventh_sense_bcd` | CONFIRMED semantic with fixture |
+| `$05BC/$05BD` | `active_cosmo_bcd` | CONFIRMED selected-Saint working value |
+| `$05BE` | `active_cosmo_hundreds_boundary` | CONFIRMED exclusive cap boundary |
+| `$05CE/$05CF` | `active_life_bcd` | CONFIRMED selected-Saint working value |
+| `$05D0` | `active_life_hundreds_boundary` | CONFIRMED exclusive cap boundary |
 | `$0616-$0625` | `staged_character_palette` | CONFIRMED |
 | `$0639/$063A` | `sync_prg_bank_requested/transient` | PROVISIONAL |
 | `$063E/$063F` | `sync_prg_critical_flags` | PROVISIONAL |
