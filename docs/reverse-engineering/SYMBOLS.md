@@ -17,6 +17,7 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$C458` | `password_stage_state` | CONFIRMED | persistent state -> password staging buffer |
 | `$C4E4` | `read_platform_controllers` | CONFIRMED | controller 1/2 -> `$3D/$3E` |
 | `$C52F` | `compute_platform_attack_damage_wrapper` | CONFIRMED | maps bank 1 and calls `$8616` |
+| `$D1E0` | `add_seventh_sense_reward_bcd` | CONFIRMED | adds A as two-digit BCD to `$05AA/$05AB`, clamps 9999 |
 | `$D269` | `nmi_main` | CONFIRMED | OAM DMA, PPU update, state dispatch, temporary banking |
 | `$DA13` | `main_initializer` | CONFIRMED | global init / top-level dispatch setup |
 | `$E505` | `internal_canonical_saint_index_map` | CONFIRMED | involution `[0,2,1,3,4]`, converts `$03 <-> $0533` |
@@ -152,7 +153,7 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$0C` | entity HP | CONFIRMED ordinary damage path |
 | `$0D` | Cosmo-drain ticks inflicted on player | CONFIRMED |
 | `$0E` | Life-drain ticks inflicted on player | CONFIRMED |
-| `$0F` | death/reward/event value | PROVISIONAL exact semantics |
+| `$0F` | `seventh_sense_reward_bcd` | CONFIRMED — added by `$D1E0`, saturates 9999 |
 
 ## Character index domains
 
