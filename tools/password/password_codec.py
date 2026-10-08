@@ -29,14 +29,18 @@ class SaintRecord:
 
     Original five-byte order is:
     [Life low-two BCD digits, Life hundreds, Cosmo low-two BCD digits,
-     Cosmo hundreds, auxiliary].
+     Cosmo hundreds, packed resource-cap byte].
+
+    The cap byte stores exclusive hundreds boundaries:
+    high nibble = Life boundary, low nibble = Cosmo boundary.
+    For the normal values used by the game, maximum = boundary*100 - 1.
     """
 
     life_low_bcd: int
     life_hundreds: int
     cosmo_low_bcd: int
     cosmo_hundreds: int
-    auxiliary: int
+    cap_byte: int
 
     @property
     def life(self) -> int:
@@ -45,6 +49,28 @@ class SaintRecord:
     @property
     def cosmo(self) -> int:
         return self.cosmo_hundreds * 100 + bcd_byte_to_int(self.cosmo_low_bcd)
+
+    @property
+    def life_cap_boundary(self) -> int:
+        return (self.cap_byte >> 4) & 0x0F
+
+    @property
+    def cosmo_cap_boundary(self) -> int:
+        return self.cap_byte & 0x0F
+
+    @staticmethod
+    def _boundary_to_max(boundary: int) -> int:
+        # Boundary zero is not observed for normal initialized Saints; expose
+        # it conservatively as zero rather than inventing a negative maximum.
+        return max(0, boundary * 100 - 1)
+
+    @property
+    def life_max(self) -> int:
+        return self._boundary_to_max(self.life_cap_boundary)
+
+    @property
+    def cosmo_max(self) -> int:
+        return self._boundary_to_max(self.cosmo_cap_boundary)
 
 
 @dataclass(frozen=True)
@@ -126,18 +152,21 @@ def decode_symbols(values: Iterable[int]) -> DecodedPassword:
 
     saints: list[SaintRecord] = []
     for i in range(4):
-        life_low, cosmo_low, auxiliary, packed_high = payload[i * 4 : i * 4 + 4]
+        life_low, cosmo_low, cap_byte, packed_high = payload[i * 4 : i * 4 + 4]
         life_hundreds = (packed_high >> 4) & 0x0F
         cosmo_hundreds = packed_high & 0x0F
 
-        # The original decoder validates the decimal-bearing fields.
+        # The original decoder validates decimal-bearing fields, including
+        # both nibbles of the packed cap byte.
         bcd_byte_to_int(life_low)
         bcd_byte_to_int(cosmo_low)
+        life_cap_boundary = (cap_byte >> 4) & 0x0F
+        cosmo_cap_boundary = cap_byte & 0x0F
         if (
             life_hundreds > 9
             or cosmo_hundreds > 9
-            or auxiliary >= 0x9A
-            or (auxiliary & 0x0F) > 9
+            or life_cap_boundary > 9
+            or cosmo_cap_boundary > 9
         ):
             raise PasswordError(f"invalid Saint record {i}")
 
@@ -147,7 +176,7 @@ def decode_symbols(values: Iterable[int]) -> DecodedPassword:
                 life_hundreds,
                 cosmo_low,
                 cosmo_hundreds,
-                auxiliary,
+                cap_byte,
             )
         )
 
@@ -208,6 +237,7 @@ def _self_test() -> None:
     assert all(s.cosmo == 999 for s in decoded.saints)
     assert decoded.seventh_sense == 9999
     print("OK: public 999 password -> four Saints at Life/Cosmo 999, Seventh Sense 9999")
+    print("caps:", [f"0x{s.cap_byte:02X}" for s in decoded.saints])
     print("payload:", " ".join(f"{b:02X}" for b in decoded.payload))
 
 
