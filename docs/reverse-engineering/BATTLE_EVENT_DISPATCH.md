@@ -2,22 +2,70 @@
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: dispatcher topology and call timing are confirmed statically. Individual handler semantics are being promoted stage by stage.
+Status: four stage-indexed dispatcher families are confirmed statically. Individual handler semantics are being promoted stage by stage.
 
-## Two distinct per-stage dispatchers
+## Stage-indexed architecture
 
-PRG bank 5 contains two neighboring indirect-dispatch tables indexed by `$050E`.
+PRG bank 5 repeatedly uses the same pattern:
 
-### `$A361` — post-Bronze-action dispatcher
+`LDA $050E -> JSR $E698 -> inline pointer table`
+
+`$E698` is the shared indirect dispatcher. Four important tables are now isolated.
+
+## 1. `$97DB` — battle/stage initialization dispatcher
+
+Pointer table at `$97E1`:
+
+| Stage | Handler |
+|---:|---:|
+| 0 | `$97F7` |
+| 1 | `$97F8` |
+| 2 | `$981F` |
+| 3 | `$9851` |
+| 4 | `$989D` |
+| 5 | `$9A28` |
+| 6 | `$9ACE` |
+| 7 | `$9ACF` |
+| 8 | `$9B14` |
+| 9 | `$9B5C` |
+| 10 | `$9B5D` |
+| 11 | `$A960` |
+| 12 | special pointer/data context; still being classified |
+
+These routines establish stage-local counters, dialogue/setup state and transitions before/when entering the encounter.
+
+## 2. `$9C95` — Talk / interaction dispatcher
+
+Pointer table at `$9C9B`:
+
+| Stage | Handler |
+|---:|---:|
+| 0 | `$9CB7` |
+| 1 | `$9D2C` |
+| 2 | `$9D81` |
+| 3 | `$9D96` |
+| 4 | `$9DD8` |
+| 5 | `$9E1B` |
+| 6 | `$9E51` |
+| 7 | `$9ED6` |
+| 8 | `$9F00` |
+| 9 | `$9F99` |
+| 10 | `$9FF4` |
+| 11 | `$9FF4` |
+| 12 | `$A1AD` |
+
+Stage 1 proves the role particularly clearly: its handler advances a conversation counter and, on the second conversation phase, increments the Gold-Saint attack weakening tier `$0681`.
+
+## 3. `$A361` — post-Bronze-action dispatcher
 
 Fixed-bank callers:
 
 - `$F83F` in a special battle branch;
 - `$F932` after the player action/attack flow.
 
-The table starts at `$A367` and contains:
+Pointer table at `$A367`:
 
-| Stage `$050E` | Handler |
+| Stage | Handler |
 |---:|---:|
 | 0 | `$A3A1` |
 | 1 | `$A3A2` |
@@ -33,15 +81,15 @@ The table starts at `$A367` and contains:
 | 11 | `$A3A1` |
 | 12 | `$A3A1` |
 
-`$A3A1` is an `RTS`, so stage 0 and special trailing contexts have no ordinary post-Bronze battle script here.
+`$A3A1` is `RTS`.
 
-### `$A381` — post-Gold-response dispatcher
+## 4. `$A381` — post-Gold-response dispatcher
 
-Fixed `$FA86` invokes this after the Gold Saint attack/dodge/damage phase and resource display refresh.
+Fixed `$FA86` invokes this after Gold-Saint attack selection, dodge resolution, damage (if any) and resource refresh.
 
-The table starts at `$A387`:
+Pointer table at `$A387`:
 
-| Stage `$050E` | Handler |
+| Stage | Handler |
 |---:|---:|
 | 0 | `$A3A1` |
 | 1 | `$A415` |
@@ -59,7 +107,7 @@ The table starts at `$A387`:
 
 ## Stage identity
 
-The opponent initialization records and independently published boss stats match exactly, giving the following externally corroborated mapping:
+Opponent initialization records and independently published boss stats match exactly, giving the following externally corroborated mapping:
 
 | Stage | Battle context |
 |---:|---|
@@ -74,40 +122,42 @@ The opponent initialization records and independently published boss stats match
 | 8 | Aquarius — Camus |
 | 9 | Pisces — Aphrodite |
 | 10 | Pope/Saga |
-| 11–12 | special/final contexts, ordinary stage handlers disabled |
+| 11–12 | special/final contexts |
 
-The numeric stage index remains the ROM-canonical identity; names are secondary labels until the text/portrait engine is tied internally.
+The numeric stage index remains ROM-canonical; names are secondary labels until text/portrait data is internally tied to those indices.
 
 ## Architectural consequence
 
-A Gold Saint battle is not one monolithic state machine. At minimum it composes:
+A Gold Saint encounter is not one monolithic state machine. It composes at least:
 
-1. command/technique selection;
-2. Bronze attack hit gate (`$06BC`);
-3. Bronze damage application;
-4. **post-Bronze per-stage handler** (`$A361` table);
-5. Gold technique selection (`$0680`);
-6. dodge window and Gold damage;
-7. **post-Gold per-stage handler** (`$A381` table);
-8. dialogue/reward/phase transitions;
-9. next turn or battle termination.
+1. stage initialization dispatcher;
+2. command selection;
+3. Talk/interaction dispatcher when chosen;
+4. Bronze technique selection;
+5. Bronze attack hit gate (`$06BC`);
+6. Bronze damage application;
+7. post-Bronze stage handler;
+8. Gold technique selection (`$0680`);
+9. dodge window and Gold damage;
+10. post-Gold stage handler;
+11. dialogue/reward/phase transitions;
+12. next turn or battle termination.
 
-This is the structure the native remake should preserve semantically before any REBORN redesign.
+This is the semantic architecture to preserve before REBORN expands presentation or mechanics.
 
 ## Frequently used per-battle state
-
-The stage handlers repeatedly use:
 
 - `$EA` — player coarse condition (`FF` defeated, `00` above threshold, `01` alive/below threshold);
 - `$EB` — opponent coarse condition with the same encoding;
 - `$064D/$064E` — stage-local event/phase counters;
+- `$066F` — conversation/progression counter in several stage Talk handlers;
 - `$0677/$0678` — failed/successful Gold-attack dodge counters;
 - `$0681` — Gold attack weakening tier;
 - `$0690` — scripted player-hit block;
 - `$06CE-$06D0` — multi-phase story/battle state used heavily in Gemini/Saga-related paths;
 - `$06BC` — current Bronze attack hit token.
 
-The exact meaning of `$064D/$064E` varies by handler and should not be globally renamed beyond `battle_event_counter_a/b` yet.
+These locations are structurally reusable but some counter semantics remain stage-specific.
 
 ## Next stage-by-stage work
 
