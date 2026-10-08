@@ -16,6 +16,7 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$C100` | `reset` | CONFIRMED | reset/bootstrap entry |
 | `$C458` | `password_stage_state` | CONFIRMED | persistent state -> password staging buffer |
 | `$C4E4` | `read_platform_controllers` | CONFIRMED | controller 1/2 -> `$3D/$3E` |
+| `$C52F` | `compute_platform_attack_damage_wrapper` | CONFIRMED | maps bank 1 and calls `$8616` |
 | `$D269` | `nmi_main` | CONFIRMED | OAM DMA, PPU update, state dispatch, temporary banking |
 | `$DA13` | `main_initializer` | CONFIRMED | global init / top-level dispatch setup |
 | `$E505` | `internal_canonical_saint_index_map` | CONFIRMED | involution `[0,2,1,3,4]`, converts `$03 <-> $0533` |
@@ -41,28 +42,37 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$B595` | `select_tilemap_column` | CONFIRMED role | converts world X to 16-pixel tile column/address |
 | `$B5C6` | `read_tilemap_cell` | CONFIRMED role | adds 16-pixel Y row and returns tile/class byte |
 
-## PRG bank 1 — Saint stats / movement support
+## PRG bank 1 — Saint stats / movement / combat scaling
 
 | Address | Symbol | Status | Meaning |
 |---:|---|---|---|
-| `$8616` | `draw_current_saint_cosmo` | PROVISIONAL | formats selected Saint `$63/$64` value for UI |
+| `$8611` | `platform_damage_base_by_internal_saint` | CONFIRMED table role | `[19,25,21,17,15]` = Seiya/Shun/Hyoga/Shiryu/Ikki |
+| `$8616` | `compute_platform_attack_damage` | CONFIRMED | current Saint + Cosmo -> `$72` |
 | `$9211` | `derive_movement_increments` | PROVISIONAL | derives `$0387-$0389` from Saint/frame state |
-| `$9299` | `consume_current_saint_life` | PROVISIONAL | packed-decimal decrement in `$59/$5A` family |
-| `$9311` | `consume_current_saint_cosmo` | PROVISIONAL | packed-decimal decrement in `$63/$64` family |
+| `$927A` | `apply_platform_life_drain` | CONFIRMED behavior | while `$7F>0`, decrement timer and subtract 2 Life/tick |
+| `$9299` | `subtract_two_current_saint_life` | CONFIRMED behavior | packed-decimal Life decrement in `$59-$62` |
+| `$930A` | `apply_platform_cosmo_drain` | CONFIRMED behavior | while `$80>0`, decrement timer and subtract 1 Cosmo/tick |
+| `$9311` | `subtract_one_current_saint_cosmo` | CONFIRMED behavior | packed-decimal Cosmo decrement in `$63-$6C` |
 | `$951F` | `snapshot_all_saint_stats` | CONFIRMED | internal order -> canonical snapshot order |
 | `$9720` | `restore_all_saint_stats` | CONFIRMED | canonical snapshot -> internal active arrays |
-| `$98BA` | `clear_platform_temporaries` | PROVISIONAL | clears gameplay temporary state including `$76` |
+| `$98BA` | `clear_platform_temporaries` | PROVISIONAL | clears gameplay temporary state including `$76/$7F/$80` |
 | `$9F29` | `upload_one_palette_triplet` | CONFIRMED | writes universal `$0F` plus three colors to PPU palette |
 | `$9F46` | `internal_saint_palette_ptrs` | CONFIRMED table role | five internal-index pointers to 3-color player palettes |
 
-## PRG bank 3 — platform player/attacks
+## PRG bank 3 — platform player/combat
 
 | Address | Symbol | Status | Meaning |
 |---:|---|---|---|
+| `$98BA` | `entity_hits_player` | CONFIRMED behavior | entity-vs-player overlap; loads drain counters and `$76=32` |
+| `$9915` | `player_attacks_entity` | CONFIRMED behavior | checks three attack slots against current entity |
+| `$992A` | `test_attack_slot_vs_entity` | CONFIRMED behavior | point-vs-parameterized-rectangle hit test |
+| `$99BA` | `apply_attack_damage_to_entity` | CONFIRMED behavior | enemy HP offset `$0C` minus `$72` |
+| `$9A27` | `retire_attack_for_hyoga_shiryu` | CONFIRMED behavior | collision helper deactivates attack only for internal 2/3 |
+| `$9A3F/$9A4C/$9A59` | `select_attack_slot_0/1/2` | CONFIRMED | OAM records `$0730/$0738/$0740`, counters `$038E-$0390` |
 | `$A311` | `update_shun_extend_retract_attack` | CONFIRMED character-specific role | type `$54`, extends then retracts using `$0391` |
 | `$AB3F` | `platform_horizontal_move` | PROVISIONAL | horizontal movement, collision and camera handoff |
 | `$B87D` | `platform_vertical_phase` | PROVISIONAL | fall/vertical collision phase |
-| `$B94B` | `platform_sync_player_record` | PROVISIONAL | player/action -> collision/render working fields |
+| `$B94B` | `platform_sync_player_record` | PROVISIONAL | player/action -> collision/render working fields; decrements `$76` |
 | `$BB76` | `platform_jump_input` | PROVISIONAL | A jump; horizontal low-bit state; Up high-jump modifier |
 | `$BBCA` | `platform_attack_input` | CONFIRMED input role | B attack path / character-specific projectile selection |
 | `$BCD3` | `platform_jump_curve_step` | CONFIRMED behavior | chooses/consumes table-driven jump profile |
@@ -110,7 +120,10 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$59-$62` | `saint_life_bcd[5]` | CONFIRMED semantic |
 | `$63-$6C` | `saint_cosmo_bcd[5]` | CONFIRMED semantic |
 | `$6D-$71` | `saint_aux_stat[5]` | UNKNOWN semantic |
-| `$76` | `invulnerability_timer` | PROVISIONAL |
+| `$72` | `platform_attack_damage` | CONFIRMED |
+| `$76` | `player_hit_invulnerability_timer` | CONFIRMED ordinary-hit duration 32 |
+| `$7F` | `pending_life_drain_ticks` | CONFIRMED — 2 Life/tick |
+| `$80` | `pending_cosmo_drain_ticks` | CONFIRMED — 1 Cosmo/tick |
 | `$020A` | `menu_input_held` | CONFIRMED |
 | `$020B` | `menu_input_pressed` | CONFIRMED |
 | `$0387-$0389` | `air_horizontal_delta_*` | PROVISIONAL exact naming |
@@ -128,15 +141,24 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$06EE` | `password_position` | CONFIRMED |
 | `$0700-$07FF` | `oam_shadow` | CONFIRMED |
 
+## Platform entity-record fields (pointer `$16/$17`)
+
+| Offset | Symbol/meaning | Status |
+|---:|---|---|
+| `0` | entity state/status family | CONFIRMED structural role |
+| `1` | entity X | CONFIRMED |
+| `2` | entity Y | CONFIRMED |
+| `9` | entity type/class | CONFIRMED structural role |
+| `$0C` | entity HP | CONFIRMED ordinary damage path |
+| `$0D` | Cosmo-drain ticks inflicted on player | CONFIRMED |
+| `$0E` | Life-drain ticks inflicted on player | CONFIRMED |
+| `$0F` | death/reward/event value | PROVISIONAL exact semantics |
+
 ## Character index domains
 
-Internal platform order (`$03`):
+Internal platform order (`$03`): `[Seiya, Shun, Hyoga, Shiryu, Ikki]`.
 
-`[Seiya, Shun, Hyoga, Shiryu, Ikki]`
-
-Canonical/high-level selector order (`$0533`):
-
-`[Seiya, Hyoga, Shun, Shiryu, Ikki]`
+Canonical/high-level selector order (`$0533`): `[Seiya, Hyoga, Shun, Shiryu, Ikki]`.
 
 `$E505` swaps values 1 and 2 when converting between them. See `CHARACTER_INDEX_MAP.md`.
 
