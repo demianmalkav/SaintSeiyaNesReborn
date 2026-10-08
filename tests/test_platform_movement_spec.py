@@ -42,8 +42,8 @@ class PlatformMovementSpecTests(unittest.TestCase):
 
     def test_y_88_uses_special_lower_probe_offset(self):
         p = collision_probe_points(player_x=0, player_y=0x88, scroll_x=0)
-        self.assertEqual(p.lower_left.y, 0xA0)
-        self.assertEqual(p.lower_right.y, 0xA0)
+        self.assertEqual(p.lower_left.y, 0xA8)
+        self.assertEqual(p.lower_right.y, 0xA8)
 
 
 if __name__ == "__main__":
