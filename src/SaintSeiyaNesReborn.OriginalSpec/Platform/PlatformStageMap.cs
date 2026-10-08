@@ -118,7 +118,21 @@ public sealed class PlatformStageMap
             UpperCenter: Sample(CollisionProbeId.UpperCenter));
     }
 
-    public static bool CanMoveRight(PlatformCollisionDescriptors probes, bool airborne = false)
+    /// <summary>
+    /// Grounded side collision only consults the upper-side probes in the
+    /// special platform substates $0C-$0E. Airborne movement consults its
+    /// upper-side probe in every substate.
+    /// </summary>
+    public bool CanMoveRight(PlatformCollisionDescriptors probes, bool airborne = false) =>
+        CanMoveRightForSubstate(Substate, probes, airborne);
+
+    public bool CanMoveLeft(PlatformCollisionDescriptors probes, bool airborne = false) =>
+        CanMoveLeftForSubstate(Substate, probes, airborne);
+
+    public static bool CanMoveRightForSubstate(
+        int substate,
+        PlatformCollisionDescriptors probes,
+        bool airborne = false)
     {
         if (airborne)
         {
@@ -126,11 +140,17 @@ public sealed class PlatformStageMap
                 && !BlocksAirborneRightUpper(probes.UpperRight);
         }
 
-        return !BlocksGroundedRight(probes.LowerRight)
-            && !BlocksGroundedRight(probes.UpperRight);
+        if (BlocksGroundedRight(probes.LowerRight))
+            return false;
+
+        return !UsesGroundedUpperSideProbe(substate)
+            || !BlocksGroundedRight(probes.UpperRight);
     }
 
-    public static bool CanMoveLeft(PlatformCollisionDescriptors probes, bool airborne = false)
+    public static bool CanMoveLeftForSubstate(
+        int substate,
+        PlatformCollisionDescriptors probes,
+        bool airborne = false)
     {
         if (airborne)
         {
@@ -138,9 +158,15 @@ public sealed class PlatformStageMap
                 && !BlocksAirborneLeftUpper(probes.UpperLeft);
         }
 
-        return !BlocksGroundedLeftLower(probes.LowerLeft)
-            && !BlocksGroundedLeftUpper(probes.UpperLeft);
+        if (BlocksGroundedLeftLower(probes.LowerLeft))
+            return false;
+
+        return !UsesGroundedUpperSideProbe(substate)
+            || !BlocksGroundedLeftUpper(probes.UpperLeft);
     }
+
+    public static bool UsesGroundedUpperSideProbe(int substate) =>
+        substate is >= 0x0C and < 0x0F;
 
     /// <summary>
     /// Reproduces the ordinary center-floor snap for player Y below $86.
