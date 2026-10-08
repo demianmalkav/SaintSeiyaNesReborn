@@ -18,9 +18,10 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$C4E4` | `read_platform_controllers` | CONFIRMED | controller 1/2 -> `$3D/$3E` |
 | `$D269` | `nmi_main` | CONFIRMED | OAM DMA, PPU update, state dispatch, temporary banking |
 | `$DA13` | `main_initializer` | CONFIRMED | global init / top-level dispatch setup |
-| `$E505` | `current_saint_by_selector_table` | PROVISIONAL | `$0533`-indexed table that assigns `$03` |
+| `$E505` | `internal_canonical_saint_index_map` | CONFIRMED | involution `[0,2,1,3,4]`, converts `$03 <-> $0533` |
 | `$E589` | `mmc1_set_prg_synchronized` | PROVISIONAL | synchronized persistent PRG path |
 | `$E5B7` | `mmc1_set_prg_transient_sync` | PROVISIONAL | synchronized transient PRG switch |
+| `$E99F` | `upload_selector_palette` | CONFIRMED | `$0616-$0625` -> PPU `$3F00-$3F0F` |
 
 ## PRG bank 0
 
@@ -35,6 +36,10 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$B03A` | `password_pack_byte` | CONFIRMED | upper-two/lower-six split |
 | `$B04C` | `password_unpack_bits` | CONFIRMED | reconstructs payload bytes |
 | `$B271` | `password_grid_input` | CONFIRMED | 10×7 grid / 31-symbol entry buffer |
+| `$B3E2` | `sample_player_collision_tiles` | CONFIRMED | fills `$4F-$56` from eight world-space tile probes |
+| `$B584` | `begin_world_x_tile_lookup` | CONFIRMED role | combines scroll X and player X |
+| `$B595` | `select_tilemap_column` | CONFIRMED role | converts world X to 16-pixel tile column/address |
+| `$B5C6` | `read_tilemap_cell` | CONFIRMED role | adds 16-pixel Y row and returns tile/class byte |
 
 ## PRG bank 1 — Saint stats / movement support
 
@@ -44,33 +49,42 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$9211` | `derive_movement_increments` | PROVISIONAL | derives `$0387-$0389` from Saint/frame state |
 | `$9299` | `consume_current_saint_life` | PROVISIONAL | packed-decimal decrement in `$59/$5A` family |
 | `$9311` | `consume_current_saint_cosmo` | PROVISIONAL | packed-decimal decrement in `$63/$64` family |
-| `$951F` | `snapshot_all_saint_stats` | CONFIRMED | active arrays -> `$058C-$05A4` |
-| `$9720` | `restore_all_saint_stats` | CONFIRMED | snapshot -> active arrays |
+| `$951F` | `snapshot_all_saint_stats` | CONFIRMED | internal order -> canonical snapshot order |
+| `$9720` | `restore_all_saint_stats` | CONFIRMED | canonical snapshot -> internal active arrays |
 | `$98BA` | `clear_platform_temporaries` | PROVISIONAL | clears gameplay temporary state including `$76` |
+| `$9F29` | `upload_one_palette_triplet` | CONFIRMED | writes universal `$0F` plus three colors to PPU palette |
+| `$9F46` | `internal_saint_palette_ptrs` | CONFIRMED table role | five internal-index pointers to 3-color player palettes |
 
 ## PRG bank 3 — platform player/attacks
 
 | Address | Symbol | Status | Meaning |
 |---:|---|---|---|
-| `$A311` | `update_attack_projectile` | PROVISIONAL | advances projectile and decrements range/lifetime counter |
+| `$A311` | `update_shun_extend_retract_attack` | CONFIRMED character-specific role | type `$54`, extends then retracts using `$0391` |
 | `$AB3F` | `platform_horizontal_move` | PROVISIONAL | horizontal movement, collision and camera handoff |
 | `$B87D` | `platform_vertical_phase` | PROVISIONAL | fall/vertical collision phase |
 | `$B94B` | `platform_sync_player_record` | PROVISIONAL | player/action -> collision/render working fields |
 | `$BB76` | `platform_jump_input` | PROVISIONAL | A jump; horizontal low-bit state; Up high-jump modifier |
-| `$BBCA` | `platform_attack_input` | PROVISIONAL | B attack path |
+| `$BBCA` | `platform_attack_input` | CONFIRMED input role | B attack path / character-specific projectile selection |
 | `$BCD3` | `platform_jump_curve_step` | CONFIRMED behavior | chooses/consumes table-driven jump profile |
-| `$BCAE` | `projectile_range_by_cosmo_table` | CONFIRMED table role | slots 0-3 range/lifetime by Cosmo-hundreds bracket |
-| `$BCF0` | `high_jump_duration_by_saint` | CONFIRMED table role | 5 high-jump durations |
-| `$BCF5` | `forward_jump_duration_by_saint` | CONFIRMED table role | 5 directional-jump durations |
+| `$BCAE` | `projectile_range_by_cosmo_table` | CONFIRMED table role | Seiya/Shun/Hyoga/Shiryu range/lifetime by Cosmo bracket |
+| `$BCF0` | `high_jump_duration_by_saint` | CONFIRMED table role | internal order `[Seiya,Shun,Hyoga,Shiryu,Ikki]` |
+| `$BCF5` | `forward_jump_duration_by_saint` | CONFIRMED table role | internal order `[Seiya,Shun,Hyoga,Shiryu,Ikki]` |
 | `$BFD7` | `high_jump_curve_ptrs` | CONFIRMED table role | per-Saint jump-curve pointers |
 | `$BFE1` | `forward_jump_curve_ptrs` | CONFIRMED table role | per-Saint directional-curve pointers |
+
+## PRG bank 5
+
+| Address | Symbol | Status | Meaning |
+|---:|---|---|---|
+| `$AF9D` | `stage_character_palette_by_selector` | CONFIRMED | copies 16-byte `$0533` palette block to `$0616` |
+| `$B11A` | `canonical_character_palette_blocks` | CONFIRMED table role | five 16-byte palettes in high-level character order |
 
 ## RAM symbols
 
 | Address | Symbol | Status |
 |---:|---|---|
 | `$00/$01` | `engine_state_a/b` | PROVISIONAL |
-| `$03` | `current_saint_index` | CONFIRMED structure |
+| `$03` | `current_saint_internal` | CONFIRMED — `0 Seiya, 1 Shun, 2 Hyoga, 3 Shiryu, 4 Ikki` |
 | `$3A` | `mmc1_write_interrupted` | CONFIRMED |
 | `$3B` | `persistent_prg_bank` | CONFIRMED |
 | `$3D` | `platform_input_p1` | CONFIRMED |
@@ -85,7 +99,14 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$4B/$4C` | `attack_busy_state` | PROVISIONAL |
 | `$4D` | `player_action_state` | PROVISIONAL ontology |
 | `$4E` | `player_action_latched` | CONFIRMED structural role |
-| `$4F-$56` | `collision_samples[8]` | CONFIRMED structure / UNKNOWN geometry |
+| `$4F` | `collision_floor_center` | CONFIRMED geometry |
+| `$50` | `collision_lower_right` | CONFIRMED geometry |
+| `$51` | `collision_upper_right` | CONFIRMED geometry |
+| `$52` | `collision_bottom_right_ledge` | CONFIRMED geometry |
+| `$53` | `collision_lower_left` | CONFIRMED geometry |
+| `$54` | `collision_upper_left` | CONFIRMED geometry |
+| `$55` | `collision_bottom_left_ledge` | CONFIRMED geometry |
+| `$56` | `collision_upper_center` | CONFIRMED geometry |
 | `$59-$62` | `saint_life_bcd[5]` | CONFIRMED semantic |
 | `$63-$6C` | `saint_cosmo_bcd[5]` | CONFIRMED semantic |
 | `$6D-$71` | `saint_aux_stat[5]` | UNKNOWN semantic |
@@ -94,9 +115,11 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$020B` | `menu_input_pressed` | CONFIRMED |
 | `$0387-$0389` | `air_horizontal_delta_*` | PROVISIONAL exact naming |
 | `$038A` | `high_jump_modifier` | CONFIRMED behavioral role |
-| `$038E-$0390` | `projectile_range_or_lifetime[]` | PROVISIONAL array role; `$038E` directly traced statically |
-| `$058C-$05A4` | `saint_stat_snapshot[5][5]` | CONFIRMED structure |
+| `$038E-$0390` | `projectile_range_or_lifetime[]` | PROVISIONAL array role; `$038E` directly traced |
+| `$0533` | `current_saint_canonical_selector` | CONFIRMED — `0 Seiya, 1 Hyoga, 2 Shun, 3 Shiryu, 4 Ikki` |
+| `$058C-$05A4` | `saint_stat_snapshot[5][5]` | CONFIRMED canonical character order |
 | `$05AA/$05AB` | `seventh_sense_bcd` | CONFIRMED semantic with fixture |
+| `$0616-$0625` | `staged_character_palette` | CONFIRMED |
 | `$0639/$063A` | `sync_prg_bank_requested/transient` | PROVISIONAL |
 | `$063E/$063F` | `sync_prg_critical_flags` | PROVISIONAL |
 | `$067D` | `story_progress_index` | CONFIRMED persistent / exact story numbering pending |
@@ -105,15 +128,18 @@ This is the current clean-room naming layer for the canonical Japanese ROM. `CON
 | `$06EE` | `password_position` | CONFIRMED |
 | `$0700-$07FF` | `oam_shadow` | CONFIRMED |
 
-## Saint index identity — current evidence
+## Character index domains
 
-Do not treat this as final yet:
+Internal platform order (`$03`):
 
-- index 0: strong Seiya candidate — uniquely tallest high jump (103 px) and longest non-special high-Cosmo projectile range;
-- index 4: strong Ikki candidate — unique initial 499 Life/499 Cosmo and fixed projectile range/lifetime 60;
-- index 3: strong Shun candidate — attack path uses multiple projectile/OAM slots in a pattern compatible with chain behavior;
-- indices 1/2 remain to be separated rigorously between Shiryu and Hyoga.
+`[Seiya, Shun, Hyoga, Shiryu, Ikki]`
+
+Canonical/high-level selector order (`$0533`):
+
+`[Seiya, Hyoga, Shun, Shiryu, Ikki]`
+
+`$E505` swaps values 1 and 2 when converting between them. See `CHARACTER_INDEX_MAP.md`.
 
 ## Naming rule
 
-When new evidence changes semantics, rename symbols immediately. ORIGINAL SPEC takes precedence over naming continuity. The Life/Cosmo swap corrected in October 2026 is the canonical example: `$59` is Life and `$63` is Cosmo; older provisional names must not be propagated.
+When new evidence changes semantics, rename symbols immediately. ORIGINAL SPEC takes precedence over naming continuity. The Life/Cosmo correction is the canonical example: `$59` is Life and `$63` is Cosmo; older provisional names must not be propagated.
