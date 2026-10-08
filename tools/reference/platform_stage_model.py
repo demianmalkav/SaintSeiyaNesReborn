@@ -68,12 +68,18 @@ def center_floor_snap(desc: int | None, player_y: int) -> int | None:
     return (player_y & 0xF0) if low < 6 else None
 
 
+def uses_grounded_upper_side_probe(substate: int) -> bool:
+    """The original grounded path consults upper side probes only in $0C-$0E."""
+    return 0x0C <= substate < 0x0F
+
+
 class StageView:
     def __init__(self, spec: dict, substate: int):
         entries = {int(s["substate"]): s for s in spec["substates"]}
         if substate not in entries:
             raise KeyError(f"substate {substate:02X} not present")
         self.substate = entries[substate]
+        self.substate_id = substate
         self.pages = self.substate["pages"]
         if any("metatile_rows_11x16" not in p for p in self.pages):
             raise ValueError(
@@ -127,9 +133,11 @@ class StageView:
                 blocks_right(probes.lower_right)
                 or blocks_right(probes.upper_right, airborne_upper=True)
             )
+        if blocks_right(probes.lower_right):
+            return False
         return not (
-            blocks_right(probes.lower_right)
-            or blocks_right(probes.upper_right)
+            uses_grounded_upper_side_probe(self.substate_id)
+            and blocks_right(probes.upper_right)
         )
 
     def can_move_left(self, probes: ProbeSet, airborne: bool = False) -> bool:
@@ -138,9 +146,11 @@ class StageView:
                 blocks_left(probes.lower_left, airborne=True)
                 or blocks_left(probes.upper_left, airborne=True)
             )
+        if blocks_left(probes.lower_left):
+            return False
         return not (
-            blocks_left(probes.lower_left)
-            or blocks_left(probes.upper_left, upper=True)
+            uses_grounded_upper_side_probe(self.substate_id)
+            and blocks_left(probes.upper_left, upper=True)
         )
 
     def encounter(self, world_x: int) -> dict | None:
