@@ -14,13 +14,15 @@ from pathlib import Path
 
 CANONICAL_CORE_CRC32 = 0x9561798D
 PRG_BANK_SIZE = 0x4000
+PLATFORM_SUBSTATE_COUNT = 18  # $00-$11
 MAIN_STAGE_COUNT = 12
-MAIN_METATILE_BASE = 0x8000
-MAIN_PAGE0_ATTR = 0x8400
-MAIN_PAGE0_GRID = 0x8440
+PAGE_POINTER_TABLE = 0xCFFA
+SPECIAL_METATILE_BASE_TABLE = 0xD1D4
+PAGE_POINTER_LIST_END = 0xD19A
 PAGE_BLOCK_SIZE = 0xF0
 PAGE_ATTR_SIZE = 0x40
 PAGE_GRID_SIZE = 0xB0
+METATILE_TABLE_SIZE = 0x400
 GRID_COLUMNS = 16
 GRID_ROWS = 11
 
@@ -53,20 +55,51 @@ def u16(raw: bytes) -> int:
     return raw[0] | (raw[1] << 8)
 
 
-def pointer_table_for_substate(banks: list[bytes], substate: int) -> int:
-    return u16(read_cpu(banks, 7, 0xCFFA + substate * 2, 2))
+def all_pointer_list_addresses(banks: list[bytes]) -> list[int]:
+    return [
+        u16(read_cpu(banks, 7, PAGE_POINTER_TABLE + i * 2, 2))
+        for i in range(PLATFORM_SUBSTATE_COUNT)
+    ]
 
 
-def main_stage_page_count(substate: int) -> int:
-    # Fixed pointer-list boundaries prove growth from 6 through 16 pages;
-    # the last two main substates both use 16 pages.
-    if not 0 <= substate < MAIN_STAGE_COUNT:
-        raise ValueError("main-stage page-count rule only applies to substates 0..11")
-    return min(6 + substate, 16)
+def page_count_from_list_boundaries(banks: list[bytes], list_addr: int) -> int:
+    # All 18 page-pointer lists occupy the fixed-bank interval ending exactly
+    # where routine $D19A begins. Sorting their starts recovers each list length.
+    starts = sorted(all_pointer_list_addresses(banks))
+    boundaries = starts + [PAGE_POINTER_LIST_END]
+    idx = starts.index(list_addr)
+    length = boundaries[idx + 1] - list_addr
+    if length <= 0 or length & 1:
+        raise ValueError(f"invalid page-pointer-list boundary at ${list_addr:04X}")
+    return length // 2
 
 
-def page_pool_id(grid_pointer: int) -> int | None:
-    delta = grid_pointer - MAIN_PAGE0_GRID
+def data_bank_for_substate(substate: int) -> int:
+    # Fixed $CED3 selects bank 3 for $10, bank 1 for $11, bank 2 otherwise.
+    if substate == 0x10:
+        return 3
+    if substate == 0x11:
+        return 1
+    return 2
+
+
+def metatile_base_for_substate(banks: list[bytes], substate: int) -> int:
+    # Fixed $D1B6 uses $8000 for $00-$0B and a six-entry table for $0C-$11.
+    if substate < 0x0C:
+        return 0x8000
+    return u16(
+        read_cpu(
+            banks,
+            7,
+            SPECIAL_METATILE_BASE_TABLE + (substate - 0x0C) * 2,
+            2,
+        )
+    )
+
+
+def page_pool_id(grid_pointer: int, metatile_base: int) -> int | None:
+    first_grid = metatile_base + METATILE_TABLE_SIZE + PAGE_ATTR_SIZE
+    delta = grid_pointer - first_grid
     if delta < 0 or delta % PAGE_BLOCK_SIZE:
         return None
     return delta // PAGE_BLOCK_SIZE
@@ -91,38 +124,50 @@ def main() -> None:
     args = ap.parse_args()
 
     banks = load_prg(args.rom, args.force)
-    stages = []
-    for substate in range(MAIN_STAGE_COUNT):
-        list_addr = pointer_table_for_substate(banks, substate)
-        page_count = main_stage_page_count(substate)
+    pointer_lists = all_pointer_list_addresses(banks)
+    substates = []
+
+    for substate in range(PLATFORM_SUBSTATE_COUNT):
+        bank = data_bank_for_substate(substate)
+        metatile_base = metatile_base_for_substate(banks, substate)
+        list_addr = pointer_lists[substate]
+        page_count = page_count_from_list_boundaries(banks, list_addr)
         pages = []
         for page_index in range(page_count):
             grid_ptr = u16(read_cpu(banks, 7, list_addr + page_index * 2, 2))
-            raw_grid = read_cpu(banks, 2, grid_ptr, PAGE_GRID_SIZE)
+            raw_grid = read_cpu(banks, bank, grid_ptr, PAGE_GRID_SIZE)
             page = {
                 "page_index": page_index,
                 "grid_pointer": f"0x{grid_ptr:04X}",
                 "attribute_pointer": f"0x{grid_ptr - PAGE_ATTR_SIZE:04X}",
-                "pool_page_id": page_pool_id(grid_ptr),
+                "pool_page_id": page_pool_id(grid_ptr, metatile_base),
             }
             if args.include_grid:
                 page["grid_column_major_16x11"] = grid_columns(raw_grid)
             pages.append(page)
-        stages.append(
-            {
-                "platform_substate_02": f"0x{substate:02X}",
-                "story_progress_normal": substate,
-                "page_pointer_list": f"0x{list_addr:04X}",
-                "page_count": page_count,
-                "pages": pages,
-            }
-        )
 
-    payload: dict[str, object] = {
-        "format": "SaintSeiyaNesReborn.PlatformMapComposition.v1",
+        entry: dict[str, object] = {
+            "platform_substate_02": f"0x{substate:02X}",
+            "data_prg_bank": bank,
+            "metatile_definition_base": f"0x{metatile_base:04X}",
+            "page_pointer_list": f"0x{list_addr:04X}",
+            "page_count": page_count,
+            "pages": pages,
+        }
+        if substate < MAIN_STAGE_COUNT:
+            entry["normal_story_progress"] = substate
+
+        if args.include_metatiles:
+            defs = read_cpu(banks, bank, metatile_base, 256 * 4)
+            entry["metatile_definitions"] = [
+                list(defs[i * 4 : i * 4 + 4]) for i in range(256)
+            ]
+        substates.append(entry)
+
+    payload = {
+        "format": "SaintSeiyaNesReborn.PlatformMapComposition.v2",
         "source_core_crc32": f"{CANONICAL_CORE_CRC32:08X}",
         "layout": {
-            "metatile_definition_base": f"0x{MAIN_METATILE_BASE:04X}",
             "metatile_definition_count": 256,
             "bytes_per_metatile_definition": 4,
             "page_block_size": PAGE_BLOCK_SIZE,
@@ -131,17 +176,10 @@ def main() -> None:
             "grid_columns": GRID_COLUMNS,
             "grid_rows": GRID_ROWS,
             "grid_storage": "column-major",
-            "first_page_attribute_pointer": f"0x{MAIN_PAGE0_ATTR:04X}",
-            "first_page_grid_pointer": f"0x{MAIN_PAGE0_GRID:04X}",
+            "first_grid_offset_from_metatile_base": METATILE_TABLE_SIZE + PAGE_ATTR_SIZE,
         },
-        "main_stages": stages,
+        "platform_substates": substates,
     }
-
-    if args.include_metatiles:
-        defs = read_cpu(banks, 2, MAIN_METATILE_BASE, 256 * 4)
-        payload["metatile_definitions"] = [
-            list(defs[i * 4 : i * 4 + 4]) for i in range(256)
-        ]
 
     text = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
     if args.output:
