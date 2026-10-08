@@ -1,6 +1,6 @@
 # SaintSeiyaNesReborn
 
-Reingeniería, especificación y reconstrucción moderna para Windows de **Saint Seiya: Ōgon Densetsu (Famicom/NES, 1987)**.
+Reingeniería, especificación y reconstrucción moderna para Windows de **Saint Seiya: Ōgon Densetsu Kanketsu Hen (Famicom, 1988)**.
 
 ## Objetivo
 
@@ -8,8 +8,19 @@ El proyecto parte de la versión japonesa como referencia canónica de comportam
 
 ## Dos capas obligatorias
 
-- **ORIGINAL SPEC**: qué hace realmente el juego de 1987, demostrado mediante ROM, trazas, RAM, desensamblado y pruebas reproducibles.
+- **ORIGINAL SPEC**: qué hace realmente el juego de 1988, demostrado mediante ROM, trazas, RAM, desensamblado y pruebas reproducibles.
 - **REBORN**: decisiones modernas de diseño, expansión y presentación. Nunca debe usarse REBORN para inferir cómo funcionaba el original.
+
+## Target canónico
+
+`Saint Seiya - Ougon Densetsu Kanketsu Hen (Japan).nes`
+
+- SHA-1: `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`
+- MD5: `3B0F17C2B6EFC928B3D3FE9B1A389680`
+- mapper 1 / MMC1
+- 128 KiB PRG + 128 KiB CHR
+
+Los detalles completos están en `docs/reverse-engineering/CANONICAL_ROM.md`.
 
 ## Idioma
 
@@ -30,9 +41,8 @@ No se versionarán ROMs, dumps binarios originales, manuales escaneados ni otros
 
 ## Próxima fase
 
-1. Identificar por hash la ROM japonesa aportada por el usuario.
-2. Separar PRG/CHR y cartografiar bancos del mapper 152.
-3. Crear mapa inicial de RAM y símbolos.
-4. Instrumentar texto, combate, movimiento y eventos.
-5. Producir una especificación ejecutable/reproducible del original.
-6. Construir la implementación nativa para Windows y expandirla bajo la capa REBORN.
+1. Completar mapa de bancos PRG/CHR y MMC1.
+2. Construir mapa RAM verificado para selección, plataforma y combates.
+3. Instrumentar texto, combate, movimiento, eventos y password.
+4. Producir una especificación reproducible del original.
+5. Construir la implementación nativa para Windows y expandirla bajo la capa REBORN.
