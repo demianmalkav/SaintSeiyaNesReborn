@@ -94,6 +94,36 @@ True(TileDescriptorRules.StopsUpwardMotionAtUpperCenter(0xE0), "$E0 ceiling bloc
 True(!TileDescriptorRules.StopsUpwardMotionAtUpperCenter(0xF0), "$F0 special non-ceiling branch");
 True(TileDescriptorRules.IsSpecialF8F9Floor(0xF8), "$F8 special floor");
 
+// Stage model: synthetic descriptors exercise page lookup, collision sampling and snap rules
+// without embedding any original stage data in the repository.
+var page0Descriptors = new byte[PlatformStagePage.DescriptorCount];
+var page1Descriptors = new byte[PlatformStagePage.DescriptorCount];
+page0Descriptors[7 * PlatformStagePage.Columns + 4] = 0x90; // floor-center at the fixture position
+page0Descriptors[6 * PlatformStagePage.Columns + 5] = 0x80; // grounded right blocker
+page1Descriptors[0] = 0xE0;
+
+var stage = new PlatformStageMap(
+    substate: 0,
+    pages:
+    [
+        new PlatformStagePage(0, page0Descriptors),
+        new PlatformStagePage(1, page1Descriptors),
+    ]);
+Equal(512, stage.WidthPixels, "Two-page stage width");
+Equal((byte)0x90, stage.DescriptorAt(0x48, 0x72)!.Value, "Stage descriptor lookup");
+Equal((byte)0xE0, stage.DescriptorAt(0x100, 0)!.Value, "Second-page descriptor lookup");
+True(stage.DescriptorAt(-1, 0) is null, "Negative stage coordinate is outside");
+True(stage.DescriptorAt(0x200, 0) is null, "Past-stage coordinate is outside");
+
+var sampledStage = stage.SamplePlayer(playerX: 0x40, playerY: 0x52, scrollX: 0);
+Equal((byte)0x90, sampledStage.FloorCenter!.Value, "Stage floor-center sample");
+Equal((byte)0x80, sampledStage.LowerRight!.Value, "Stage lower-right sample");
+True(!PlatformStageMap.CanMoveRight(sampledStage), "Stage right collision blocks grounded movement");
+True(PlatformStageMap.CanMoveLeft(sampledStage), "Stage left side remains open");
+Equal(0x50, PlatformStageMap.OrdinaryCenterFloorSnap(0x90, 0x52)!.Value, "Normal floor snap");
+Equal(0x58, PlatformStageMap.OrdinaryCenterFloorSnap(0xF0, 0x5A)!.Value, "Half-row floor snap");
+True(PlatformStageMap.OrdinaryCenterFloorSnap(0xFF, 0x5A) is null, "$FF uses dynamic floor path");
+
 // State-family extraction keeps low directional bits separate.
 Equal((byte)0x30, PlatformActionState.Family(0x33), "Jump family mask");
 Equal(3, PlatformActionState.JumpDirectionalBits(0x33), "Jump low directional bits");
