@@ -1,17 +1,22 @@
-# Platform player — state machine, movement and attack profiles
+# Platform player — state machine, movement and collision
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: substantial static reconstruction. Input, horizontal movement, jump profile selection and Cosmo-dependent projectile range are directly tied to code/tables. Exact collision-sample geometry and full damage/hitbox semantics remain open.
+Status: advanced static reconstruction. Input, frame ordering, horizontal movement, jump profile selection, collision-probe geometry and Cosmo-dependent projectile reach are tied directly to code/tables. Exact tile-class meanings and several damage/special states remain open.
 
-## Gameplay controller reader
+## Platform frame path
 
-Core platform gameplay uses fixed-bank `$C4E4`, which reads controllers into:
+Fixed-bank dispatch recognizes `$00 == $20` as active platform gameplay. A critical ordering detail is proven: near the start of that frame path the engine copies:
 
-- `$3D` = controller 1 held state
-- `$3E` = controller 2 held state
+`$4D -> $4E`
 
-`$3D` bit layout:
+Therefore `$4D` is the mutable/current action state, while `$4E` is a frame-start latch used by later movement, attack-origin and animation logic.
+
+The same path reads controllers, runs the central map sampler, maps bank 3 for player/attack simulation, then continues into common rendering/support code.
+
+## Controller
+
+Fixed-bank `$C4E4` reads controller 1/2 into `$3D/$3E`.
 
 | Mask | Button |
 |---:|---|
@@ -26,223 +31,181 @@ Core platform gameplay uses fixed-bank `$C4E4`, which reads controllers into:
 
 Menu/password code uses a separate reader at bank 0 `$8B1F`.
 
-## Main platform state
+## Core player/camera state
 
-Fixed-state dispatch recognizes `$00 == $20` as the active platform gameplay family. That path reads controller input, invokes support logic and maps bank 3 for the bulk of movement/collision/attack work.
+| RAM | Working name | Evidence |
+|---:|---|---|
+| `$3F` | `player_x` | direct horizontal movement target |
+| `$40` | `player_y` | direct jump/fall/collision coordinate |
+| `$41` | `player_y_page_or_high` | vertical high/page candidate |
+| `$42` | `player_facing` | right writes `$40`, left writes `$00` |
+| `$44/$45` | `scroll_x_low/high` | movement handoff + PPU scroll |
+| `$49` | `jump_phase` | indexes jump progression |
+| `$4A` | `jump_button_latch` | prevents repeated A activation while held |
+| `$4B` | `attack_busy_counter` | non-zero counter advances and clears after the 1..7 cycle |
+| `$4C` | `attack_button_latch` | set on B press, cleared on B release |
+| `$4D` | `player_action_state` | mutable state during frame |
+| `$4E` | `player_action_frame_latch` | frame-start copy of `$4D` |
 
-## Core player state
+## Action-state families
 
-### Position / camera
+Current reconstruction:
 
-- `$3F` — horizontal player coordinate
-- `$40` — principal vertical player coordinate
-- `$41` — vertical high/page component candidate
-- `$44/$45` — horizontal scroll/camera pair
+- `$00`: neutral / standing;
+- `$10-$1F`: locomotion/animation family;
+- `$20`: crouch;
+- `$30-$33`: jump family; low two bits encode horizontal input combination at jump start;
+- `$50`: downward/drop/fall family used by drop-through and related vertical resolution;
+- `$80`: damage/hazard/fatal-related family, subdivision pending;
+- `$40`: special/transitional family handled partly in fixed-bank code, exact label pending.
 
-Horizontal movement explicitly hands displacement between player X and camera scroll at screen/world thresholds rather than treating them as a single coordinate.
+### Crouch and drop-through
 
-### Facing
+Down enters `$20`. Releasing Down returns toward neutral. Under appropriate support conditions, crouch + A enters the `$50` family and offsets player Y downward so the character drops through the supporting platform.
 
-`$42` is direction/facing state. Right movement writes `$40`; left movement writes zero. Sprite/collision setup copies this state into working records.
+### Input latches
 
-### Action state
+- A sets `$4A`; another jump cannot start until A is released and the latch clears.
+- B sets `$4C`; another attack cannot be created until B is released.
+- successful attack creation sets `$4B = 1`; bank 1 `$926C` advances it and returns it to zero after the short cooldown cycle.
 
-`$4D` is the active/next action-animation state.
+These should remain separate concepts in REBORN instead of being folded into animation state.
 
-`$4E` is not simply another independent action variable: fixed gameplay code copies `$4D -> $4E` before bank-3 processing. It therefore behaves as a frame-start/latched state used to choose the current state handler while `$4D` can be changed for the next phase.
+## Horizontal movement and camera handoff
 
-Observed families:
+Bank 3 `$AB3F+` handles ordinary left/right movement.
 
-- `$00` idle/neutral
-- `$10-$1F` locomotion/animation
-- `$20` crouch
-- `$30-$33` jump family; low bits encode horizontal direction at jump start
-- `$50` fall/vertical transition family
-- `$80` damage/fall/death-related family
+Right:
 
-Other high families appear in special/death animation paths and still need classification.
-
-## Horizontal locomotion — bank 3 `$AB3F+`
-
-### Right
-
-- checks `$3D & $01`;
-- sets facing;
-- tests collision descriptors around `$50/$51`;
+- tests `$3D & $01`;
+- sets facing `$42 = $40`;
+- checks the right-side environment probes;
 - normally adds `$0387` to `$3F`;
-- near horizontal thresholds can advance `$44/$45` instead;
-- moves `$4D` into locomotion family.
+- at horizontal screen thresholds may advance `$44/$45` instead of continuing to move the player across the screen;
+- transitions into action family `$1x`.
 
-### Left
+Left mirrors this with `$3D & $02`, facing zero, left-side probes and subtraction.
 
-- checks `$3D & $02`;
-- flips facing;
-- tests corresponding collision descriptors around `$53/$54`;
-- normally subtracts `$0387` from `$3F`;
-- coordinates the same player/camera handoff.
+The original therefore explicitly distinguishes player screen position from world/camera progression.
 
-### Crouch
+## Per-Saint movement increments
 
-Down (`$04`) enters `$4D = $20` under the ordinary locomotion path.
+Bank 1 `$9211+` derives `$0387-$0389`.
 
-## Horizontal movement deltas
+For engine Saint indices other than 1:
 
-Bank 1 `$9211+` derives `$0387-$0389` from current Saint and frame parity.
-
-For current Saint index other than 1:
-
-- `$0387 = 1`
-- `$0388 = 1/2` alternating with frame parity
-- `$0389 = 0/1` alternating
+- `$0387 = 1`;
+- `$0388` alternates 1/2 with frame parity;
+- `$0389` alternates 0/1.
 
 For index 1:
 
-- `$0387 = 1/2` alternating
-- `$0388 = 2`
-- `$0389 = 1`
+- `$0387` alternates 1/2;
+- `$0388 = 2`;
+- `$0389 = 1`.
 
-During airborne horizontal control, the engine selects among these according to whether held direction matches/opposes/no direction relative to the jump.
+Those values are selected by different airborne/horizontal-control branches. Index 1 therefore has a distinct locomotion/air-control profile independent of its unique chain attack.
 
-Approximate average displacement implied by the alternating values:
+## Central collision sampler
 
-- ordinary slots: neutral air drift 1 px/frame; with-direction ~1.5; opposite ~0.5
-- slot 1: neutral ~1.5; with-direction 2; opposite 1
+The eight player collision values are generated by bank 0 `$B3E2+`, proving that `$4F-$56` form a common interface between map sampling and bank-3 movement logic.
 
-This is a strong behavioral signature for identifying the faster-air-control Saint.
+Helpers:
 
-## Jump initiation — `$BB76+`
+- `$B584`: starts world X from `scroll + player_x` and coarse page state;
+- `$B595`: converts horizontal coordinate to map-column address;
+- `$B5C6`: converts vertical coordinate to row/address and returns the map descriptor.
 
-A begins jump when busy/collision gates allow it.
+With `world_x = scroll_x + player_x`, the eight probes are:
 
-At jump creation:
+| RAM | Probe geometry |
+|---:|---|
+| `$56` | center/head: `x + 8`, `align16(y + 8)` |
+| `$54` | left upper side: `x + 0`, `align16(y + 8)` |
+| `$51` | right upper side: `x + 16`, `align16(y + 8)` |
+| `$53` | left lower side: `x + 0`, next 16-pixel row; special +24 offset at `y == $88` |
+| `$50` | right lower side: `x + 16`, same lower-row logic |
+| `$55` | ground-left: `x - 8`, `y + 32` |
+| `$4F` | ground-center: `x + 8`, `y + 32` |
+| `$52` | ground-right: `x + 24`, `y + 32` |
 
-- base state family is `$30`;
-- simultaneous Left/Right contributes the low two state bits, producing `$30-$33`;
-- when no horizontal direction is held, Up is checked;
-- A+Up sets `$038A = $30`, selecting the high-jump profile.
+This corresponds to a coarse logical body roughly 16 px wide × 32 px tall plus three floor probes spanning beyond the feet.
 
-`$49` functions as a jump phase/table index and `$4A` participates as jump/airborne latch state.
+The returned bytes are environment/tile descriptors. Movement compares classes around `$78`, `$80`, `$88`, `$90`, `$E0`, `$F0`, `$F8/$F9`. Their exact semantic taxonomy remains to be named.
 
-## Jump physics are table-driven
+## Jump initiation
 
-The original does **not** use a conventional continuous gravity accumulator. Around bank 3 `$BCD3+`, it chooses a signed vertical-displacement table and a duration.
+Bank 3 `$BB76+` handles A.
 
-### Normal straight jump
+- A starts jump if busy/collision gates permit;
+- `$49` starts the jump phase;
+- `$4A` latches the press;
+- no horizontal direction gives `$4D = $30`;
+- current Left/Right bits are added into the low bits, producing `$31-$33`;
+- Up+A sets `$038A = $30`, choosing the per-Saint high-jump profile.
 
-A without Up and without horizontal direction:
+The original thus has three distinct jump designs rather than one generic velocity equation: ordinary vertical, high Up+A and directional jump.
 
-- duration: 32 frames/phase units
-- common curve pointer: bank 3 `$BF49`
-- maximum ascent from extracted table: about 58 px
+## Table-driven jump curves
 
-### A+Up high jump
+`$BCD3+` chooses a duration and signed-byte displacement curve. Positive entries move up in screen coordinates; negative entries move down. The original jump is deterministic and table-shaped.
 
-Per-Saint duration table at `$BCF0`:
+### Ordinary standing jump
 
-`[60, 50, 40, 40, 50]`
+- pointer `$BF49`
+- duration 32
+- maximum rise **58 px**
+- apex frame **14**
 
-Curve pointer table at `$BFD7` resolves to:
+### Up+A high jump
 
-- slot 0 -> `$BF69`
-- slot 1 -> `$BFA5`
-- slot 2 -> fixed `$D8D6`
-- slot 3 -> fixed `$D8D6`
-- slot 4 -> `$BFA5`
+| Engine index | Pointer | Duration | Max rise | Apex |
+|---:|---:|---:|---:|---:|
+| 0 | `$BF69` | 60 | **103 px** | 28 |
+| 1 | `$BFA5` | 50 | **88 px** | 23 |
+| 2 | `$D8D6` | 40 | **71 px** | 18 |
+| 3 | `$D8D6` | 40 | **71 px** | 18 |
+| 4 | `$BFA5` | 50 | **88 px** | 23 |
 
-Extracted maximum ascents:
+### Directional jump
 
-| Slot | Duration | Max ascent |
-|---:|---:|---:|
-| 0 | 60 | 103 px |
-| 1 | 50 | 88 px |
-| 2 | 40 | 71 px |
-| 3 | 40 | 71 px |
-| 4 | 50 | 88 px |
+| Engine index | Pointer | Duration | Max rise | Apex |
+|---:|---:|---:|---:|---:|
+| 0 | `$D8FE` | 54 | **39 px** | 25 |
+| 1 | `$D934` | 40 | **33 px** | 18 |
+| 2 | `$D95C` | 44 | **34 px** | 20 |
+| 3 | `$D95C` | 44 | **34 px** | 20 |
+| 4 | `$D8FE` | 54 | **39 px** | 25 |
 
-### Directional/forward jump
+After the table-controlled phase, ordinary falling paths use fixed downward increments such as +3 px/frame until landing/collision resolution.
 
-Duration table at `$BCF5`:
+## Attack relationship
 
-`[54, 40, 44, 44, 54]`
+Platform attack internals now live in `PLATFORM_ATTACKS.md`.
 
-Pointer table at `$BFE1` resolves to per-slot curves in bank 3/fixed bank.
+Player-side facts relevant here:
 
-Extracted maximum ascents:
+- B uses `$4C` as press latch and `$4B` as short busy/cooldown state;
+- attack origin is facing-dependent;
+- `$BCC2` places the attack at `player_y + 7`, and 8 px lower if frame-start state `$4E` is crouch family `$20`;
+- the original already has Saint-specific projectile allocation, range and unique behavior.
 
-| Slot | Duration | Max ascent |
-|---:|---:|---:|
-| 0 | 54 | 39 px |
-| 1 | 40 | 33 px |
-| 2 | 44 | 34 px |
-| 3 | 44 | 34 px |
-| 4 | 54 | 39 px |
+## Reproducible extraction
 
-### Falling phase
+`tools/reverse/platform_probe.py` reads a user-supplied canonical ROM, verifies core CRC32 `9561798D`, and extracts:
 
-After the selected table duration, the ordinary fall path uses a fixed downward increment of about `+3 px/frame` until landing/collision resolution.
+- ordinary standing jump metrics;
+- all high-jump profiles;
+- all directional-jump profiles;
+- the Cosmo range/lifetime table;
+- the documented collision-probe geometry.
 
-All of these values can be re-extracted from a user-supplied canonical ROM with `tools/physics/extract_platform_profiles.py`.
+No ROM bytes are embedded in the tool.
 
-## Collision sampling
+## Remaining work
 
-`$4F-$56` are eight environment/collision descriptors sampled around the player. Movement/vertical paths compare them against tile classes including `$78`, `$80`, `$88`, `$90`, `$E0`, `$F0`, `$F8/$F9`.
-
-The structure is proven; exact spatial assignment (head/feet/left/right probes) is not. Keep them as `collision_samples[8]` until sample-generation code is geometrically reconstructed.
-
-## Attack input — B
-
-Bank 3 `$BBCA+` handles B attack after busy/state gates. It enters character-specific attack logic and uses OAM/projectile slots around:
-
-- `$0730/$0731`
-- `$0738/$0739`
-- `$0740/$0741`
-
-Associated counters/metadata are stored around `$038E-$0390`.
-
-At least one update path around `$A311+` decrements `$038E`, advances the projectile/attack and retires/hides its sprites when the range/lifetime expires.
-
-## Cosmo controls platform attack reach
-
-For Saint slots 0-3, bank 3 uses the selected Saint's **Cosmo hundreds digit** to choose a range/lifetime parameter from the table at `$BCAE`:
-
-`index = floor(Cosmo_hundreds / 2) * 4 + saint_index`
-
-Extracted table:
-
-| Cosmo hundreds | slot 0 | slot 1 | slot 2 | slot 3 |
-|---|---:|---:|---:|---:|
-| 0-1 | 3 | 1 | 4 | 6 |
-| 2-3 | 6 | 3 | 10 | 10 |
-| 4-5 | 12 | 8 | 16 | 14 |
-| 6-7 | 24 | 12 | 22 | 18 |
-| 8-9 | 48 | 16 | 28 | 22 |
-
-Slot 4 bypasses the table and receives `60`.
-
-This is an important ORIGINAL SPEC rule: Cosmo is not merely a battle-screen resource; it changes the practical reach/lifetime of platform attacks.
-
-## Current Saint-identity evidence from behavior
-
-Not yet final, but increasingly constrained:
-
-- slot 0: strong Seiya candidate — uniquely tallest high jump (103 px) and longest non-slot4 high-Cosmo attack reach;
-- slot 4: strong Ikki candidate — unique initial Life/Cosmo 499/499, fixed attack reach 60 and high-jump profile shared with slot 1;
-- slot 3: strong Shun candidate — attack path can employ multiple projectile/OAM slots, consistent with chain behavior;
-- slots 1 and 2 remain to be separated rigorously between Shiryu and Hyoga.
-
-These identities should not be promoted to `CONFIRMED` until the ROM's selection/name/graphics tables provide a direct mapping.
-
-## REBORN design consequence
-
-The original's feel can be preserved far more accurately than by approximating NES movement with generic modern physics. We can represent each original jump as a deterministic displacement curve and each Saint's movement/attack profile as data, then render/interpolate that behavior at modern resolution and frame rate.
-
-A future REBORN compatibility mode could therefore reproduce original trajectories exactly while a redesigned mode can deliberately smooth or expand them.
-
-## Next extraction targets
-
-1. reconstruct geometric positions of collision samples `$4F-$56`;
-2. trace projectile hit detection/damage, not only lifetime;
-3. close Saint index -> identity mapping from ROM assets/tables;
-4. enumerate all remaining action states and transition conditions;
-5. convert jump/air-control behavior into clean-room parity test vectors;
-6. dynamically validate table timing once a debugger-capable emulator is available.
+1. classify the actual map descriptor values used by the eight probes;
+2. resolve `$40` and `$80` action families completely;
+3. identify hurtbox/enemy-contact geometry and knockback;
+4. close the remaining index 2/3 Saint identity mapping with an internal ROM anchor;
+5. convert state transitions and trajectories into parity tests for the first native REBORN movement module.
