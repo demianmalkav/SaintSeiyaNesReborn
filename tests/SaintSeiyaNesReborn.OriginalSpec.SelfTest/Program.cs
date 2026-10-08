@@ -61,13 +61,17 @@ True(periodic.PeriodicEnvironmentLifeLoss, "Periodic branch flag");
 // Collision sample geometry from bank 0 $B3E2+.
 var probes = CollisionProbeLayout.FromPlayer(playerX: 0x40, playerY: 0x52, scrollX: 0x100);
 Equal(new ProbePoint(0x148, 0x72), probes.FloorCenter, "Floor center probe");
-Equal(new ProbePoint(0x150, 0x70), probes.LowerRight, "Lower right probe");
+Equal(new ProbePoint(0x150, 0x60), probes.LowerRight, "Lower right probe");
 Equal(new ProbePoint(0x150, 0x50), probes.UpperRight, "Upper right probe");
 Equal(new ProbePoint(0x158, 0x72), probes.FloorRight, "Floor right probe");
-Equal(new ProbePoint(0x140, 0x70), probes.LowerLeft, "Lower left probe");
+Equal(new ProbePoint(0x140, 0x60), probes.LowerLeft, "Lower left probe");
 Equal(new ProbePoint(0x140, 0x50), probes.UpperLeft, "Upper left probe");
 Equal(new ProbePoint(0x138, 0x72), probes.FloorLeft, "Floor left probe");
 Equal(new ProbePoint(0x148, 0x50), probes.UpperCenter, "Upper center probe");
+
+// Special y==$88 lower-side sampler uses +$18 instead of +$10 after alignment.
+var specialYProbes = CollisionProbeLayout.FromPlayer(playerX: 0, playerY: 0x88, scrollX: 0);
+Equal(0xA8, specialYProbes.LowerRight.Y, "Special lower-side Y offset at $88");
 
 // Collision descriptor behavior observed by direction/probe.
 True(TileDescriptorRules.SupportsFloor(0x80), "$80 supports floor");
