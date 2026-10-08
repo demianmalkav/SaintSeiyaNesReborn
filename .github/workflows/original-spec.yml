@@ -1,0 +1,35 @@
+name: Original Spec
+
+on:
+  push:
+    paths:
+      - "src/SaintSeiyaNesReborn.OriginalSpec/**"
+      - "tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/**"
+      - "tools/password/password_codec.py"
+      - ".github/workflows/original-spec.yml"
+  pull_request:
+    paths:
+      - "src/SaintSeiyaNesReborn.OriginalSpec/**"
+      - "tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/**"
+      - "tools/password/password_codec.py"
+      - ".github/workflows/original-spec.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build OriginalSpec
+        run: dotnet build src/SaintSeiyaNesReborn.OriginalSpec/SaintSeiyaNesReborn.OriginalSpec.csproj --configuration Release
+
+      - name: Run OriginalSpec self-test
+        run: dotnet run --project tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/SaintSeiyaNesReborn.OriginalSpec.SelfTest.csproj --configuration Release
+
+      - name: Run password compatibility fixture
+        run: python3 tools/password/password_codec.py
