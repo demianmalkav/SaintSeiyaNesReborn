@@ -5,6 +5,11 @@ current Cosmo. The ROM multiplies Cosmo by an 8-bit coefficient, converts the
 product back through decimal work buffers, effectively takes floor(product/100),
 and enforces a pre-mitigation minimum drain of 3.
 
+Player attack ids are not arbitrary: `$ACA1+` receives
+`canonical_character_index * 4 + technique_slot`, giving five characters ×
+four possible slots = 20 ids. Some slots are intentionally unused and carry
+zero coefficients.
+
 Opponent attacks have an additional mitigation tier in `$0681`:
 0 -> full drain, 1 -> half, any other non-zero value -> quarter.
 The shifts happen *after* the minimum-3 clamp, so quarter mitigation can reduce
@@ -17,22 +22,19 @@ from dataclasses import dataclass
 
 
 # `$BCD4`: two coefficients per player attack id.
+# Canonical character order is [Seiya, Hyoga, Shun, Shiryu, Ikki].
 # Tuple order is (opponent Cosmo drain coefficient, opponent Life drain coefficient).
 PLAYER_ATTACK_COEFFICIENTS: tuple[tuple[int, int], ...] = (
-    (26, 18),
-    (18, 26),
-    (25, 25),
-    (25, 25),
-    (16, 24),
-    (24, 16),
-    (24, 24),
-    (30, 30),
-    (19, 19),
-    (25, 17),
-    (39, 26),
-    (35, 35),
-    (21, 21),
-    (40, 40),
+    # Seiya: ids 0..3
+    (26, 18), (18, 26), (25, 25), (25, 25),
+    # Hyoga: ids 4..7
+    (16, 24), (24, 16), (24, 24), (30, 30),
+    # Shun: ids 8..11
+    (19, 19), (25, 17), (39, 26), (35, 35),
+    # Shiryu: ids 12..15; slots 2/3 are unused in the coefficient table
+    (21, 21), (40, 40), (0, 0), (0, 0),
+    # Ikki: ids 16..19; slots 2/3 are unused
+    (30, 20), (20, 30), (0, 0), (0, 0),
 )
 
 
@@ -68,11 +70,18 @@ def scaled_drain(attacker_cosmo: int, coefficient: int) -> int:
     return max(3, (attacker_cosmo * coefficient) // 100)
 
 
+def player_attack_id(canonical_character_index: int, technique_slot: int) -> int:
+    if not 0 <= canonical_character_index <= 4:
+        raise ValueError("canonical_character_index must be 0..4")
+    if not 0 <= technique_slot <= 3:
+        raise ValueError("technique_slot must be 0..3")
+    return canonical_character_index * 4 + technique_slot
+
+
 def player_attack_drain(attacker_cosmo: int, attack_id: int) -> ResourceDrain:
-    try:
-        cosmo_coeff, life_coeff = PLAYER_ATTACK_COEFFICIENTS[attack_id]
-    except IndexError as exc:
-        raise ValueError("attack_id must be 0..13") from exc
+    if not 0 <= attack_id < len(PLAYER_ATTACK_COEFFICIENTS):
+        raise ValueError("attack_id must be 0..19")
+    cosmo_coeff, life_coeff = PLAYER_ATTACK_COEFFICIENTS[attack_id]
     return ResourceDrain(
         cosmo=scaled_drain(attacker_cosmo, cosmo_coeff),
         life=scaled_drain(attacker_cosmo, life_coeff),
