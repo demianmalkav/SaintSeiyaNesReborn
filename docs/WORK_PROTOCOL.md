@@ -14,11 +14,11 @@ Nunca se modifica una descripción de ORIGINAL SPEC para justificar una decisió
 
 Orden de autoridad para comportamiento original:
 
-1. ROM japonesa identificada por hash.
+1. ROM japonesa canónica de **Ōgon Densetsu Kanketsu Hen**, identificada por hash.
 2. Ejecución reproducible en emulador/debugger.
 3. Desensamblado, trazas de CPU/PPU y breakpoints de RAM.
 4. Manual oficial y material contemporáneo.
-5. Versiones oficiales relacionadas (PAL francesa, Kanketsu Hen, WonderSwan Perfect Edition) como evidencia comparativa, no como sustituto de la ROM japonesa.
+5. Versiones oficiales relacionadas (primer Ōgon Densetsu de 1987 y WonderSwan Perfect Edition) como evidencia comparativa, no como sustituto de la ROM japonesa.
 6. TAS, guías, hacks, traducciones y documentación comunitaria como pistas que deben verificarse cuando sea posible.
 
 ## 3. Estados de evidencia
@@ -54,7 +54,7 @@ Para cada subsistema:
 7. Promover a `CONFIRMED` sólo cuando la evidencia lo justifique.
 8. Documentar comportamiento, no sólo direcciones.
 
-Ejemplo: no basta con decir `$06CC = punch power`; debe registrarse cuándo se escribe, qué rutina lo consume, qué rango admite y cómo afecta la resolución de daño.
+Ejemplo: no basta con decir `$05BC = Cosmo`; debe registrarse en qué contexto aparece, cuándo se escribe, qué rutina lo consume, si es el valor canónico o un buffer y cómo se relaciona con otros valores de Cosmo.
 
 ## 5. Nomenclatura de símbolos
 
