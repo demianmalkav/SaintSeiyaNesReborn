@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-La versión japonesa de **Saint Seiya: Ōgon Densetsu** es la fuente narrativa primaria. **SaintSeiyaNesReborn** tendrá español como idioma principal de presentación.
+La versión japonesa de **Saint Seiya: Ōgon Densetsu Kanketsu Hen** es la fuente narrativa primaria. **SaintSeiyaNesReborn** tendrá español como idioma principal de presentación.
 
 ## Principios
 
@@ -14,54 +14,62 @@ La versión japonesa de **Saint Seiya: Ōgon Densetsu** es la fuente narrativa p
 
 ## Identificadores estables
 
-Cada texto tendrá un ID semántico estable, por ejemplo:
+La ingeniería inversa del motor de texto confirmó 251 mensajes canónicos, numerados `0..250`. Por tanto, la identidad primaria e inmutable de cada entrada es:
 
-`DIALOGUE_TRAINING_MARIN_001`
+`MSG_000` ... `MSG_250`
 
-Campos previstos:
+Sobre ese ID numérico se puede añadir un alias semántico cuando la escena y el hablante estén confirmados, por ejemplo:
+
+`TAURUS_ALDEBARAN_INTRO_001`
+
+El alias semántico es descriptivo y puede mejorarse; `MSG_xxx` no cambia nunca.
+
+Campos actuales del catálogo privado:
 
 - `id`
+- `stable_id`
 - `jp_original`
-- `es_final`
+- `es_draft`
+- `status`
 - `speaker`
 - `scene`
-- `context`
-- `source_pointer_or_reference`
-- `notes`
-- `status`
+- `semantic_alias`
+- `source_text_offset`
 
 ## Estados de traducción
 
 - `RAW`: japonés extraído, sin traducción.
-- `DRAFT`: primera traducción.
-- `REVIEWED`: revisada con contexto.
+- `DRAFT`: primera traducción directa JP → ES.
+- `REVIEWED`: revisada con contexto, hablante y terminología.
 - `FINAL`: aprobada para el juego.
-- `NEEDS_CONTEXT`: requiere observar la escena antes de decidir.
+- `NEEDS_CONTEXT`: requiere observar o reconstruir mejor la escena antes de decidir.
 
 ## Glosario
 
-Las decisiones terminológicas deben centralizarse. Como mínimo se fijarán:
+Las decisiones terminológicas se centralizan en `docs/localization/GLOSSARY_ES.md`.
 
-- Saint / Santo / Caballero
-- Cloth / Armadura
-- Cosmos
-- Sanctuary / Santuario
-- Gold Cloth / Armadura de Oro
-- Bronze Saint
-- nombres de técnicas
-- nombres propios y transliteraciones
+Como mínimo se fijan globalmente:
 
-No se debe cambiar terminología escena por escena.
+- Saint / Caballero;
+- Cloth / Armadura;
+- Cosmos;
+- Sanctuary / Santuario;
+- Gold Cloth / Armadura Dorada;
+- Bronze Saint / Caballero de Bronce;
+- nombres de técnicas;
+- nombres propios y transliteraciones.
+
+No se cambia terminología escena por escena.
 
 ## Técnicas
 
-Para técnicas con nombre japonés se evaluarán tres posibilidades según contexto:
+Para técnicas con nombre japonés se evalúan tres posibilidades según contexto:
 
-1. nombre tradicional en español;
-2. romanización japonesa;
-3. combinación de nombre localizado + nombre original en materiales de apoyo.
+1. nombre tradicional consolidado en español;
+2. romanización/nombre internacionalizado;
+3. combinación de nombre localizado + original en materiales de apoyo.
 
-La decisión será global y documentada.
+La decisión será global y documentada antes de promover las líneas correspondientes a `FINAL`.
 
 ## Restricciones tipográficas
 
@@ -71,14 +79,26 @@ Sin embargo, el texto debe conservar ritmo y función de la escena. No se utiliz
 
 ## Modo de desarrollo
 
-Durante desarrollo debe ser posible consultar el japonés asociado a una línea española. Idealmente el sistema de localización permitirá alternar `JP` y `ES` en builds de depuración.
+Durante desarrollo debe ser posible consultar el japonés asociado a una línea española. El sistema de localización debe permitir alternar `JP` y `ES` en builds de depuración.
 
 ## Fuente y trazabilidad
 
-Cada texto español debe poder remontarse a una línea japonesa concreta y, cuando sea posible, a su puntero/entrada dentro del original. Esto permite distinguir:
+Cada texto español debe poder remontarse a una línea japonesa concreta y a su offset/entrada dentro del original. Esto permite distinguir:
 
 - traducción;
 - adaptación;
 - texto nuevo exclusivo de REBORN.
 
-El texto nuevo nunca debe hacerse pasar por texto presente en el juego de 1987.
+El texto nuevo nunca debe hacerse pasar por texto presente en el juego de 1988.
+
+## Catálogo privado
+
+El contenido íntegro JP/ES no se versiona en el repositorio público. El catálogo de trabajo se conserva en el workspace privado del proyecto y puede regenerarse desde la ROM japonesa mediante `tools/reverse/extract_japanese_script.py`.
+
+El borrador actual cubre los 251 IDs y debe pasar:
+
+```text
+python tools/localization/validate_catalog.py <catalogo.csv>
+```
+
+El validador comprueba cobertura exacta `0..250`, IDs estables, estados, presencia de fuente/traducción y trazabilidad de offsets sin conocer ni incorporar el contenido del guion.
