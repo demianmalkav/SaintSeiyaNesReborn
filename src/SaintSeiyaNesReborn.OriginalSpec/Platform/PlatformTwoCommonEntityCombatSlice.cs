@@ -2,7 +2,7 @@ namespace SaintSeiyaNesReborn.OriginalSpec.Platform;
 
 public sealed record PlatformCommonEntitySlotFrameResult(
     PlatformCommonEntityRuntimeState Entity,
-    PlatformCommonEntityPreparationResult? Preparation,
+    PlatformCommonEntityActiveDispatchResult Dispatch,
     PlatformCommonEntityInteractionResult? Interaction,
     bool RemovedBeforeInteraction);
 
@@ -21,11 +21,12 @@ public sealed record PlatformTwoCommonEntityCombatSliceResult(
     bool ExitedBeforeEntityPipeline);
 
 /// <summary>
-/// Ordered clean-room slice for the two ordinary common movable-entity records
-/// processed by $A442. Slot A ($03BA-$03C9) runs before slot B ($03CA-$03D9).
+/// Ordered clean-room slice for the two common movable-entity records processed
+/// by $A442. Slot A ($03BA-$03C9) runs before slot B ($03CA-$03D9).
 ///
-/// Attack-object state, shared $76/$7F/$80 contact state and Seventh Sense are
-/// intentionally threaded from A into B, preserving same-frame side effects.
+/// Closed active families $10/$30/$40/$50 are dispatched independently per
+/// entity, while attack objects, shared $76/$7F/$80 state and Seventh Sense are
+/// threaded from A into B.
 /// </summary>
 public static class PlatformTwoCommonEntityCombatSlice
 {
@@ -158,7 +159,7 @@ public static class PlatformTwoCommonEntityCombatSlice
         byte cameraDelta43,
         byte engineSubstate02)
     {
-        var prep = PlatformCommonEntityPreparation.StepOrdinaryMobile(
+        var dispatch = PlatformCommonEntityActiveDispatcher.Step(
             entity.Motion,
             player.State.Horizontal.PlayerX,
             player.State.PlayerY,
@@ -166,16 +167,29 @@ public static class PlatformTwoCommonEntityCombatSlice
             entropy48,
             frameCounter3C,
             cameraDelta43);
-        entity = entity with { Motion = prep.State };
+        entity = entity with { Motion = dispatch.State };
 
-        if (prep.Outcome != PlatformCommonEntityPreparationOutcome.ReadyForInteraction)
+        if (dispatch.Continuation == PlatformCommonEntityActiveContinuation.Removed)
         {
             return new SlotCarry(
                 new PlatformCommonEntitySlotFrameResult(
                     entity,
-                    prep,
+                    dispatch,
                     null,
                     RemovedBeforeInteraction: true),
+                player,
+                contactState,
+                seventhSense);
+        }
+
+        if (dispatch.Continuation == PlatformCommonEntityActiveContinuation.SkipInteraction)
+        {
+            return new SlotCarry(
+                new PlatformCommonEntitySlotFrameResult(
+                    entity,
+                    dispatch,
+                    null,
+                    RemovedBeforeInteraction: false),
                 player,
                 contactState,
                 seventhSense);
@@ -209,7 +223,7 @@ public static class PlatformTwoCommonEntityCombatSlice
         return new SlotCarry(
             new PlatformCommonEntitySlotFrameResult(
                 entity,
-                prep,
+                dispatch,
                 interaction,
                 RemovedBeforeInteraction: false),
             player,
@@ -233,10 +247,17 @@ public static class PlatformTwoCommonEntityCombatSlice
 
     private static void ValidateEntity(PlatformCommonEntityRuntimeState entity, string name)
     {
-        if (entity.Motion.Type > 0x07 || (entity.Motion.ActionState & 0xF0) != 0x10)
+        if (entity.Motion.Type > 0x07)
         {
             throw new InvalidOperationException(
-                $"{name} must be type $00-$07 in action family $10; got type ${entity.Motion.Type:X2}, action ${entity.Motion.ActionState:X2}.");
+                $"{name} must be common entity type $00-$07; got ${entity.Motion.Type:X2}.");
+        }
+
+        var family = entity.Motion.ActionState & 0xF0;
+        if (family is not (0x10 or 0x30 or 0x40 or 0x50))
+        {
+            throw new InvalidOperationException(
+                $"{name} action ${entity.Motion.ActionState:X2} is outside the closed active families $10/$30/$40/$50.");
         }
     }
 }
