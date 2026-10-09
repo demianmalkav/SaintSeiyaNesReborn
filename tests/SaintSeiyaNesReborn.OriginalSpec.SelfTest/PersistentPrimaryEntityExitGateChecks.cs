@@ -142,8 +142,25 @@ internal static class PersistentPrimaryEntityExitGateChecks
             "full non-exit persistent state is identical to compatibility path");
         Require(full.Producer == legacy.Producer,
             "full non-exit producer result is identical to compatibility path");
-        Require(full.Hybrid == legacy.Hybrid,
-            "full non-exit player/entity result is identical to compatibility path");
+        Require(full.Hybrid is not null,
+            "full non-exit path returns a hybrid frame result");
+
+        var actual = full.Hybrid!;
+        var expected = legacy.Hybrid;
+        Require(
+            actual.FrameCounterBefore3C == expected.FrameCounterBefore3C
+            && actual.FrameCounterAfter3C == expected.FrameCounterAfter3C
+            && actual.FrameCounterAdvanced == expected.FrameCounterAdvanced
+            && actual.ExitedBeforeEntityPipeline == expected.ExitedBeforeEntityPipeline
+            && actual.SlotA?.Route == expected.SlotA?.Route
+            && actual.SlotA?.State == expected.SlotA?.State
+            && actual.SlotB?.Route == expected.SlotB?.Route
+            && actual.SlotB?.State == expected.SlotB?.State
+            && actual.ContactState == expected.ContactState
+            && actual.SeventhSense == expected.SeventhSense
+            && actual.GlobalCounter039A == expected.GlobalCounter039A
+            && actual.PlayerAfterLatePhases.State == expected.PlayerAfterLatePhases.State,
+            "full non-exit hybrid observable state is identical to compatibility path");
     }
 
     private static PlatformPersistentPrimaryEntityFullMainThreadResult StepFull(
