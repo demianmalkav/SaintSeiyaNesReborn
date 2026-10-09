@@ -35,10 +35,10 @@ internal static class PrimaryEncounterSpawnConfigChecks
             "bit7 semantic remains available");
         Require(config.Profile.HitPoints0C == 120,
             "HP maps to +$0C");
-        Require(config.Profile.LifeDrainTicks0D == 4,
-            "Life drain maps to +$0D, not Cosmo drain");
-        Require(config.Profile.CosmoDrainTicks0E == 8,
-            "Cosmo drain maps to +$0E");
+        Require(config.Profile.CosmoDrainTicks0D == 8,
+            "Cosmo drain maps to +$0D");
+        Require(config.Profile.LifeDrainTicks0E == 4,
+            "Life drain maps to +$0E");
         Require(config.Profile.SeventhSenseRewardBcd0F == 0x13,
             "decimal reward is encoded back to packed BCD for +$0F");
     }
@@ -51,7 +51,7 @@ internal static class PrimaryEncounterSpawnConfigChecks
             Tier: 0,
             SecondCommonSlotEnabled: true,
             Bit6Unknown: false,
-            Stats: new PlatformEncounterStats(15, 1, 1, 4)));
+            Stats: new PlatformEncounterStats(15, 2, 5, 4)));
         var config = PlatformPrimaryEncounterSpawnConfig.FromStagePage(page);
 
         var pair = config.StepCommonEdgeSpawner(
@@ -73,6 +73,9 @@ internal static class PrimaryEncounterSpawnConfigChecks
             "raw low nibble reaches spawned type");
         Require(pair.SlotB.Value.Entity.HitPoints == 15,
             "resolved encounter HP reaches runtime record");
+        Require(pair.SlotB.Value.Entity.CosmoDrainTicks == 2
+            && pair.SlotB.Value.Entity.LifeDrainTicks == 5,
+            "runtime semantic drain counters are reconstructed from +$0D/+0E without swapping");
     }
 
     private static void CheckSpecialDescriptorFeedsScheduledSpawner()
@@ -84,7 +87,7 @@ internal static class PrimaryEncounterSpawnConfigChecks
                 Tier: 2,
                 SecondCommonSlotEnabled: true,
                 Bit6Unknown: false,
-                Stats: new PlatformEncounterStats(80, 8, 8, 16)));
+                Stats: new PlatformEncounterStats(80, 3, 7, 16)));
 
         var pair = config.TryScheduledSpecialSpawn(
             Existing(), 0xFE,
@@ -100,6 +103,9 @@ internal static class PrimaryEncounterSpawnConfigChecks
             "scheduled producer receives low-nibble type");
         Require(pair.SlotA.Entity.HitPoints == 80,
             "tier-resolved HP feeds scheduled producer");
+        Require(pair.SlotA.Entity.CosmoDrainTicks == 3
+            && pair.SlotA.Entity.LifeDrainTicks == 7,
+            "scheduled runtime receives +$0D Cosmo and +$0E Life semantics");
         Require(pair.SlotA.Entity.SeventhSenseRewardBcd == 0x16,
             "reward 16 is re-encoded as BCD $16");
     }
