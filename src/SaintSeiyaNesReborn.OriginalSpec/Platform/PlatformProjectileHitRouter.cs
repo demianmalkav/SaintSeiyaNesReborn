@@ -29,15 +29,15 @@ public readonly record struct PlatformProjectileHitResult(
 /// </summary>
 public static class PlatformProjectileHitRouter
 {
-    // Fixed table $C0D3 for the entity-type range used by the platform combat
-    // router. The sound routine returns A from restored X, so the entity type is
-    // still available to the comparisons following JSR $DBB6.
-    private static readonly byte[] TypeSound0To0F =
+    // Fixed table $C0D3, promoted for the observed bytes $00-$1F. The sound
+    // routine returns A from restored X, so the entity type is still available
+    // to comparisons following JSR $DBB6.
+    private static readonly byte[] TypeSound0To1F =
     [
-        0x2E, 0x28, 0x28, 0x28,
-        0x28, 0x28, 0x28, 0x31,
-        0x28, 0x28, 0x28, 0x28,
-        0x28, 0x35, 0x28, 0x28,
+        0x2E, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x31,
+        0x28, 0x28, 0x28, 0x28, 0x28, 0x35, 0x28, 0x28,
+        0xB2, 0xB0, 0x00, 0xD2, 0xA1, 0x00, 0x00, 0x8F,
+        0x00, 0x00, 0x00, 0x5C, 0x05, 0x02, 0x00, 0x04,
     ];
 
     public static PlatformProjectileHitResult Resolve(
@@ -62,12 +62,9 @@ public static class PlatformProjectileHitRouter
                 false);
         }
 
-        // $9971 plays $28 for every accepted geometric hit before type routing.
         const byte primarySound = 0x28;
         var type = entity.Type;
 
-        // $0A/$0B branch directly to $99F4: standard consumption, then a
-        // 4-unit directional motion response if terrain does not block it.
         if (type is 0x0A or 0x0B)
         {
             var consumed = PlatformProjectileHit.ApplyStandardHitConsumption(attackSlot, saint);
@@ -83,13 +80,10 @@ public static class PlatformProjectileHitRouter
                 impulse.Blocked);
         }
 
-        // Type $0D jumps straight to HP subtraction and bypasses helper $9A27
-        // and the type-indexed secondary sound table.
         if (type == 0x0D)
             return ResolveHp(
                 attackSlot,
                 entity,
-                saint,
                 platformDamage,
                 currentSeventhSense,
                 engineSubstate02,
@@ -98,17 +92,13 @@ public static class PlatformProjectileHitRouter
                 standardConsumptionApplied: false,
                 applySurvivorRecoil: false);
 
-        // Every remaining overlapping type runs helper $9A27 first.
         var postConsumption = PlatformProjectileHit.ApplyStandardHitConsumption(attackSlot, saint);
         var consumedByHelper = postConsumption != attackSlot;
 
-        // Type zero goes immediately to ordinary HP without the type-indexed
-        // sound call.
         if (type == 0)
             return ResolveHp(
                 postConsumption,
                 entity,
-                saint,
                 platformDamage,
                 currentSeventhSense,
                 engineSubstate02,
@@ -117,16 +107,13 @@ public static class PlatformProjectileHitRouter
                 standardConsumptionApplied: consumedByHelper,
                 applySurvivorRecoil: true);
 
-        var secondarySound = SecondarySoundForKnownType(type);
+        var secondarySound = SecondarySoundForObservedType(type);
 
-        // After DBB6, A is restored from the saved X register, so these are
-        // comparisons against entity type, not the sound byte.
         if (type is 0x0F or 0x0C || type is >= 0x05 and < 0x0A)
         {
             return ResolveHp(
                 postConsumption,
                 entity,
-                saint,
                 platformDamage,
                 currentSeventhSense,
                 engineSubstate02,
@@ -149,8 +136,6 @@ public static class PlatformProjectileHitRouter
                 false);
         }
 
-        // Types $01-$04 and the fallthrough high-type family enter the same
-        // $99AA response: entity Y += 6 and high-level state $E0.
         var reacted = entity with
         {
             Y = unchecked((byte)(entity.Y + 6)),
@@ -167,17 +152,16 @@ public static class PlatformProjectileHitRouter
             false);
     }
 
-    public static byte SecondarySoundForKnownType(byte type)
+    public static byte SecondarySoundForObservedType(byte type)
     {
-        if (type >= TypeSound0To0F.Length)
-            throw new ArgumentOutOfRangeException(nameof(type), type, "Static sound mapping is currently promoted for entity types $00-$0F.");
-        return TypeSound0To0F[type];
+        if (type >= TypeSound0To1F.Length)
+            throw new ArgumentOutOfRangeException(nameof(type), type, "Static sound mapping is currently promoted for entity types $00-$1F.");
+        return TypeSound0To1F[type];
     }
 
     private static PlatformProjectileHitResult ResolveHp(
         PlatformAttackSlot slot,
         PlatformCombatEntity entity,
-        PlatformSaintIndex saint,
         int damage,
         int seventhSense,
         byte engineSubstate02,
