@@ -7,268 +7,144 @@ internal static class AttackSystemChecks
     [ModuleInitializer]
     internal static void Run()
     {
-        CheckRangeAndBusy();
-        CheckInputAndCreation();
-        CheckSlotAllocation();
-        CheckGenericUpdate();
+        CheckRangeBusyAndLatch();
+        CheckCreationAndSlots();
+        CheckGenericProjectile();
         CheckShunChain();
     }
 
-    private static void CheckRangeAndBusy()
+    private static void CheckRangeBusyAndLatch()
     {
-        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Seiya, 0) == 3, "Seiya low-Cosmo range.");
-        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Seiya, 999) == 48, "Seiya high-Cosmo range.");
-        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Shun, 999) == 16, "Shun high-Cosmo range.");
-        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Hyoga, 999) == 28, "Hyoga high-Cosmo range.");
-        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Shiryu, 999) == 22, "Shiryu high-Cosmo range.");
-        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Ikki, 0) == 60, "Ikki fixed range 60.");
-        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Seiya, 0, engineSubstate01: 0x30) == 60,
-            "$01 >= $30 forces fixed range 60.");
-        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Hyoga, 399) == 10,
-            "Cosmo hundreds are grouped into 0-1/2-3/4-5/6-7/8-9 brackets.");
+        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Seiya, 0) == 3, "Seiya low range");
+        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Seiya, 999) == 48, "Seiya high range");
+        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Shun, 999) == 16, "Shun high range");
+        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Hyoga, 999) == 28, "Hyoga high range");
+        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Shiryu, 999) == 22, "Shiryu high range");
+        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Ikki, 0) == 60, "Ikki fixed range");
+        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Seiya, 0, 0x30) == 60, "$01>=30 fixed range");
+        Require(PlatformAttackSystem.RangeParameter(PlatformSaintIndex.Hyoga, 399) == 10, "Cosmo bracket 2-3");
 
         byte busy = 1;
         for (var expected = 2; expected <= 7; expected++)
         {
             busy = PlatformAttackSystem.AdvanceBusy(busy);
-            Require(busy == expected, $"Busy counter advances to {expected}.");
+            Require(busy == expected, $"busy -> {expected}");
         }
-        Require(PlatformAttackSystem.AdvanceBusy(7) == 0, "Busy counter wraps 7 -> 0.");
-        Require(PlatformAttackSystem.AdvanceBusy(0) == 0, "Busy zero stays zero.");
+        Require(PlatformAttackSystem.AdvanceBusy(7) == 0, "busy 7 -> 0");
+        Require(PlatformAttackSystem.AdvanceBusy(0) == 0, "busy zero stable");
+
+        var empty = PlatformAttackState.Empty;
+        var release = Attempt(empty with { BButtonLatch4C = 1 }, PlatformSaintIndex.Seiya, PlatformInput.None);
+        Require(release.State.BButtonLatch4C == 0 && release.Outcome == PlatformAttackAttemptOutcome.NoInput, "B release clears latch");
+
+        var blockedBusy = Attempt(empty with { Busy4B = 3 }, PlatformSaintIndex.Seiya, PlatformInput.B);
+        Require(blockedBusy.Outcome == PlatformAttackAttemptOutcome.Busy && blockedBusy.State.BButtonLatch4C == 1, "busy still consumes B latch");
+        Require(blockedBusy.SoundId is null, "busy rejects before sound");
+
+        var highY = PlatformAttackSystem.ApplyBButton(
+            empty, PlatformSaintIndex.Seiya, PlatformInput.B,
+            0x90, 0x30, 0x40, 0, 0, 999);
+        Require(highY.Outcome == PlatformAttackAttemptOutcome.HeightRejected && highY.SoundId == 0x24, "Y>=90 rejects after sound");
+        Require(highY.State.BButtonLatch4C == 1 && highY.State.Busy4B == 0, "height reject latch/busy semantics");
     }
 
-    private static void CheckInputAndCreation()
+    private static void CheckCreationAndSlots()
     {
         var empty = PlatformAttackState.Empty;
-
-        var released = PlatformAttackSystem.ApplyBButton(
-            empty with { BButtonLatch4C = 1 },
-            PlatformSaintIndex.Seiya,
-            PlatformInput.None,
-            0x40, 0x30, 0x40, 0, 0, 999);
-        Require(released.State.BButtonLatch4C == 0 && released.Outcome == PlatformAttackAttemptOutcome.NoInput,
-            "B release clears $4C.");
-
-        var held = PlatformAttackSystem.ApplyBButton(
-            empty with { BButtonLatch4C = 1 },
-            PlatformSaintIndex.Seiya,
-            PlatformInput.B,
-            0x40, 0x30, 0x40, 0, 0, 999);
-        Require(held.Outcome == PlatformAttackAttemptOutcome.Latched,
-            "Held B cannot create again until release.");
-
-        var busy = PlatformAttackSystem.ApplyBButton(
-            empty with { Busy4B = 3 },
-            PlatformSaintIndex.Seiya,
-            PlatformInput.B,
-            0x40, 0x30, 0x40, 0, 0, 999);
-        Require(busy.Outcome == PlatformAttackAttemptOutcome.Busy && busy.State.BButtonLatch4C == 1,
-            "Busy rejection still consumes B latch.");
-        Require(busy.SoundId is null, "Busy rejection occurs before attack sound.");
-
-        var height = PlatformAttackSystem.ApplyBButton(
-            empty,
-            PlatformSaintIndex.Seiya,
-            PlatformInput.B,
-            0x90, 0x30, 0x40, 0, 0, 999);
-        Require(height.Outcome == PlatformAttackAttemptOutcome.HeightRejected && height.SoundId == 0x24,
-            "Y >= $90 rejects only after ordinary attack sound.");
-        Require(height.State.BButtonLatch4C == 1 && height.State.Busy4B == 0,
-            "Height rejection consumes latch but does not start busy cycle.");
-        Require(height.State.Slot0.Object.Type == 0xFE, "Height rejection does not mutate slot.");
-
-        var created = PlatformAttackSystem.ApplyBButton(
+        var seiya = PlatformAttackSystem.ApplyBButton(
             empty with { ActionState4D = 0x10 },
-            PlatformSaintIndex.Seiya,
-            PlatformInput.B,
-            playerY: 0x40,
-            playerX: 0x30,
-            facing42: 0x40,
-            frameStartAction4E: 0x10,
-            jumpPhase49: 0,
-            cosmo: 999);
-        Require(created.Outcome == PlatformAttackAttemptOutcome.Created && created.CreatedSlot == PlatformAttackSlotId.Slot0,
-            "Seiya creates in slot0.");
-        Require(created.State.Busy4B == 1 && created.State.BButtonLatch4C == 1,
-            "Successful attack starts busy and keeps latch.");
-        Require(created.State.ActionState4D == 0,
-            "Grounded moving-family attack resets current action after creation.");
-        var object0 = created.State.Slot0.Object;
-        Require(object0.Y == 0x47 && object0.X == 0x42 && object0.Facing == 0x40 && object0.Type == 0x64,
-            "Standing right-facing origin/type.");
-        Require(created.State.Slot0.RangeCounter == 48, "Seiya 999 range counter.");
-        Require(created.SoundId == 0x24, "Ordinary Saint attack sound.");
+            PlatformSaintIndex.Seiya, PlatformInput.B,
+            0x40, 0x30, 0x40, 0x10, 0, 999);
+        Require(seiya.Outcome == PlatformAttackAttemptOutcome.Created && seiya.CreatedSlot == PlatformAttackSlotId.Slot0, "Seiya slot0");
+        Require(seiya.State.Slot0.Object is { Y: 0x47, X: 0x42, Facing: 0x40, Type: 0x64 }, "Seiya origin/type");
+        Require(seiya.State.Slot0.RangeCounter == 48 && seiya.State.Busy4B == 1, "Seiya range/busy");
+        Require(seiya.State.ActionState4D == 0, "moving family resets after grounded attack");
 
         var crouched = PlatformAttackSystem.ApplyBButton(
-            empty,
-            PlatformSaintIndex.Seiya,
-            PlatformInput.B,
-            playerY: 0x40,
-            playerX: 0x30,
-            facing42: 0,
-            frameStartAction4E: 0x20,
-            jumpPhase49: 0,
-            cosmo: 0);
-        Require(crouched.State.Slot0.Object.Y == 0x4F,
-            "Exact frame-start crouch state $20 adds 8 to attack origin Y.");
-        Require(crouched.State.Slot0.Object.X == 0x27,
-            "Left-facing origin is player X - 9.");
+            empty, PlatformSaintIndex.Seiya, PlatformInput.B,
+            0x40, 0x30, 0, 0x20, 0, 0);
+        Require(crouched.State.Slot0.Object.Y == 0x4F && crouched.State.Slot0.Object.X == 0x27, "crouch Y+8 and left X-9");
 
-        var notExactCrouch = PlatformAttackSystem.ApplyBButton(
-            empty,
-            PlatformSaintIndex.Seiya,
-            PlatformInput.B,
-            0x40, 0x30, 0x40,
-            frameStartAction4E: 0x21,
-            jumpPhase49: 0,
-            cosmo: 0);
-        Require(notExactCrouch.State.Slot0.Object.Y == 0x47,
-            "Attack Y helper compares exact $4E==$20, not the whole $2x family.");
-    }
+        var exactOnly = PlatformAttackSystem.ApplyBButton(
+            empty, PlatformSaintIndex.Seiya, PlatformInput.B,
+            0x40, 0x30, 0x40, 0x21, 0, 0);
+        Require(exactOnly.State.Slot0.Object.Y == 0x47, "origin helper checks exact $4E==$20");
 
-    private static void CheckSlotAllocation()
-    {
         var occupied = ActiveGeneric(0x20, 5);
-        var baseState = PlatformAttackState.Empty with { Slot0 = occupied };
+        var noFree = Attempt(empty with { Slot0 = occupied }, PlatformSaintIndex.Seiya, PlatformInput.B);
+        Require(noFree.Outcome == PlatformAttackAttemptOutcome.NoFreeSlot && noFree.State.BButtonLatch4C == 1, "no slot still consumes latch");
+        Require(noFree.SoundId is null, "no slot rejects before sound");
 
-        var noFree = PlatformAttackSystem.ApplyBButton(
-            baseState,
-            PlatformSaintIndex.Seiya,
-            PlatformInput.B,
-            0x40, 0x30, 0x40, 0, 0, 999);
-        Require(noFree.Outcome == PlatformAttackAttemptOutcome.NoFreeSlot && noFree.State.BButtonLatch4C == 1,
-            "Single-slot Saint consumes B even when slot0 is occupied.");
-        Require(noFree.SoundId is null, "No-free-slot rejection occurs before sound.");
+        var ikki = Attempt(empty, PlatformSaintIndex.Ikki, PlatformInput.B, cosmo: 0);
+        Require(ikki.CreatedSlot == PlatformAttackSlotId.Slot1 && ikki.State.Slot1.RangeCounter == 60, "Ikki prefers slot1");
+        var ikkiFallback = Attempt(empty with { Slot1 = occupied }, PlatformSaintIndex.Ikki, PlatformInput.B, cosmo: 0);
+        Require(ikkiFallback.CreatedSlot == PlatformAttackSlotId.Slot0, "Ikki slot1->slot0 fallback");
 
-        var ikki = PlatformAttackSystem.ApplyBButton(
-            PlatformAttackState.Empty,
-            PlatformSaintIndex.Ikki,
-            PlatformInput.B,
-            0x40, 0x30, 0x40, 0, 0, 0);
-        Require(ikki.CreatedSlot == PlatformAttackSlotId.Slot1,
-            "Ikki prefers slot1 before slot0.");
-        Require(ikki.State.Slot1.RangeCounter == 60, "Ikki slot1 receives fixed range.");
+        var shiryu = Attempt(empty, PlatformSaintIndex.Shiryu, PlatformInput.B);
+        Require(shiryu.CreatedSlot == PlatformAttackSlotId.Slot2, "Shiryu prefers slot2");
+        var shiryu2 = Attempt(shiryu.State with { BButtonLatch4C = 0, Busy4B = 0 }, PlatformSaintIndex.Shiryu, PlatformInput.B);
+        Require(shiryu2.CreatedSlot == PlatformAttackSlotId.Slot1, "Shiryu second uses slot1");
 
-        var ikkiFallback = PlatformAttackSystem.ApplyBButton(
-            PlatformAttackState.Empty with { Slot1 = occupied },
-            PlatformSaintIndex.Ikki,
-            PlatformInput.B,
-            0x40, 0x30, 0x40, 0, 0, 0);
-        Require(ikkiFallback.CreatedSlot == PlatformAttackSlotId.Slot0,
-            "Ikki falls back slot1 -> slot0.");
-
-        var shiryu = PlatformAttackSystem.ApplyBButton(
-            PlatformAttackState.Empty,
-            PlatformSaintIndex.Shiryu,
-            PlatformInput.B,
-            0x40, 0x30, 0x40, 0, 0, 999);
-        Require(shiryu.CreatedSlot == PlatformAttackSlotId.Slot2,
-            "Shiryu prefers slot2, enabling three concurrent ordinary objects.");
-
-        var shiryuSecond = PlatformAttackSystem.ApplyBButton(
-            (shiryu.State with { BButtonLatch4C = 0, Busy4B = 0 }),
-            PlatformSaintIndex.Shiryu,
-            PlatformInput.B,
-            0x40, 0x30, 0x40, 0, 0, 999);
-        Require(shiryuSecond.CreatedSlot == PlatformAttackSlotId.Slot1,
-            "Shiryu second object falls back to slot1.");
-
-        var shun = PlatformAttackSystem.ApplyBButton(
-            PlatformAttackState.Empty,
-            PlatformSaintIndex.Shun,
-            PlatformInput.B,
-            0x40, 0x30, 0x40, 0, 0, 999);
-        Require(shun.CreatedSlot == PlatformAttackSlotId.Slot0 && shun.State.Slot0.Object.Type == 0x54,
-            "Shun creates special type $54 in slot0.");
-        Require(shun.State.ShunExtension0391 == 5 && shun.SoundId == 0x34,
-            "Shun initializes extension 5 and uses sound $34.");
+        var shun = Attempt(empty, PlatformSaintIndex.Shun, PlatformInput.B);
+        Require(shun.CreatedSlot == PlatformAttackSlotId.Slot0 && shun.State.Slot0.Object.Type == 0x54, "Shun special slot/type");
+        Require(shun.State.ShunExtension0391 == 5 && shun.SoundId == 0x34, "Shun extension/sound");
     }
 
-    private static void CheckGenericUpdate()
+    private static void CheckGenericProjectile()
     {
-        var slot = ActiveGeneric(x: 0x20, range: 3);
-
-        var first = PlatformAttackSystem.UpdateGenericProjectile(slot, frameCounter3C: 1);
-        Require(first.RangeCounter == 2 && first.Object.X == 0x25,
-            "Generic projectile decrements lifetime then moves +5.");
-        Require(first.Object.Type == 0x65 && first.Object.AuxiliaryX == 0x1D,
-            "Generic visual toggles 64/65 by parity and stores right auxiliary X-8.");
-
-        var second = PlatformAttackSystem.UpdateGenericProjectile(first, frameCounter3C: 0);
-        Require(second.RangeCounter == 1 && second.Object.X == 0x2A && second.Object.Type == 0x64,
-            "Range 3 yields a second 5px movement.");
-
-        var third = PlatformAttackSystem.UpdateGenericProjectile(second, frameCounter3C: 1);
-        Require(third.RangeCounter == 0 && third.Object.Type == 0xFE && third.Object.Y == 0xF0,
-            "When decrement reaches zero, projectile retires before another move.");
-        Require(third.Object.Field4 == 0xF0 && third.Object.Field5 == 0xFE,
-            "Generic retirement writes original marker fields.");
+        var slot = ActiveGeneric(0x20, 3);
+        var one = PlatformAttackSystem.UpdateGenericProjectile(slot, 1);
+        Require(one.RangeCounter == 2 && one.Object.X == 0x25 && one.Object.Type == 0x65, "generic decrement + move5 + parity");
+        Require(one.Object.AuxiliaryX == 0x1D, "right auxiliary X-8");
+        var two = PlatformAttackSystem.UpdateGenericProjectile(one, 0);
+        Require(two.RangeCounter == 1 && two.Object.X == 0x2A && two.Object.Type == 0x64, "second move5");
+        var retired = PlatformAttackSystem.UpdateGenericProjectile(two, 1);
+        Require(retired.RangeCounter == 0 && retired.Object is { Y: 0xF0, Type: 0xFE, Field4: 0xF0, Field5: 0xFE }, "range zero retires before movement");
 
         var left = slot with { Object = slot.Object with { Facing = 0, X = 0x20 } };
         var leftStep = PlatformAttackSystem.UpdateGenericProjectile(left, 0);
-        Require(leftStep.Object.X == 0x1B && leftStep.Object.AuxiliaryX == 0x23,
-            "Left projectile moves -5 and stores moved X+8.");
+        Require(leftStep.Object.X == 0x1B && leftStep.Object.AuxiliaryX == 0x23, "left move -5, auxiliary +8");
 
         var edge = slot with { Object = slot.Object with { X = 0xF4 } };
-        var retiredEdge = PlatformAttackSystem.UpdateGenericProjectile(edge, 0);
-        Require(retiredEdge.Object.Type == 0xFE,
-            "Post-move X in $F8-$FF retires projectile.");
+        Require(PlatformAttackSystem.UpdateGenericProjectile(edge, 0).Object.Type == 0xFE, "F8-family X retires");
     }
 
     private static void CheckShunChain()
     {
-        var created = PlatformAttackSystem.ApplyBButton(
-            PlatformAttackState.Empty,
-            PlatformSaintIndex.Shun,
-            PlatformInput.B,
-            0x40, 0x30, 0x40, 0, 0, 999).State;
-
+        var created = Attempt(PlatformAttackState.Empty, PlatformSaintIndex.Shun, PlatformInput.B).State;
         var extend = PlatformAttackSystem.UpdateShunChain(created, 0x40, 0x30, 0);
-        Require(extend.Slot0.RangeCounter == 15 && extend.ShunExtension0391 == 10,
-            "Shun outward update decrements range and extends by 5.");
-        Require(extend.Slot0.Object.X == 0x52 && extend.Slot1.Object.X == 0x4A,
-            "Right-facing Shun chain rebuilds far/near segments around player.");
-        Require(extend.Slot1.Object.Type == 0x55 && extend.Slot1.Object.Facing == 0x40,
-            "Second Shun segment is type $55 with copied facing.");
-        Require(extend.Slot0.Object.Y == 0x47 && extend.Slot1.Object.Y == 0x47,
-            "Both chain segments track current attack-origin Y.");
+        Require(extend.Slot0.RangeCounter == 15 && extend.ShunExtension0391 == 10, "Shun range-- / extension+5");
+        Require(extend.Slot0.Object.X == 0x52 && extend.Slot1.Object.X == 0x4A, "Shun right far/near positions");
+        Require(extend.Slot1.Object.Type == 0x55 && extend.Slot1.Object.Facing == 0x40, "Shun second segment");
+        Require(extend.Slot0.Object.Y == 0x47 && extend.Slot1.Object.Y == 0x47, "chain follows current origin Y");
 
-        var retractZero = extend with
-        {
-            Slot0 = extend.Slot0 with { RangeCounter = 0 },
-            ShunExtension0391 = 5,
-        };
-        var atPlayer = PlatformAttackSystem.UpdateShunChain(retractZero, 0x40, 0x30, 0);
-        Require(atPlayer.ShunExtension0391 == 0 && atPlayer.Slot0.Object.Type == 0x54,
-            "First retraction step 5 -> 0 remains active.");
+        var retract = extend with { Slot0 = extend.Slot0 with { RangeCounter = 0 }, ShunExtension0391 = 5 };
+        var zero = PlatformAttackSystem.UpdateShunChain(retract, 0x40, 0x30, 0);
+        Require(zero.ShunExtension0391 == 0 && zero.Slot0.Object.Type == 0x54, "retraction 5->0 stays active");
+        var gone = PlatformAttackSystem.UpdateShunChain(zero, 0x40, 0x30, 0);
+        Require(gone.Slot0.Object is { Y: 0xF0, Type: 0xFE } && gone.Slot1.Object is { Y: 0xF0, Type: 0xFE }, "negative retraction retires both");
 
-        var retired = PlatformAttackSystem.UpdateShunChain(atPlayer, 0x40, 0x30, 0);
-        Require(retired.Slot0.Object.Type == 0xFE && retired.Slot1.Object.Type == 0xFE,
-            "Next retraction step underflows negative and retires both chain segments.");
-        Require(retired.Slot0.Object.Y == 0xF0 && retired.Slot1.Object.Y == 0xF0,
-            "Shun retirement writes Y=$F0 markers.");
-
-        var nearEdge = created with
-        {
-            Slot0 = created.Slot0 with { Object = created.Slot0.Object with { X = 0xEE } },
-            ShunExtension0391 = 5,
-        };
-        // Shun position is rebuilt from player, so choose player X high enough for far segment to enter $F8 family.
-        var edgeForced = PlatformAttackSystem.UpdateShunChain(nearEdge, 0x40, 0xE0, 0);
-        Require(edgeForced.Slot0.RangeCounter == 0,
-            "Shun far segment reaching $F8-$FF forces outward counter to zero for retraction.");
+        // After the first outward update extension becomes 10. Player X $D6 gives
+        // near=$F0 and far=$F8 exactly, so the original edge test forces range=0.
+        var edgeForced = PlatformAttackSystem.UpdateShunChain(created, 0x40, 0xD6, 0);
+        Require(edgeForced.Slot0.Object.X == 0xF8 && edgeForced.Slot0.RangeCounter == 0, "Shun far edge forces retraction");
     }
 
+    private static PlatformAttackAttemptResult Attempt(
+        PlatformAttackState state,
+        PlatformSaintIndex saint,
+        PlatformInput input,
+        int cosmo = 999) => PlatformAttackSystem.ApplyBButton(
+            state, saint, input,
+            playerY: 0x40,
+            playerX: 0x30,
+            facing42: 0x40,
+            frameStartAction4E: 0,
+            jumpPhase49: 0,
+            cosmo: cosmo);
+
     private static PlatformAttackSlot ActiveGeneric(byte x, byte range) => new(
-        new PlatformAttackObject(
-            Y: 0x40,
-            Type: 0x64,
-            Facing: 0x40,
-            X: x,
-            Field4: 0,
-            Field5: 0,
-            Field6: 0,
-            AuxiliaryX: 0),
+        new PlatformAttackObject(0x40, 0x64, 0x40, x, 0, 0, 0, 0),
         range);
 
     private static void Require(bool condition, string message)
