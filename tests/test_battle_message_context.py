@@ -1,5 +1,6 @@
 import importlib.util
 from pathlib import Path
+import sys
 import unittest
 
 
@@ -7,6 +8,7 @@ MODULE_PATH = Path(__file__).resolve().parents[1] / "tools" / "localization" / "
 SPEC = importlib.util.spec_from_file_location("annotate_battle_message_context", MODULE_PATH)
 assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
 
@@ -37,7 +39,7 @@ class BattleMessageContextTests(unittest.TestCase):
         self.assertIsNone(self.classify(0x9D2C, bank=4))
         self.assertIsNone(self.classify(0x9742))
 
-    def test_payload_annotation_deduplicates_message_contexts(self):
+    def test_payload_annotation_preserves_distinct_phases_for_same_stage(self):
         payload = {
             "messages": [
                 {
@@ -52,9 +54,11 @@ class BattleMessageContextTests(unittest.TestCase):
         }
         result = MODULE.annotate(payload)
         contexts = result["messages"][0]["battle_contexts"]
-        self.assertEqual(1, len(contexts))
-        self.assertEqual("TAURUS_ALDEBARAN", contexts[0]["stage_key"])
+        self.assertEqual(2, len(contexts))
+        self.assertEqual({"TAURUS_ALDEBARAN"}, {ctx["stage_key"] for ctx in contexts})
+        self.assertEqual({"talk", "post_bronze_action"}, {ctx["phase"] for ctx in contexts})
         self.assertEqual(2, result["context_annotation"]["annotated_callsites"])
+        self.assertEqual(1, result["context_annotation"]["messages_with_battle_context"])
 
 
 if __name__ == "__main__":
