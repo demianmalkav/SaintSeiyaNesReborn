@@ -68,6 +68,22 @@ public sealed record PlatformHybridEntityCombatSliceResult(
     bool ExitedBeforeEntityPipeline);
 
 /// <summary>
+/// Primary A->B result after player simulation/post-player latch but before the
+/// later A22C attack-object phase and shared frame-counter increment.
+///
+/// This is the reusable insertion boundary needed by the complete late-object
+/// frame: earlier $9B93 and auxiliary classes can mutate the one physical attack
+/// and contact state before the primary pair runs.
+/// </summary>
+public sealed record PlatformHybridEntityPairResult(
+    PlatformHybridEntitySlotFrameResult SlotA,
+    PlatformHybridEntitySlotFrameResult SlotB,
+    PlatformPlayerActionDispatchResult PlayerAfterSlots,
+    PlatformContactPhaseState ContactState,
+    int SeventhSense,
+    byte GlobalCounter039A);
+
+/// <summary>
 /// Ordered clean-room composition of the two logical platform entity slots
 /// processed by $A442 after the player/post-player phases.
 ///
@@ -156,27 +172,10 @@ public static class PlatformHybridEntityCombatSlice
                 ExitedBeforeEntityPipeline: true);
         }
 
-        var slotA = StepSlot(
+        var pair = StepPairAfterPlayer(
             slotAState,
-            commonHitboxA,
-            currentPlayer,
-            currentContact,
-            pre.PlatformDamage,
-            seventhSense,
-            globalCounter039A,
-            frameCounter3C,
-            entropy48,
-            cameraDelta43,
-            engineSubstate02,
-            engineState00,
-            alternateParent08_03AB);
-        currentPlayer = ApplySlotCarry(currentPlayer, slotA.AttackState, slotA.ContactState);
-        currentContact = slotA.ContactState;
-        seventhSense = slotA.SeventhSense;
-        globalCounter039A = slotA.GlobalCounter039A;
-
-        var slotB = StepSlot(
             slotBState,
+            commonHitboxA,
             commonHitboxB,
             currentPlayer,
             currentContact,
@@ -189,30 +188,104 @@ public static class PlatformHybridEntityCombatSlice
             engineSubstate02,
             engineState00,
             alternateParent08_03AB);
-        currentPlayer = ApplySlotCarry(currentPlayer, slotB.AttackState, slotB.ContactState);
-        currentContact = slotB.ContactState;
-        seventhSense = slotB.SeventhSense;
-        globalCounter039A = slotB.GlobalCounter039A;
 
         var attackPhase = PlatformAttackFramePhases.UpdateObjectsAfterPlayer(
-            currentPlayer,
+            pair.PlayerAfterSlots,
             frameCounter3C);
         var nextCounter = unchecked((byte)(frameCounter3C + 1));
 
         return new PlatformHybridEntityCombatSliceResult(
             pre,
             latch,
-            slotA.Result,
-            slotB.Result,
+            pair.SlotA,
+            pair.SlotB,
             attackPhase,
             attackPhase.Player,
-            currentContact,
-            seventhSense,
-            globalCounter039A,
+            pair.ContactState,
+            pair.SeventhSense,
+            pair.GlobalCounter039A,
             frameCounter3C,
             nextCounter,
             FrameCounterAdvanced: true,
             ExitedBeforeEntityPipeline: false);
+    }
+
+    /// <summary>
+    /// Execute only the confirmed primary A->B body after player simulation and
+    /// B94B/post-player latch processing. This method deliberately performs no
+    /// pre-player resource work, no player dispatch, no A22C attack-object step,
+    /// and no shared $3C increment.
+    /// </summary>
+    public static PlatformHybridEntityPairResult StepPairAfterPlayer(
+        PlatformHybridEntitySlotState slotAState,
+        PlatformHybridEntitySlotState slotBState,
+        PlatformHitboxParameters commonHitboxA,
+        PlatformHitboxParameters commonHitboxB,
+        PlatformPlayerActionDispatchResult currentPlayer,
+        PlatformContactPhaseState contactState,
+        int platformDamage,
+        int seventhSense,
+        byte globalCounter039A,
+        byte frameCounter3C,
+        byte entropy48,
+        byte cameraDelta43,
+        byte engineSubstate02,
+        byte engineState00,
+        byte alternateParent08_03AB)
+    {
+        if (currentPlayer.ExitsNormalPlayerLoop)
+            throw new InvalidOperationException("After-player primary pair cannot run after a player-loop exit.");
+        if (currentPlayer.State.Special76 != contactState.HazardLatch76)
+        {
+            throw new InvalidOperationException(
+                $"Player Special76 (${currentPlayer.State.Special76:X2}) and contact HazardLatch76 (${contactState.HazardLatch76:X2}) must match before primary pair.");
+        }
+
+        var slotA = StepSlot(
+            slotAState,
+            commonHitboxA,
+            currentPlayer,
+            contactState,
+            platformDamage,
+            seventhSense,
+            globalCounter039A,
+            frameCounter3C,
+            entropy48,
+            cameraDelta43,
+            engineSubstate02,
+            engineState00,
+            alternateParent08_03AB);
+        currentPlayer = ApplySlotCarry(currentPlayer, slotA.AttackState, slotA.ContactState);
+        contactState = slotA.ContactState;
+        seventhSense = slotA.SeventhSense;
+        globalCounter039A = slotA.GlobalCounter039A;
+
+        var slotB = StepSlot(
+            slotBState,
+            commonHitboxB,
+            currentPlayer,
+            contactState,
+            platformDamage,
+            seventhSense,
+            globalCounter039A,
+            frameCounter3C,
+            entropy48,
+            cameraDelta43,
+            engineSubstate02,
+            engineState00,
+            alternateParent08_03AB);
+        currentPlayer = ApplySlotCarry(currentPlayer, slotB.AttackState, slotB.ContactState);
+        contactState = slotB.ContactState;
+        seventhSense = slotB.SeventhSense;
+        globalCounter039A = slotB.GlobalCounter039A;
+
+        return new PlatformHybridEntityPairResult(
+            slotA.Result,
+            slotB.Result,
+            currentPlayer,
+            contactState,
+            seventhSense,
+            globalCounter039A);
     }
 
     private sealed record SlotCarry(
