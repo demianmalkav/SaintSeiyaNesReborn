@@ -60,6 +60,7 @@ public static class PlatformOrdinaryPlayerAction
         byte dynamicFloorY039B = 0)
     {
         var frameStartAction4E = state.ActionState4D;
+        EnsureOrdinaryFrameStart(frameStartAction4E);
 
         // Collision samples are prepared before $AAE4 and are therefore shared by
         // jump vertical/air-control or the grounded branch in this update.
@@ -235,5 +236,19 @@ public static class PlatformOrdinaryPlayerAction
             return 0;
 
         return currentAction;
+    }
+
+    private static void EnsureOrdinaryFrameStart(byte frameStartAction4E)
+    {
+        var family = PlatformActionState.Family(frameStartAction4E);
+        if (family is (byte)PlatformActionFamily.Crouch
+            or (byte)PlatformActionFamily.Special40
+            or (byte)PlatformActionFamily.FallOrDrop
+            or (byte)PlatformActionFamily.DamageOrHazard)
+        {
+            throw new ArgumentException(
+                $"Frame-start action ${frameStartAction4E:X2} is dispatched by a special $AAE4 branch, not the ordinary route.",
+                nameof(frameStartAction4E));
+        }
     }
 }
