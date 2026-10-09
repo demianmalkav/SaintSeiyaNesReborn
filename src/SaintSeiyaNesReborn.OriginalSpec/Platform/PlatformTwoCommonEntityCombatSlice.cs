@@ -4,6 +4,7 @@ public sealed record PlatformCommonEntitySlotFrameResult(
     PlatformCommonEntityRuntimeState Entity,
     PlatformCommonEntityActiveDispatchResult Dispatch,
     PlatformCommonEntityInteractionResult? Interaction,
+    PlatformCommonEntityAttack70PostResult? Attack70Post,
     bool RemovedBeforeInteraction);
 
 public sealed record PlatformTwoCommonEntityCombatSliceResult(
@@ -24,9 +25,11 @@ public sealed record PlatformTwoCommonEntityCombatSliceResult(
 /// Ordered clean-room slice for the two common movable-entity records processed
 /// by $A442. Slot A ($03BA-$03C9) runs before slot B ($03CA-$03D9).
 ///
-/// Closed active families $10/$30/$40/$50/$D0 are dispatched independently per
-/// entity, while attack objects, shared $76/$7F/$80 state and Seventh Sense are
-/// threaded from A into B.
+/// Closed common families $10/$30/$40/$50/$70/$D0 are dispatched independently
+/// per entity, while attack objects, shared $76/$7F/$80 state and Seventh Sense
+/// are threaded from A into B. Family $70 is deliberately split around the
+/// interaction phase: its preparation occurs before $9915/$98BA and its $A886
+/// counter/spawn progression occurs afterward.
 /// </summary>
 public static class PlatformTwoCommonEntityCombatSlice
 {
@@ -176,6 +179,7 @@ public static class PlatformTwoCommonEntityCombatSlice
                     entity,
                     dispatch,
                     null,
+                    null,
                     RemovedBeforeInteraction: true),
                 player,
                 contactState,
@@ -188,6 +192,7 @@ public static class PlatformTwoCommonEntityCombatSlice
                 new PlatformCommonEntitySlotFrameResult(
                     entity,
                     dispatch,
+                    null,
                     null,
                     RemovedBeforeInteraction: false),
                 player,
@@ -220,11 +225,24 @@ public static class PlatformTwoCommonEntityCombatSlice
             },
         };
 
+        PlatformCommonEntityAttack70PostResult? attack70Post = null;
+        if (dispatch.Route == PlatformCommonEntityActiveRoute.Attack70)
+        {
+            // $A886 executes after $9915/$98BA. If the hit resolver changed the
+            // family to $40/$D0, AdvanceAfterInteraction correctly becomes a
+            // no-op and the original $70 counter does not advance this frame.
+            attack70Post = PlatformCommonEntityAttack70.AdvanceAfterInteraction(
+                entity.Motion,
+                frameCounter3C);
+            entity = entity with { Motion = attack70Post.Value.State };
+        }
+
         return new SlotCarry(
             new PlatformCommonEntitySlotFrameResult(
                 entity,
                 dispatch,
                 interaction,
+                attack70Post,
                 RemovedBeforeInteraction: false),
             player,
             interaction.ContactPhase.State,
@@ -254,10 +272,10 @@ public static class PlatformTwoCommonEntityCombatSlice
         }
 
         var family = entity.Motion.ActionState & 0xF0;
-        if (family is not (0x10 or 0x30 or 0x40 or 0x50 or 0xD0))
+        if (family is not (0x10 or 0x30 or 0x40 or 0x50 or 0x70 or 0xD0))
         {
             throw new InvalidOperationException(
-                $"{name} action ${entity.Motion.ActionState:X2} is outside the closed active families $10/$30/$40/$50/$D0.");
+                $"{name} action ${entity.Motion.ActionState:X2} is outside the closed common families $10/$30/$40/$50/$70/$D0.");
         }
     }
 }
