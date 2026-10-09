@@ -18,6 +18,7 @@ internal static class ScheduledSpecialEntitySpawnerChecks
     private static void CheckSpawnAtAlignedCameraTrigger()
     {
         var existing = Existing(type: 0x05);
+        // Raw entity bytes +$0C..+$0F = HP, Cosmo drain, Life drain, reward.
         var profile = new PlatformSpecialSpawnProfile(0x30, 0x02, 0x03, 0x10);
         var schedule = new[]
         {
@@ -42,10 +43,10 @@ internal static class ScheduledSpecialEntitySpawnerChecks
         Require(result.Entity.Motion.Type == 0x0C, "type comes from low nibble of $58");
         Require(result.Entity.Motion.FlagsFacing == 0x01, "offset +$07 is seeded to 1");
         Require(result.Entity.HitPoints == 0x30
-            && result.Entity.LifeDrainTicks == 0x02
-            && result.Entity.CosmoDrainTicks == 0x03
+            && result.Entity.CosmoDrainTicks == 0x02
+            && result.Entity.LifeDrainTicks == 0x03
             && result.Entity.SeventhSenseRewardBcd == 0x10,
-            "profile bytes populate offsets +$0C..+$0F");
+            "profile bytes +$0D/+0E become semantic Cosmo/Life drain counters");
         Require(result.VisualSprite == 0xFD, "visual sprite byte +1 becomes $FD");
         Require(result.LastTriggerLow03A2 == 0x38, "$03A2 stores trigger low byte");
     }
