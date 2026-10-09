@@ -69,27 +69,16 @@ internal static class OrdinaryPlayerActionChecks
         Require(simultaneous.State.JumpPhase49 == 2, "A+B jump phase advances after attack creation");
         Require(simultaneous.State.AttackState.Busy4B == 1, "A+B attack busy state persists");
 
-        // Attack creation receives the old frame-start $4E. Starting from crouch-like
-        // $20 yields the +15 Y origin even though this ordinary-path fixture then
-        // clears action through grounded tail. This directly tests the old-$4E contract.
-        var oldFrameStart = PlatformOrdinaryPlayerAction.Step(
-            stage,
-            BaseState(x: 0x40, y: 0x50, action: 0x20, facing: 0x40),
-            PlatformInput.B,
-            frameCounter3C: 0,
-            cosmo: 100);
-        Require(oldFrameStart.FrameStartAction4E == 0x20, "old frame-start action captured before B");
-        Require(oldFrameStart.AttackAttempt.Outcome == PlatformAttackAttemptOutcome.Created, "B attack created from old action fixture");
-        Require(oldFrameStart.State.AttackState.Slot0.Object.Y == 0x5F, "old $4E==$20 adds eight extra origin pixels");
-
         var movingAttack = PlatformOrdinaryPlayerAction.Step(
             stage,
             BaseState(x: 0x40, y: 0x60, action: 0x10, facing: 0x40),
             PlatformInput.B,
             frameCounter3C: 0,
             cosmo: 100);
+        Require(movingAttack.FrameStartAction4E == 0x10, "moving attack preserves old frame-start action");
         Require(movingAttack.AttackAttempt.Outcome == PlatformAttackAttemptOutcome.Created, "moving-family B creates attack");
         Require(movingAttack.AttackAttempt.State.ActionState4D == 0, "attack creation resets moving family before grounded tail");
+        Require(movingAttack.State.AttackState.Slot0.Object.Y == 0x67, "non-crouch old $4E uses player Y+7 origin");
         Require(movingAttack.State.ActionState4D == 0, "B-only grounded tail remains neutral");
 
         var movingAttackRight = PlatformOrdinaryPlayerAction.Step(
@@ -111,9 +100,8 @@ internal static class OrdinaryPlayerActionChecks
         Require(downRight.State.Horizontal.PlayerX == 0x41, "Right+Down moves before action tail");
         Require(downRight.State.ActionState4D == 0x20, "Down overrides locomotion at tail");
 
-        var finalEdgeStage = OpenStage();
         var finalEdge = PlatformOrdinaryPlayerAction.Step(
-            finalEdgeStage,
+            stage,
             BaseState(x: 0xE0, y: 0x60, scrollLow: 0xF8, scrollHigh: 0x04),
             PlatformInput.Right,
             frameCounter3C: 0,
@@ -164,9 +152,26 @@ internal static class OrdinaryPlayerActionChecks
         Require(airborneCollision.State.ActionState4D == 0x30, "directional airborne collision collapses action to $30");
         Require(airborneCollision.State.JumpPhase49 == 9, "directional airborne collision preserves progressed phase");
 
-        // This compositor intentionally does not own $3C; object updates still have
-        // to run later in the full platform frame before the fixed-bank increment.
+        // $20/$40/$50/$80 frame-start families are routed elsewhere by $AAE4.
+        var rejectedSpecial = false;
+        try
+        {
+            PlatformOrdinaryPlayerAction.Step(
+                stage,
+                BaseState(x: 0x40, y: 0x60, action: 0x20),
+                PlatformInput.None,
+                frameCounter3C: 0,
+                cosmo: 100);
+        }
+        catch (ArgumentException)
+        {
+            rejectedSpecial = true;
+        }
+        Require(rejectedSpecial, "ordinary compositor rejects crouch frame-start branch");
+
+        // This compositor intentionally does not own $3C or the later object update.
         Require(simultaneous.State.AttackState.Busy4B == 1, "ordinary player action does not advance attack busy counter");
+        Require(simultaneous.State.AttackState.Slot0.Object.Type == 0x64, "ordinary player action does not advance projectile animation/type");
     }
 
     private static PlatformOrdinaryPlayerActionState BaseState(
