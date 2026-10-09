@@ -1,10 +1,8 @@
 # Persistent primary-entity frame bridge
 
-Status: **clean-room composition of already-confirmed NMI encounter state, primary producers, hybrid entity scheduling and primary removal occupancy**.
+Status: **clean-room composition of confirmed NMI encounter state, split primary producers, platform-exit gate, hybrid entity scheduling and primary removal occupancy**.
 
-This layer closes the state hand-off that previously required translating `PlatformPageEncounterSpawnState` into `PlatformHybridEntitySlotState` outside the runtime.
-
-It does **not** claim to be the complete platform frame. In particular, fixed-bank platform exit evaluation still lies between the early common producer and later bank-1/player work. The composed main-thread method is therefore named `StepMainThreadNonExit`: it represents the already-confirmed normal path after that diversion is known not to end the frame.
+This layer owns the persistent hand-off that previously required translating `PlatformPageEncounterSpawnState` into `PlatformHybridEntitySlotState` outside the runtime.
 
 ## Persistent state
 
@@ -22,67 +20,107 @@ global special counter $039A
 frame counter $3C
 ```
 
-Each hybrid slot already carries:
-
-```text
-primary logical entity record
-tracked primary visual occupancy byte (+1)
-logical special-control byte +$04
-attached $A908/$AA70 hazard record
-logical parent byte +$08
-```
-
-Thus producer output and entity output now land in the same persistent slot representation.
+Each hybrid slot carries the primary logical record, tracked primary visual occupancy `+1`, special-control `+$04`, attached `$A908/$AA70` hazard state and parent byte `+$08`.
 
 ## NMI remains a distinct boundary
 
-`StepNmi(...)` delegates to `PlatformPrimaryEncounterRefreshAndSpawn.StepNmi(...)` and updates only the encounter latch / staged descriptor fields owned by the NMI-side acceptance phase.
+`StepNmi(...)` delegates to `PlatformPrimaryEncounterRefreshAndSpawn.StepNmi(...)` and updates only the NMI-side encounter latch / staged descriptor state.
 
-It does not execute producers or entity simulation.
-
-This preserves the existing distinction:
+It does not execute producers or entity simulation:
 
 ```text
 NMI: visible page -> staged $03B7 / accepted $58+profile
 
-later main thread: accepted/staged state -> producers -> simulation
+later main thread: accepted/staged state -> producer/exit/simulation path
 ```
 
-A fixture verifies that a newly accepted special encounter leaves the primary slots free at the NMI return and is consumed only by the later main-thread call.
+## Exact main-thread split around the exit gate
 
-## Normal main-thread composition
+Direct static inspection of the canonical Japanese ROM confirms the call sequence in the fixed bank around `$C300`:
 
-For a platform frame already known to continue past the earlier exit diversion, `StepMainThreadNonExit(...)` composes:
+```text
+$C30A  JSR $B6D0   ; generic common producer
+$C30D  LDA #$01
+$C30F  JSR $C035   ; select bank 1
+$C312  JSR $969D   ; platform exit gate
+...
+$C319  JSR $8000   ; continuing path only
+```
+
+Bank-1 `$8000` then contains:
+
+```text
+$8000  JSR $9211
+$8003  JSR $926C
+$8006  JSR $8712
+$8009  JSR $8841
+$800C  JSR $8927   ; scheduled-special producer
+...
+```
+
+Therefore the producer order is not simply `$B6D0 -> $8927` with an exit check elsewhere. The evidence-backed boundary is:
+
+```text
+$B6D0 generic producer
+    ->
+$969D exit gate
+    -> if accepted: engine transition, no $8000/$8927 path
+    -> if rejected: bank-1 $8000, including $8927, then later player/entities
+```
+
+`PlatformLatchedCommonProducerPhase` now exposes this with `StepCommon(...)` and `StepScheduled(...)`. Its legacy `Step(...)` remains the composition for callers already known to be on the non-exit path.
+
+## Full persistent main-thread API
+
+`PlatformPersistentPrimaryEntityFrame.StepMainThread(...)` now executes:
 
 ```text
 $B6D0 generic primary producer
     ->
-$8927 scheduled-special producer
-    ->
-pre-player resource phases
-    ->
-player/action processing
-    ->
-hybrid primary entity A
-    ->
-hybrid primary entity B
-    ->
-late attack-object phase
-    ->
-shared $3C advance
+PlatformExitGate.Evaluate(...)
+    -> accepted: return State3DReload or State70Special
+    -> rejected: $8927 scheduled producer
+                 -> pre-player resources
+                 -> player/action processing
+                 -> hybrid primary entity A
+                 -> hybrid primary entity B
+                 -> late attack-object phase
+                 -> shared $3C advance
 ```
 
-The first two stages remain delegated to `PlatformPrimaryEncounterRefreshAndSpawn.StepMainThread(...)`; the later simulation remains delegated to `PlatformHybridEntityCombatSlice.StepNonFatal(...)`. The bridge owns only persistent state reconciliation between those closed components.
+The result type distinguishes:
+
+- `Continued`
+- `State3DReload`
+- `State70Special`
+
+An accepted exit preserves every state mutation already produced before `$969D`, especially `$B6D0` slot/cooldown changes, but deliberately leaves the scheduled trigger latch and `$3C` untouched because `$8927` and later frame phases did not execute.
+
+The semantic runtime surfaces the transition kind only. The original normal `$3D` path also snapshots Saint state, changes `$00/$01`, disables PPU/NMI, resets the stack and enters `$E100`; the `$11` path enters distinct `$70` plumbing. Those NES engine-transition mechanics remain outside this persistent logical/entity state rather than being faked here.
+
+`StepMainThreadNonExit(...)` remains as a compatibility entry point. It uses the same split core but skips exit-gate evaluation, allowing regression comparison with work that had already established a non-exit frame externally.
+
+## Exit predicates reused, not duplicated
+
+The bridge delegates directly to `PlatformExitGate` for:
+
+- `$49 == 0` jump-phase requirement;
+- common `$00-$0B` gate at `X >= $D0`, `Y == $40`;
+- special `$0C-$11` coordinate table;
+- the `$10` Shun rejection;
+- normal `$3D` versus `$11` special `$70` transition distinction.
+
+No second copy of those predicates exists in the scheduler.
 
 ## Producer write-map reconciliation
 
-`PlatformPageEncounterSpawnState` contains the primary logical records and primary visual occupancy, but it predates the independently modeled special-only fields `+$04`, `+$08` and attached-hazard state.
+`PlatformPageEncounterSpawnState` contains the primary logical records and primary visual occupancy, but the richer hybrid slot also owns `+$04`, `+$08` and attached-hazard state.
 
-The bridge therefore reconciles successful replacement using direct producer write evidence instead of zeroing the richer slot wholesale.
+Direct producer write evidence remains the reconciliation rule.
 
 ### Generic producer `$B6D0`
 
-The canonical ROM write block at bank-0 `$B7BB+` performs, among the already-modeled spawn writes:
+The canonical ROM write block at bank-0 `$B7BB+` writes, among the modeled fields:
 
 ```text
 logical +$00 = $10
@@ -94,11 +132,11 @@ logical +$0C..+$0F = profile
 visual  +$01 = $FD
 ```
 
-It does not write logical `+$08`.
+It skips logical `+$08`.
 
 ### Scheduled producer `$8927`
 
-The canonical ROM write block at bank-1 `$898B-$89D1` performs:
+The bank-1 `$898B-$89D1` write block writes:
 
 ```text
 logical +$00 = $00
@@ -112,50 +150,31 @@ logical +$09 = type
 logical +$0C..+$0F = profile
 ```
 
-The increment sequence skips logical `+$08`; it is not overwritten by this producer.
+It also skips logical `+$08`.
 
 ### Resulting bridge rule
 
 On successful spawn by either producer:
 
 - primary `Entity` and visual occupancy come from the producer result;
-- `SpecialControl04` is reset to `$00`;
+- `SpecialControl04` resets to `$00`;
 - `ParentOffset08` is preserved;
-- `AttachedHazard` is preserved.
+- `AttachedHazard` is preserved because neither primary producer owns the separate `$A908/$AA70` record.
 
-The last rule is ownership-based rather than guessed cleanup: the attached `$A908/$AA70` record is a separate raw visual/hazard record and neither primary producer write block owns it. Its own spawn/contact/deactivation routines remain responsible for its mutations.
+## Multi-frame and exit-path fixtures
 
-When no spawn occurs, richer special-only fields are preserved while any producer mutations that did occur to the primary entity record (for example a partial common ground-search result) still propagate through the final producer state.
-
-## Producer-before-entity consequence
-
-On the normal active path, producer mutation is visible to later player/entity processing in the same composed main-thread call.
-
-The scheduled producer creates its entity at `X=$F8`; when the current camera correction is nonzero the later special runtime can observe the newly created record at the corrected in-range X. Fixtures use such a confirmed non-exit scrolling case rather than inventing an unconditional one-frame defer.
-
-If player/action processing exits before the entity pipeline, producer output still persists because those producers ran earlier. The bridge therefore falls back to the post-producer slots when `PlatformHybridEntityCombatSlice` returns no slot results.
-
-## Multi-frame closure
-
-Fixtures cover:
+Regression fixtures now cover:
 
 1. NMI acceptance followed by deferred main-thread producer consumption;
-2. scheduled-special replacement resetting `+$04` while preserving `+$08` and the external attached-hazard record;
-3. generic replacement applying the same `+$04` reset / `+$08` preservation rule;
-4. frame N `$A647` retirement feeding frame N+1 `$B6D0` slot reuse directly, with no manual `visual=$FE` repair.
+2. scheduled-special and generic replacement semantics for `+$04`, `+$08` and attached hazard;
+3. frame N `$A647` retirement feeding later producer reuse without manual visual repair;
+4. a normal `$00-$0B` exit after an early `$B6D0` spawn, proving that the spawn persists while `$8927`/player/entities/`$3C` do not execute;
+5. the `$10` Shun exception continuing into `$8927` and later frame simulation;
+6. the `$11` gate returning the distinct `$70` transition and suppressing later work;
+7. non-exit equivalence between the full entry point and `StepMainThreadNonExit(...)`.
 
-The last case closes the current persistent loop:
+## Remaining boundaries
 
-```text
-producer spawn
- -> hybrid entity simulation
- -> A647 removal/occupancy retirement
- -> persistent state
- -> later producer slot reuse
-```
-
-## Open boundaries
-
-- The fixed-bank platform-exit gate is not folded into this bridge. A later full-frame scheduler must preserve its exact position between early `$B6D0` and later bank-1/player work.
 - Scheduled types `$0D/$0E` can be produced by `$8927`, but the current hybrid active runtime only promotes special `$08/$09/$0C`; those families remain explicit future integration work.
 - Full renderer-owned sprite animation state remains outside this persistent logical/occupancy layer except for already-promoted lifecycle writes.
+- The semantic `$3D/$70` result does not yet model higher-level native destination/state-machine behavior after leaving the platform area; that belongs above the entity-frame layer.
