@@ -8,6 +8,7 @@ public enum PlatformCommonEntityActiveRoute
     Fall50,
     Attack70,
     DeathD0,
+    DropE0,
 }
 
 public enum PlatformCommonEntityActiveContinuation
@@ -26,7 +27,8 @@ public readonly record struct PlatformCommonEntityActiveDispatchResult(
     PlatformCommonEntityHitReaction40Result? HitReaction40,
     PlatformCommonEntityFall50Result? Fall50,
     PlatformCommonEntityAttack70PreparationResult? Attack70,
-    PlatformCommonEntityDeathD0Result? DeathD0);
+    PlatformCommonEntityDeathD0Result? DeathD0,
+    PlatformCommonEntityDropE0Result? DropE0);
 
 /// <summary>
 /// Explicit pre-interaction dispatcher for the closed common-entity families
@@ -34,7 +36,8 @@ public readonly record struct PlatformCommonEntityActiveDispatchResult(
 ///
 /// Family $70 is special: this dispatcher performs only its pre-interaction
 /// preparation. Its $A886 counter/spawn progression occurs after $9915/$98BA
-/// and is therefore composed later by the owning frame slice.
+/// and is therefore composed later by the owning frame slice. Families $40,
+/// $50, $D0 and $E0 bypass ordinary interaction on their current control paths.
 /// </summary>
 public static class PlatformCommonEntityActiveDispatcher
 {
@@ -58,6 +61,7 @@ public static class PlatformCommonEntityActiveDispatcher
             0x50 => StepFall(state, cameraDelta43),
             0x70 => StepAttack70(state, playerX, playerY, playerJumpPhase49, entropy48, frameCounter3C, cameraDelta43),
             0xD0 => StepDeath(state, frameCounter3C, cameraDelta43),
+            0xE0 => StepDropE0(state, cameraDelta43),
             _ => throw new InvalidOperationException($"Active common dispatcher does not yet model action ${state.ActionState:X2}.")
         };
     }
@@ -82,7 +86,7 @@ public static class PlatformCommonEntityActiveDispatcher
         var continuation = step.Outcome == PlatformCommonEntityPreparationOutcome.ReadyForInteraction
             ? PlatformCommonEntityActiveContinuation.ReadyForInteraction
             : PlatformCommonEntityActiveContinuation.Removed;
-        return new(step.State, PlatformCommonEntityActiveRoute.Ordinary10, continuation, step, null, null, null, null, null);
+        return new(step.State, PlatformCommonEntityActiveRoute.Ordinary10, continuation, step, null, null, null, null, null, null);
     }
 
     private static PlatformCommonEntityActiveDispatchResult StepJump(
@@ -101,7 +105,7 @@ public static class PlatformCommonEntityActiveDispatcher
         var continuation = step.Outcome == PlatformCommonEntityJump30Outcome.ReadyForInteraction
             ? PlatformCommonEntityActiveContinuation.ReadyForInteraction
             : PlatformCommonEntityActiveContinuation.Removed;
-        return new(step.State, PlatformCommonEntityActiveRoute.Jump30, continuation, null, step, null, null, null, null);
+        return new(step.State, PlatformCommonEntityActiveRoute.Jump30, continuation, null, step, null, null, null, null, null);
     }
 
     private static PlatformCommonEntityActiveDispatchResult StepReaction(PlatformCommonEntityMotionState state)
@@ -114,6 +118,7 @@ public static class PlatformCommonEntityActiveDispatcher
             null,
             null,
             step,
+            null,
             null,
             null,
             null);
@@ -135,6 +140,7 @@ public static class PlatformCommonEntityActiveDispatcher
             null,
             null,
             step,
+            null,
             null,
             null);
     }
@@ -168,6 +174,7 @@ public static class PlatformCommonEntityActiveDispatcher
             null,
             null,
             step,
+            null,
             null);
     }
 
@@ -186,6 +193,28 @@ public static class PlatformCommonEntityActiveDispatcher
             step.State,
             PlatformCommonEntityActiveRoute.DeathD0,
             continuation,
+            null,
+            null,
+            null,
+            null,
+            null,
+            step,
+            null);
+    }
+
+    private static PlatformCommonEntityActiveDispatchResult StepDropE0(
+        PlatformCommonEntityMotionState state,
+        byte cameraDelta43)
+    {
+        var step = PlatformCommonEntityDropE0.Step(state, cameraDelta43);
+        var continuation = step.Outcome == PlatformCommonEntityDropE0Outcome.RemovedLowerBand
+            ? PlatformCommonEntityActiveContinuation.Removed
+            : PlatformCommonEntityActiveContinuation.SkipInteraction;
+        return new(
+            step.State,
+            PlatformCommonEntityActiveRoute.DropE0,
+            continuation,
+            null,
             null,
             null,
             null,
