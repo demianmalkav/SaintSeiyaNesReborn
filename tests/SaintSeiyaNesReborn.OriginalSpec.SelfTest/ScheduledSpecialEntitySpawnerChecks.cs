@@ -7,6 +7,8 @@ internal static class ScheduledSpecialEntitySpawnerChecks
     internal static void Run()
     {
         CheckSpawnAtAlignedCameraTrigger();
+        CheckPairAConsumesTriggerBeforeB();
+        CheckOccupiedALetsBTakeTrigger();
         CheckDuplicateUsesLowByteOnly();
         CheckOccupiedVisualSlotBlocksSpawn();
         CheckUnsupportedTypeIsRejected();
@@ -46,6 +48,46 @@ internal static class ScheduledSpecialEntitySpawnerChecks
             "profile bytes populate offsets +$0C..+$0F");
         Require(result.VisualSprite == 0xFD, "visual sprite byte +1 becomes $FD");
         Require(result.LastTriggerLow03A2 == 0x38, "$03A2 stores trigger low byte");
+    }
+
+    private static void CheckPairAConsumesTriggerBeforeB()
+    {
+        var pair = PlatformScheduledSpecialEntitySpawner.TrySpawnPair(
+            Existing(0x01),
+            visualSpriteA: 0xFE,
+            Existing(0x02),
+            visualSpriteB: 0xFE,
+            engine58: 0x09,
+            cameraLow44: 0x38,
+            cameraHigh45: 0x04,
+            lastTriggerLow03A2: 0x10,
+            new PlatformSpecialSpawnProfile(1, 2, 3, 4),
+            [new PlatformSpecialSpawnEntry(0x38, 0x04, 0x40)]);
+
+        Require(pair.SlotA.Spawned, "slot A takes matching trigger first");
+        Require(pair.SlotB.Outcome == PlatformScheduledSpecialSpawnOutcome.DuplicateLowTrigger,
+            "slot B sees slot A's updated $03A2 in same frame");
+        Require(pair.LastTriggerLow03A2 == 0x38, "pair preserves shared trigger latch");
+    }
+
+    private static void CheckOccupiedALetsBTakeTrigger()
+    {
+        var pair = PlatformScheduledSpecialEntitySpawner.TrySpawnPair(
+            Existing(0x01),
+            visualSpriteA: 0x80,
+            Existing(0x02),
+            visualSpriteB: 0xFE,
+            engine58: 0x0D,
+            cameraLow44: 0xA8,
+            cameraHigh45: 0x05,
+            lastTriggerLow03A2: 0x10,
+            new PlatformSpecialSpawnProfile(5, 6, 7, 8),
+            [new PlatformSpecialSpawnEntry(0xA8, 0x05, 0x60)]);
+
+        Require(pair.SlotA.Outcome == PlatformScheduledSpecialSpawnOutcome.SlotOccupied,
+            "occupied A is skipped without changing trigger latch");
+        Require(pair.SlotB.Spawned, "free B can consume trigger after occupied A");
+        Require(pair.SlotB.Entity.Motion.Type == 0x0D, "B receives scheduled special type");
     }
 
     private static void CheckDuplicateUsesLowByteOnly()
