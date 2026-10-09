@@ -26,9 +26,10 @@ public sealed record PlatformHazardAndCommonEntityFrameResult(
 /// $96B4 auxiliary spawn -> $9761 auxiliary A/B -> $A442 common A/B ->
 /// $A22C player attack objects -> $C402 $3C increment.
 ///
-/// `$9B93` common-entity spawning runs before `$96B4` in the original but is not
-/// yet promoted. The supplied common entity records are therefore the records as
-/// they exist after that earlier stage/spawn phase for the current frame.
+/// `$9B93` runs immediately before `$96B4` in the original but is not yet
+/// promoted. Static inspection shows that it owns a separate multi-sprite class
+/// rooted at visual `$07E0` / logical `$03FB`; it is not the spawner for the
+/// `$03BA/$03CA` common entity pair supplied to this slice.
 /// </summary>
 public static class PlatformHazardAndCommonEntityFrameSlice
 {
