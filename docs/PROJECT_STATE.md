@@ -8,13 +8,14 @@ Technical subsystem documents remain authoritative for evidence and semantics. T
 
 - Phase: `ORIGINAL SPEC / normal reload interactive transition`
 - State: `READY_FOR_NEXT`
-- Last verified checkpoint: PR `#98` — bounded narrative `$04=$8F` branch through `$E100` to stable engine state `$00`, substate `$00`.
+- Last verified technical checkpoint: PR `#98` — bounded narrative `$04=$8F` branch through `$E100` to stable engine state `$00`, substate `$00`.
 - Merge commit: `97b0a495ce707e339b5b96f3ce36ea878f7f4a33`
 - Exact final PR head: `af77331bd34c3d0f513e6fa65b2efa9f6ad93775`
 - Verification gate on that exact head:
   - `ORIGINAL SPEC tests` run `#265`: `SUCCESS`
   - `Original Spec` run `#455`: `SUCCESS`
   - build, OriginalSpec self-test and password compatibility fixture: `SUCCESS`
+- Latest operational-state reconciliation before recovery curation: PR `#100`, merge `82b1bcd1531df0d0e4bf20cd11cce9c8df943b7f`; this is documentation/state discovery and does **not** supersede PR #98 as the last verified technical checkpoint.
 - Previous checkpoints: PR `#96` closed narrative `$80-$89`; PR `#94` closed the immediate `$3D`/special `$70->$80` post-exit boundary; PR `#92` closed primary-family reachability; PR `#90` closed the persistent normal platform frame.
 - Workflow hardening checkpoint: PR `#74` remains authoritative for continuation/anti-loop semantics.
 
@@ -167,6 +168,24 @@ Required sequence:
 ## BLOCKERS
 
 - None. The canonical ROM, fixed-bank dispatcher and bank-5 handlers are available.
+
+## RECOVERY CONTRACT
+
+A new session must be able to resume this project without chat history.
+
+Recovery order:
+
+1. read this file from `main`;
+2. reconcile `CURRENT` with newer merged Git history if any exists;
+3. inspect only the technical documents/code/tests required by `NEXT`;
+4. use `docs/REVERSE_ENGINEERING_STATUS.md` only as a global navigation/maturity map;
+5. use `docs/WORK_PROTOCOL.md` for execution rules;
+6. when private assets are required, use the private Drive `PRIVATE_WORKSPACE_MANIFEST — Saint Seiya Reborn`; when a result depends on private traces/save states/captures, consult `04_REVERSE_ENGINEERING/EVIDENCE_INDEX`;
+7. Drive never overrides this file and never owns a separate `NEXT`.
+
+Private Drive IDs/URLs are intentionally not stored in this public repository. The manifest records them privately. As of the recovery curation, the canonical ROM and localization corpus are present; historical private trace/save-state packs were not present and must not be assumed to exist.
+
+Recovery is considered healthy when a fresh session can identify from durable artifacts alone: the target ROM revision, the last verified technical checkpoint, what is closed, the active boundary, one executable `NEXT`, and whether any private evidence pack is required.
 
 ## ANTI-LOOP
 
