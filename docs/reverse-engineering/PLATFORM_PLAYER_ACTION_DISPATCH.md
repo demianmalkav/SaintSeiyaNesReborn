@@ -2,7 +2,7 @@
 
 Target: canonical Japanese `Saint Seiya: Ōgon Densetsu Kanketsu Hen` ROM.
 
-Status: the ordinary/default route plus frame-start `$20` crouch and `$50` fall/drop branches are composed in executable clean-room code. Frame-start `$40` and `$80` remain intentionally unsupported until their routines are isolated to the same evidence level.
+Status: the ordinary/default route plus frame-start `$20` crouch, `$40` special cycle and `$50` fall/drop branches are composed in executable clean-room code. Frame-start `$80` remains intentionally unsupported until its routine is isolated to the same evidence level.
 
 ## Dispatcher boundary
 
@@ -58,6 +58,21 @@ Consequences:
 
 Thus a Down+A+B frame can create an attack from the post-drop player Y while retaining the frame-start crouch offset.
 
+### Frame-start `$40-$4F` — fixed-bank special cycle
+
+`$AAE4` performs exactly one call to fixed-bank `$C5CC` and then returns. It does **not** run B/attack creation, grounded movement or airborne jump logic.
+
+`$C5CC` is a compact 16-state cycle driven entirely by frame-start `$4E`:
+
+- for `$40-$4E`: current action becomes `frame_start_action + 1` and player Y increments by one;
+- for `$4F`: current action resets to `$00` and player Y subtracts `$0F`.
+
+Therefore a complete `$40 -> ... -> $4F` sequence accumulates fifteen downward pixels, then restores those fifteen pixels in one final upward snap. `$C5CC` touches only `$4D` and the low player-Y byte `$40`; it does not update the Y page/high byte `$41`.
+
+Input is ignored by this branch. In particular, B does not update its latch or busy state here because `$BBCA` is never reached.
+
+The clean-room model is `PlatformSpecial40Motion`.
+
 ### Frame-start `$50` — fall/drop
 
 The confirmed order is:
@@ -74,20 +89,21 @@ Consequences:
 - a frame that begins below `$90` can cross the threshold during `$B87D`, then have B consume its latch/play sound but create no object;
 - if the fall lands first, B creates from the snapped landing Y and current neutral action.
 
-## Explicitly unsupported branches
+## Explicitly unsupported branch
 
-Frame-start families `$40` and `$80` are returned as `UnsupportedSpecial40` and `UnsupportedDamage80`.
+Frame-start family `$80` is returned as `UnsupportedDamage80`.
 
-The dispatcher deliberately performs no speculative mutation for them. This prevents later code from silently treating unknown damage/special behavior as ordinary locomotion.
+The dispatcher deliberately performs no speculative mutation for it. This prevents later code from silently treating unknown damage/hazard behavior as ordinary locomotion.
 
-They are the next reverse-engineering targets for complete `$AAE4` coverage.
+`$80` is the next reverse-engineering target for complete `$AAE4` coverage.
 
 ## Executable implementation
 
-`PlatformPlayerActionDispatcher` composes the three confirmed dispatcher families into a common state/result type while preserving the existing component models:
+`PlatformPlayerActionDispatcher` composes the confirmed dispatcher families into a common state/result type while preserving the existing component models:
 
 - `PlatformOrdinaryPlayerAction`;
 - `PlatformCrouchDrop.StepCrouched`;
+- `PlatformSpecial40Motion`;
 - `PlatformCrouchDrop.StepFall`;
 - `PlatformAttackSystem.ApplyBButton`.
 
@@ -96,9 +112,11 @@ The self-test suite asserts ordering-sensitive cases, including:
 - crouch drop before B;
 - old `$4E==$20` attack-origin offset after current action has changed;
 - crouch facing update before attack origin selection;
+- exact `$40->$41` progression and `$4F->$00`/`Y-15` completion;
+- B/input suppression during the `$40` branch;
 - fall delta before B;
 - fall crossing the `$90` B-height threshold;
 - landing before B;
-- no invented behavior for `$40/$80`.
+- no invented behavior for `$80`.
 
 No ROM payload is embedded in the executable model.
