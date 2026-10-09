@@ -5,33 +5,77 @@ public readonly record struct PlatformPrimaryEncounterRefreshAndSpawnState(
     byte StagedDescriptor03B7,
     PlatformPageEncounterSpawnState SpawnState);
 
-public sealed record PlatformPrimaryEncounterRefreshAndSpawnResult(
+public sealed record PlatformPrimaryEncounterRefreshBoundaryResult(
     PlatformPrimaryEncounterRefreshAndSpawnState State,
-    PlatformPrimaryEncounterRefreshGateResult RefreshGate,
-    PlatformPrimaryEncounterAcceptanceResult? Acceptance,
-    PlatformPageEncounterSpawnPhaseResult SpawnPhase,
-    bool AcceptancePageOutOfRange)
-{
-    public bool AcceptanceAttempted => Acceptance is not null;
-}
+    PlatformNmiPrimaryEncounterRefreshResult NmiRefresh);
+
+public sealed record PlatformPrimaryEncounterProducerBoundaryResult(
+    PlatformPrimaryEncounterRefreshAndSpawnState State,
+    PlatformLatchedCommonProducerPhaseResult MainThreadProducer);
 
 /// <summary>
-/// Composes the closed primary-encounter control chain:
+/// State bridge between the already-closed NMI-side primary encounter refresh
+/// phase and the already-closed main-thread producer phase.
 ///
-/// fixed $D7F2 refresh gate
-///   -> bank-1 $9915/$996C safe-acceptance latch
-///   -> accepted $58/profile
-///   -> common/scheduled producer phase.
+/// This class deliberately exposes two methods rather than one unordered Step:
+/// - StepNmi(...) executes the $D269/$D7F2 -> bank-1 $996C refresh/acceptance side;
+/// - StepMainThread(...) later executes bank-0 $B6D0 followed by bank-1 $8927.
 ///
-/// The essential invariant is that the producer consumes EncounterLatch.ActiveConfig,
-/// not the descriptor on the currently visible page. $996C may stage a new page
-/// descriptor in $03B7 and defer its acceptance while the old $58/profile remains
-/// active. In that situation the old producer configuration survives, while the
-/// freshly staged $03B7 still participates in the generic $B6D0 spawn gate.
+/// The bridge keeps active $58/profile, staged $03B7 and producer state separate
+/// across the execution-context boundary. A caller/scheduler decides when the NMI
+/// boundary occurs relative to a main-thread update; this type only guarantees
+/// that state produced by one closed phase is handed to the next without being
+/// collapsed or reconstructed from the visible page.
 /// </summary>
 public static class PlatformPrimaryEncounterRefreshAndSpawn
 {
-    public static PlatformPrimaryEncounterRefreshAndSpawnResult Step(
+    /// <summary>
+    /// Execute the NMI-side refresh/acceptance phase and persist any newly staged
+    /// $03B7 descriptor. When the refresh gate suppresses $996C, the previous
+    /// staged descriptor is retained exactly.
+    /// </summary>
+    public static PlatformPrimaryEncounterRefreshBoundaryResult StepNmi(
+        PlatformStageMap stage,
+        byte cameraLow44,
+        byte cameraHigh45,
+        byte visual07C0,
+        byte state03A4,
+        PlatformPrimaryEncounterRefreshAndSpawnState state)
+    {
+        var refresh = PlatformNmiPrimaryEncounterRefreshPhase.StepPlatformState20(
+            stage,
+            cameraLow44,
+            cameraHigh45,
+            visual07C0,
+            state03A4,
+            state.EncounterLatch,
+            state.SpawnState.VisualSpriteA,
+            state.SpawnState.EntityA.Motion.ActionState,
+            state.SpawnState.VisualSpriteB,
+            state.SpawnState.EntityB.Motion.ActionState);
+
+        var staged = refresh.Acceptance is PlatformPrimaryEncounterAcceptanceResult acceptance
+            ? acceptance.StagedDescriptor03B7
+            : state.StagedDescriptor03B7;
+
+        var next = state with
+        {
+            EncounterLatch = refresh.LatchState,
+            StagedDescriptor03B7 = staged,
+        };
+
+        return new(next, refresh);
+    }
+
+    /// <summary>
+    /// Execute the main-thread producer order against the state already accepted
+    /// at the prior NMI boundary: generic $B6D0 first, scheduled $8927 second.
+    ///
+    /// The generic producer receives staged $03B7 separately from active $58,
+    /// while the scheduled producer consumes active $58/profile without an
+    /// invented staged-descriptor equality gate.
+    /// </summary>
+    public static PlatformPrimaryEncounterProducerBoundaryResult StepMainThread(
         PlatformStageMap stage,
         byte cameraLow44,
         byte cameraHigh45,
@@ -39,70 +83,23 @@ public static class PlatformPrimaryEncounterRefreshAndSpawn
         byte playerX,
         byte cameraDelta43,
         byte entropy48,
-        byte visual07C0,
-        byte state03A4,
         PlatformPrimaryEncounterRefreshAndSpawnState state,
         IReadOnlyList<PlatformSpecialSpawnEntry> scheduledEntries)
     {
-        var gate = PlatformPrimaryEncounterRefreshGate.Evaluate(
-            cameraLow44,
-            visual07C0,
-            state03A4);
-
-        var latch = state.EncounterLatch;
-        var staged03B7 = state.StagedDescriptor03B7;
-        PlatformPrimaryEncounterAcceptanceResult? acceptance = null;
-        var acceptancePageOutOfRange = false;
-
-        if (gate.InvokeAcceptance996C)
-        {
-            if (cameraHigh45 >= stage.Pages.Count)
-            {
-                // Valid game states keep $45 inside the stage page table. The
-                // clean-room model contains malformed/out-of-range inputs without
-                // manufacturing a descriptor from unrelated memory.
-                acceptancePageOutOfRange = true;
-            }
-            else
-            {
-                var page = stage.Pages[cameraHigh45];
-                var accepted = PlatformPrimaryEncounterAcceptance.Step(
-                    page.PrimaryEncounter,
-                    latch,
-                    state.SpawnState.VisualSpriteA,
-                    state.SpawnState.EntityA.Motion.ActionState,
-                    state.SpawnState.VisualSpriteB,
-                    state.SpawnState.EntityB.Motion.ActionState);
-
-                acceptance = accepted;
-                staged03B7 = accepted.StagedDescriptor03B7;
-                latch = accepted.State;
-            }
-        }
-
-        var spawn = PlatformPageEncounterSpawnPhase.StepAccepted(
+        var producer = PlatformLatchedCommonProducerPhase.Step(
             stage,
-            latch.ActiveConfig,
+            state.EncounterLatch,
+            state.StagedDescriptor03B7,
             cameraLow44,
             cameraHigh45,
             scrollX,
             playerX,
             cameraDelta43,
             entropy48,
-            staged03B7,
             state.SpawnState,
             scheduledEntries);
 
-        var next = new PlatformPrimaryEncounterRefreshAndSpawnState(
-            latch,
-            staged03B7,
-            spawn.State);
-
-        return new(
-            next,
-            gate,
-            acceptance,
-            spawn,
-            acceptancePageOutOfRange);
+        var next = state with { SpawnState = producer.State };
+        return new(next, producer);
     }
 }
