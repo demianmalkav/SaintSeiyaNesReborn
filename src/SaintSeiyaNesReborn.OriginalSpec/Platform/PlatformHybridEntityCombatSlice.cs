@@ -8,6 +8,7 @@ public enum PlatformHybridEntitySlotRoute
     Common,
     Special08090C,
     Special0D0E,
+    Special0F,
 }
 
 public readonly record struct PlatformHybridEntitySlotState(
@@ -48,7 +49,8 @@ public sealed record PlatformHybridEntitySlotFrameResult(
     PlatformCommonEntitySlotFrameResult? Common,
     PlatformSpecialEntityActive08090CResult? Special,
     PlatformEntityRemovalA647Result? RemovalA647,
-    PlatformSpecialEntityActive0D0EResult? Special0D0E = null);
+    PlatformSpecialEntityActive0D0EResult? Special0D0E = null,
+    PlatformSpecialEntityActive0FResult? Special0F = null);
 
 public sealed record PlatformHybridEntityCombatSliceResult(
     PlatformPrePlayerResourcePhaseResult PrePlayer,
@@ -73,11 +75,13 @@ public sealed record PlatformHybridEntityCombatSliceResult(
 /// common types use PlatformCommonEntitySlotRuntime; scheduled types $08/$09/$0C
 /// use PlatformSpecialEntityActive08090C; scheduled $0D/$0E use their dedicated
 /// PlatformSpecialEntityActive0D0E route because the ROM bypasses the earlier
-/// $08/$09/$0C +$04/$039A pre-dispatch for those types.
+/// $08/$09/$0C +$04/$039A pre-dispatch for those types. Type $0F takes its own
+/// direct $A495->$A74C route and therefore uses PlatformSpecialEntityActive0F.
 ///
 /// Slot A always completes before slot B, and the second slot receives the
 /// first slot's mutated attack state, contact latch/drain state, Seventh Sense
-/// and global $039A value. The $0D/$0E route deliberately leaves $039A unchanged.
+/// and global $039A value. The $0D/$0E and $0F routes deliberately leave $039A
+/// unchanged.
 ///
 /// Primary-slot retirement through $A647 is composed here because this layer
 /// owns both logical slot state and the tracked visual +1 occupancy byte.
@@ -375,6 +379,67 @@ public static class PlatformHybridEntityCombatSlice
                     Special: null,
                     RemovalA647: removal,
                     Special0D0E: special),
+                special.AttackState,
+                special.ContactState,
+                special.SeventhSense,
+                globalCounter039A);
+        }
+
+        if (type == 0x0F)
+        {
+            var specialState = new PlatformSpecialEntityActive0FState(
+                state.Entity,
+                state.AttachedHazard,
+                state.ParentOffset08);
+
+            var special = PlatformSpecialEntityActive0F.Step(
+                specialState,
+                player.State.AttackState,
+                player.State.Saint,
+                platformDamage,
+                seventhSense,
+                engineSubstate02,
+                contactState,
+                player.FrameStartAction4E,
+                player.State.Horizontal.PlayerX,
+                player.State.PlayerY,
+                frameCounter3C,
+                cameraDelta43,
+                engineState00,
+                alternateParent08_03AB);
+
+            var nextState = state with
+            {
+                Entity = special.State.Entity,
+                AttachedHazard = special.State.AttachedHazard,
+                ParentOffset08 = special.State.ParentOffset08,
+            };
+
+            PlatformEntityRemovalA647Result? removal = null;
+            if (special.Outcome is PlatformSpecialEntityActive0FOutcome.RemovedBeforeInteraction
+                or PlatformSpecialEntityActive0FOutcome.RemovedByDeathCompletion)
+            {
+                removal = PlatformEntityRemovalA647.Apply(
+                    nextState.Entity,
+                    nextState.VisualSpritePlus1,
+                    engineState00);
+                nextState = nextState with
+                {
+                    Entity = removal.Value.Entity,
+                    VisualSpritePlus1 = removal.Value.VisualSpritePlus1,
+                };
+            }
+
+            return new SlotCarry(
+                new PlatformHybridEntitySlotFrameResult(
+                    nextState,
+                    activity,
+                    PlatformHybridEntitySlotRoute.Special0F,
+                    Common: null,
+                    Special: null,
+                    RemovalA647: removal,
+                    Special0D0E: null,
+                    Special0F: special),
                 special.AttackState,
                 special.ContactState,
                 special.SeventhSense,
