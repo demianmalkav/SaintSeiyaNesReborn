@@ -10,6 +10,22 @@ The platform engine does not integrate a velocity/gravity pair. Each jump select
 
 REBORN should therefore preserve the exact curves in compatibility mode rather than approximate them with a generic parabola.
 
+## Critical phase-counter detail
+
+At bank 3 `$BCD3+`, `$49` is the jump-phase counter. The routine:
+
+1. chooses a phase limit (`$32`);
+2. increments `$49`;
+3. while the incremented phase is below the limit, indexes the displacement table with `phase - 2`;
+4. when the phase reaches the limit, stops reading the table and applies a fixed downward `+3 px` screen-Y step.
+
+Therefore a ROM phase limit of `N` consumes exactly **`N - 2` table entries**. The last two physical bytes present in each authored table are never reached by this path and must not be counted as executed jump frames.
+
+The older shorthand “duration” referred to the phase limit. ORIGINAL SPEC now exposes both concepts explicitly:
+
+- `PhaseLimit`
+- `TableFrames = PhaseLimit - 2`
+
 ## Jump families
 
 The original exposes three distinct families:
@@ -22,50 +38,53 @@ The action family remains `$30-$33`; low bits encode directional state at jump s
 
 ## Standing jump
 
-All Saints share one 32-frame table.
+All Saints share one profile.
 
-- duration: 32 updates;
+- phase limit: 32;
+- consumed table frames: 30;
 - maximum rise: 58 px;
-- first maximum: frame 14;
-- net vertical position after the 32 table entries: still 29 px above takeoff;
-- the later generic fall/landing path continues from there.
+- first maximum: table frame 14;
+- net rise after consumed table: 35 px;
+- after that, the routine uses the generic 3 px/frame downward path until landing/collision resolution.
 
 ## High jump (`Up + A`)
 
 Internal platform indices:
 
-| Saint | duration | max rise | first apex frame | table sharing |
-|---|---:|---:|---:|---|
-| Seiya | 60 | 103 px | 28 | unique |
-| Shun | 50 | 88 px | 23 | shared with Ikki |
-| Hyoga | 40 | 71 px | 18 | shared with Shiryu |
-| Shiryu | 40 | 71 px | 18 | shared with Hyoga |
-| Ikki | 50 | 88 px | 23 | shared with Shun |
+| Saint | phase limit | table frames | max rise | first apex frame | table sharing |
+|---|---:|---:|---:|---:|---|
+| Seiya | 60 | 58 | 103 px | 28 | unique |
+| Shun | 50 | 48 | 88 px | 23 | shared with Ikki |
+| Hyoga | 40 | 38 | 71 px | 18 | shared with Shiryu |
+| Shiryu | 40 | 38 | 71 px | 18 | shared with Hyoga |
+| Ikki | 50 | 48 | 88 px | 23 | shared with Shun |
 
-This confirms that character locomotion differences are encoded directly in authored motion data, not only in horizontal speed increments.
+Net rise after the consumed table is 51 px for Seiya/Shun/Ikki and 41 px for Hyoga/Shiryu; subsequent frames use the fixed downward path.
 
 ## Directional jump
 
-| Saint | duration | max rise | first apex frame | table sharing |
-|---|---:|---:|---:|---|
-| Seiya | 54 | 39 px | 25 | shared with Ikki |
-| Shun | 40 | 33 px | 18 | unique |
-| Hyoga | 44 | 34 px | 20 | shared with Shiryu |
-| Shiryu | 44 | 34 px | 20 | shared with Hyoga |
-| Ikki | 54 | 39 px | 25 | shared with Seiya |
+| Saint | phase limit | table frames | max rise | first apex frame | net after table | table sharing |
+|---|---:|---:|---:|---:|---:|---|
+| Seiya | 54 | 52 | 39 px | 25 | -8 px | shared with Ikki |
+| Shun | 40 | 38 | 33 px | 18 | +5 px | unique |
+| Hyoga | 44 | 42 | 34 px | 20 | 0 px | shared with Shiryu |
+| Shiryu | 44 | 42 | 34 px | 20 | 0 px | shared with Hyoga |
+| Ikki | 54 | 52 | 39 px | 25 | -8 px | shared with Seiya |
 
-The Seiya/Ikki and Hyoga/Shiryu curves contain a one-frame positive bump around the near-apex plateau. This is preserved exactly in the clean-room profile rather than smoothed out.
+The Seiya/Ikki and Hyoga/Shiryu curves contain a one-frame positive bump around the near-apex plateau. This is preserved exactly rather than smoothed out.
 
 ## ORIGINAL SPEC representation
 
-`PlatformJumpProfile` stores the reconstructed motion in run-length encoded semantic form. It exposes:
+`PlatformJumpProfile` stores only the table entries that the original code can actually execute. It exposes:
 
 - `RisePerFrame`;
-- duration;
+- `TableFrames`;
+- `PhaseLimit`;
 - peak cumulative rise;
 - first apex frame;
-- net rise after the table;
-- conversion to screen-Y delta for a given frame.
+- net rise after the consumed table;
+- fixed terminal-fall amount (`3 px/frame`);
+- screen-Y and cumulative-rise queries that continue correctly into the terminal fall path.
 
 The code does not contain ROM offsets or depend on the ROM at runtime. The ROM-derived extractor remains a reverse-engineering tool; the native compatibility model consumes only the reconstructed behavior.
 
@@ -73,9 +92,11 @@ The code does not contain ROM offsets or depend on the ROM at runtime. The ROM-d
 
 `CONFIRMED`:
 
-- all per-frame displacement values for the seven distinct physical tables;
+- all per-frame displacement values that `$BCD3+` can actually consume;
+- `phase-2` indexing and the `PhaseLimit - 2` frame count;
 - table sharing among Saints;
-- duration, peak rise and first apex frame;
+- maximum rise and first apex frame;
+- fixed `+3 px/frame` terminal fall after the phase limit;
 - semantic sign convention (positive source value = upward movement);
 - table-driven design rather than velocity/gravity integration.
 
@@ -84,7 +105,7 @@ Still to compose into the full executable platform session:
 - exact jump-start frame ordering and A-latch mutation;
 - directional airborne horizontal movement/camera handoff;
 - ceiling interruption (`$E0-$EF` head probe);
-- transition from table-controlled motion into the generic fall family;
+- transition into landing logic;
 - landing snap and action-state reset;
 - crouch/drop-through path.
 
