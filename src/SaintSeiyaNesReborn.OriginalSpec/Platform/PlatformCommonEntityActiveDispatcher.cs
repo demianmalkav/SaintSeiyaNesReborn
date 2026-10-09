@@ -6,6 +6,7 @@ public enum PlatformCommonEntityActiveRoute
     Jump30,
     HitReaction40,
     Fall50,
+    DeathD0,
 }
 
 public enum PlatformCommonEntityActiveContinuation
@@ -22,14 +23,17 @@ public readonly record struct PlatformCommonEntityActiveDispatchResult(
     PlatformCommonEntityPreparationResult? Ordinary,
     PlatformCommonEntityJump30Result? Jump30,
     PlatformCommonEntityHitReaction40Result? HitReaction40,
-    PlatformCommonEntityFall50Result? Fall50);
+    PlatformCommonEntityFall50Result? Fall50,
+    PlatformCommonEntityDeathD0Result? DeathD0);
 
 /// <summary>
 /// Explicit dispatcher for the closed active common-entity families used by
-/// types $00-$07: ordinary $10, jump $30, hit reaction $40 and fall $50.
+/// types $00-$07: ordinary $10, jump $30, hit reaction $40, fall $50 and
+/// ordinary death/removal $D0.
 ///
-/// Continuation is a first-class result because $40/$50 can end an update with
-/// action byte $10 yet still bypass $9915/$98BA on that same control path.
+/// Continuation is a first-class result because several routes can end an
+/// update with a different action byte while still bypassing $9915/$98BA on
+/// that same control path.
 /// </summary>
 public static class PlatformCommonEntityActiveDispatcher
 {
@@ -51,6 +55,7 @@ public static class PlatformCommonEntityActiveDispatcher
             0x30 => StepJump(state, playerX, playerY, frameCounter3C, cameraDelta43),
             0x40 => StepReaction(state),
             0x50 => StepFall(state, cameraDelta43),
+            0xD0 => StepDeath(state, frameCounter3C, cameraDelta43),
             _ => throw new InvalidOperationException($"Active common dispatcher does not yet model action ${state.ActionState:X2}.")
         };
     }
@@ -75,7 +80,7 @@ public static class PlatformCommonEntityActiveDispatcher
         var continuation = step.Outcome == PlatformCommonEntityPreparationOutcome.ReadyForInteraction
             ? PlatformCommonEntityActiveContinuation.ReadyForInteraction
             : PlatformCommonEntityActiveContinuation.Removed;
-        return new(step.State, PlatformCommonEntityActiveRoute.Ordinary10, continuation, step, null, null, null);
+        return new(step.State, PlatformCommonEntityActiveRoute.Ordinary10, continuation, step, null, null, null, null);
     }
 
     private static PlatformCommonEntityActiveDispatchResult StepJump(
@@ -94,7 +99,7 @@ public static class PlatformCommonEntityActiveDispatcher
         var continuation = step.Outcome == PlatformCommonEntityJump30Outcome.ReadyForInteraction
             ? PlatformCommonEntityActiveContinuation.ReadyForInteraction
             : PlatformCommonEntityActiveContinuation.Removed;
-        return new(step.State, PlatformCommonEntityActiveRoute.Jump30, continuation, null, step, null, null);
+        return new(step.State, PlatformCommonEntityActiveRoute.Jump30, continuation, null, step, null, null, null);
     }
 
     private static PlatformCommonEntityActiveDispatchResult StepReaction(PlatformCommonEntityMotionState state)
@@ -107,6 +112,7 @@ public static class PlatformCommonEntityActiveDispatcher
             null,
             null,
             step,
+            null,
             null);
     }
 
@@ -122,6 +128,29 @@ public static class PlatformCommonEntityActiveDispatcher
             step.State,
             PlatformCommonEntityActiveRoute.Fall50,
             continuation,
+            null,
+            null,
+            null,
+            step,
+            null);
+    }
+
+    private static PlatformCommonEntityActiveDispatchResult StepDeath(
+        PlatformCommonEntityMotionState state,
+        byte frameCounter3C,
+        byte cameraDelta43)
+    {
+        var step = PlatformCommonEntityDeathD0.Step(state, frameCounter3C, cameraDelta43);
+        var continuation = step.Outcome is PlatformCommonEntityDeathD0Outcome.RemovedHorizontal
+            or PlatformCommonEntityDeathD0Outcome.RemovedVerticalBand
+            or PlatformCommonEntityDeathD0Outcome.CompletedRemoval
+            ? PlatformCommonEntityActiveContinuation.Removed
+            : PlatformCommonEntityActiveContinuation.SkipInteraction;
+        return new(
+            step.State,
+            PlatformCommonEntityActiveRoute.DeathD0,
+            continuation,
+            null,
             null,
             null,
             null,
