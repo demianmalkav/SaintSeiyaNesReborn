@@ -68,11 +68,11 @@ $969D exit gate
     -> if rejected: bank-1 $8000, including $8927, then later player/entities
 ```
 
-`PlatformLatchedCommonProducerPhase` now exposes this with `StepCommon(...)` and `StepScheduled(...)`. Its legacy `Step(...)` remains the composition for callers already known to be on the non-exit path.
+`PlatformLatchedCommonProducerPhase` exposes this with `StepCommon(...)` and `StepScheduled(...)`. Its legacy `Step(...)` remains the composition for callers already known to be on the non-exit path.
 
 ## Full persistent main-thread API
 
-`PlatformPersistentPrimaryEntityFrame.StepMainThread(...)` now executes:
+`PlatformPersistentPrimaryEntityFrame.StepMainThread(...)` executes:
 
 ```text
 $B6D0 generic primary producer
@@ -161,9 +161,22 @@ On successful spawn by either producer:
 - `ParentOffset08` is preserved;
 - `AttachedHazard` is preserved because neither primary producer owns the separate `$A908/$AA70` record.
 
+## Scheduled type routing after `$8927`
+
+All five table-driven types produced by `$8927` now have an explicit hybrid destination where currently promoted:
+
+```text
+$08/$09/$0C -> PlatformSpecialEntityActive08090C
+$0D/$0E     -> PlatformSpecialEntityActive0D0E
+```
+
+The `$0D/$0E` route is intentionally separate. Direct bank-3 dispatch sends those types to `$A4BF -> $A55E`, bypassing the `$08/$09/$0C` `$A4A7-$A55B` pre-dispatch and its global `$039A` mutations. See `SPECIAL_ENTITY_ACTIVE_0D0E.md`.
+
+Thus a `$0D/$0E` record created by `$8927` can now continue through the same persistent main-thread call without falling into the unsupported common dispatcher.
+
 ## Multi-frame and exit-path fixtures
 
-Regression fixtures now cover:
+Regression fixtures cover:
 
 1. NMI acceptance followed by deferred main-thread producer consumption;
 2. scheduled-special and generic replacement semantics for `+$04`, `+$08` and attached hazard;
@@ -171,10 +184,12 @@ Regression fixtures now cover:
 4. a normal `$00-$0B` exit after an early `$B6D0` spawn, proving that the spawn persists while `$8927`/player/entities/`$3C` do not execute;
 5. the `$10` Shun exception continuing into `$8927` and later frame simulation;
 6. the `$11` gate returning the distinct `$70` transition and suppressing later work;
-7. non-exit equivalence between the full entry point and `StepMainThreadNonExit(...)`.
+7. non-exit equivalence between the full entry point and `StepMainThreadNonExit(...)`;
+8. actual `$8927` production of `$0D` and `$0E` followed by same-frame dedicated hybrid routing while global `$039A` remains unchanged;
+9. type `$0D` terminal `$A0` removal flowing through `$A647` into next-frame free-slot gating.
 
 ## Remaining boundaries
 
-- Scheduled types `$0D/$0E` can be produced by `$8927`, but the current hybrid active runtime only promotes special `$08/$09/$0C`; those families remain explicit future integration work.
+- Type `$0F` follows its own bank-3 `$A74C` route and remains separate future integration work.
 - Full renderer-owned sprite animation state remains outside this persistent logical/occupancy layer except for already-promoted lifecycle writes.
 - The semantic `$3D/$70` result does not yet model higher-level native destination/state-machine behavior after leaving the platform area; that belongs above the entity-frame layer.
