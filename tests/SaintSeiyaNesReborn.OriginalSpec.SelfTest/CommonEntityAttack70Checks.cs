@@ -155,11 +155,15 @@ internal static class CommonEntityAttack70Checks
         Require(frame.SlotA!.Dispatch.Route == PlatformCommonEntityActiveRoute.Attack70,
             "slot enters attack70 pre-interaction route");
         Require(frame.SlotA.Interaction!.HitSequence.Results[0].Result.Outcome == PlatformProjectileHitOutcome.HpSurvived,
-            "overlapping Hyoga projectile resolves before late A886 phase");
-        Require(frame.SlotA.Entity.Motion.ActionState == 0x40,
-            "surviving hit replaces $70 with $40");
+            "overlapping Hyoga projectile resolves before late entity phases");
+        Require(frame.SlotA.HitReaction40Post.HasValue,
+            "hit-created $40 immediately reaches A79E in the same frame");
+        Require(frame.SlotA.Entity.Motion.ActionState == 0x41,
+            "surviving hit advances $40->$41 before the late $70 phase");
+        Require(frame.SlotA.Entity.Motion.StatePhase == 0x47,
+            "same-frame A845 consumes the freshly seeded right recoil $48->$47");
         Require(frame.SlotA.Attack70Post!.Value.Advanced == false,
-            "late attack70 progression sees mutated $40 and does not advance to $78");
+            "late attack70 progression sees mutated $41 and does not advance to $78");
         Require(!frame.SlotA.Attack70Post.Value.CallsSecondarySpawnRoutine,
             "cancelled $70 cannot spawn its midpoint secondary object");
     }

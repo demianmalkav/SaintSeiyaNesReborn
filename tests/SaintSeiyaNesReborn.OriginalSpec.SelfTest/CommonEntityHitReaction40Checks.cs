@@ -8,28 +8,47 @@ internal static class CommonEntityHitReaction40Checks
     {
         CheckRightKnockback();
         CheckLeftKnockback();
+        CheckFrameStartCameraPrecedesReaction();
         CheckExhaustedKnockbackKeepsReactionTimer();
         CheckTerminalReactionStillAppliesLastMotionTick();
     }
 
     private static void CheckRightKnockback()
     {
-        var result = PlatformCommonEntityHitReaction40.Step(State(action: 0x40, x: 0x50, motion3: 0x48));
+        var result = PlatformCommonEntityHitReaction40.AdvanceAfterPath(State(action: 0x40, x: 0x50, motion3: 0x48));
         Require(result.State.ActionState == 0x41, "$40 action advances to $41");
         Require(result.State.StatePhase == 0x47, "right knockback counter decrements before movement");
         Require(result.State.X == 0x54, "remaining $40 bit selects +4 knockback");
         Require(result.HorizontalDeltaApplied == 4 && result.KnockbackAdvanced,
             "right knockback reports +4 tick");
         Require(!result.CompletedReaction, "$40 first tick does not complete reaction");
+        Require(result.ScreenXDeltaFromCamera == 0,
+            "post-interaction reaction phase does not repeat camera correction");
     }
 
     private static void CheckLeftKnockback()
     {
-        var result = PlatformCommonEntityHitReaction40.Step(State(action: 0x40, x: 0x50, motion3: 0x08));
+        var result = PlatformCommonEntityHitReaction40.AdvanceAfterPath(State(action: 0x40, x: 0x50, motion3: 0x08));
         Require(result.State.ActionState == 0x41, "left reaction action also advances");
         Require(result.State.StatePhase == 0x07, "left knockback counter decrements 8->7");
         Require(result.State.X == 0x4C, "remaining value below $40 selects -4 knockback");
         Require(result.HorizontalDeltaApplied == -4, "left knockback reports -4 tick");
+    }
+
+    private static void CheckFrameStartCameraPrecedesReaction()
+    {
+        var result = PlatformCommonEntityHitReaction40.Step(
+            State(action: 0x40, x: 0x50, motion3: 0x48),
+            cameraDelta43: 1);
+
+        Require(result.Outcome == PlatformCommonEntityHitReaction40Outcome.Active,
+            "frame-start $40 remains active after ordinary reaction tick");
+        Require(result.ScreenXDeltaFromCamera == -1,
+            "frame-start $40 consumes camera delta before A79E");
+        Require(result.State.X == 0x53,
+            "frame-start X $50 -> camera $4F -> recoil +4 = $53");
+        Require(result.State.ActionState == 0x41 && result.State.StatePhase == 0x47,
+            "camera correction does not change reaction/recoil cadence");
     }
 
     private static void CheckExhaustedKnockbackKeepsReactionTimer()

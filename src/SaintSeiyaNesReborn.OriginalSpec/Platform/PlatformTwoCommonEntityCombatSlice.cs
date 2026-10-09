@@ -4,9 +4,12 @@ public sealed record PlatformCommonEntitySlotFrameResult(
     PlatformCommonEntityRuntimeState Entity,
     PlatformCommonEntityActiveDispatchResult Dispatch,
     PlatformCommonEntityInteractionResult? Interaction,
+    PlatformCommonEntityHitReaction40Result? HitReaction40Post,
+    PlatformCommonEntityDeathD0Result? DeathD0Post,
     PlatformCommonEntityAttack70PostResult? Attack70Post,
     PlatformEntityMotion3KnockbackResult? Motion3KnockbackPost,
-    bool RemovedBeforeInteraction);
+    bool RemovedBeforeInteraction,
+    bool RemovedAfterInteraction);
 
 public sealed record PlatformTwoCommonEntityCombatSliceResult(
     PlatformPrePlayerResourcePhaseResult PrePlayer,
@@ -26,10 +29,10 @@ public sealed record PlatformTwoCommonEntityCombatSliceResult(
 /// Ordered clean-room slice for the two movable-entity records processed by
 /// $A442. Slot A ($03BA-$03C9) runs before slot B ($03CA-$03D9).
 ///
-/// Types $00-$07 use the promoted common family set. Types $0A/$0B are now
-/// supported on their closed `$10/$50` routes; after an ordinary interaction
-/// they additionally consume record +$03 through the shared `$A845` knockback
-/// helper, exactly after `$9915/$98BA` and before the next slot.
+/// The crucial late ordering after an interaction is preserved literally:
+/// $9915/$98BA -> $A79E ($40) -> $A7FB ($D0) -> $A839/$A845 ($0A/$0B)
+/// -> $A886 ($70). Therefore a hit that CREATES $40 or $D0 can already advance
+/// that new family in the same frame.
 /// </summary>
 public static class PlatformTwoCommonEntityCombatSlice
 {
@@ -181,7 +184,10 @@ public static class PlatformTwoCommonEntityCombatSlice
                     null,
                     null,
                     null,
-                    RemovedBeforeInteraction: true),
+                    null,
+                    null,
+                    RemovedBeforeInteraction: true,
+                    RemovedAfterInteraction: false),
                 player,
                 contactState,
                 seventhSense);
@@ -196,7 +202,10 @@ public static class PlatformTwoCommonEntityCombatSlice
                     null,
                     null,
                     null,
-                    RemovedBeforeInteraction: false),
+                    null,
+                    null,
+                    RemovedBeforeInteraction: false,
+                    RemovedAfterInteraction: false),
                 player,
                 contactState,
                 seventhSense);
@@ -227,6 +236,29 @@ public static class PlatformTwoCommonEntityCombatSlice
             },
         };
 
+        PlatformCommonEntityHitReaction40Result? hitReaction40Post = null;
+        PlatformCommonEntityDeathD0Result? deathD0Post = null;
+        var removedAfterInteraction = false;
+
+        // $A749 jumps directly into $A79E after ordinary interaction. A state
+        // $40 created by the just-finished hit therefore advances immediately.
+        if (entity.Motion.Type <= 0x07 && (entity.Motion.ActionState & 0xF0) == 0x40)
+        {
+            hitReaction40Post = PlatformCommonEntityHitReaction40.AdvanceAfterPath(entity.Motion);
+            entity = entity with { Motion = hitReaction40Post.Value.State };
+        }
+
+        // The same fall-through reaches $A7FB. A kill-created $D0 can therefore
+        // consume its cadence tick on the kill frame itself.
+        if (entity.Motion.Type <= 0x07 && (entity.Motion.ActionState & 0xF0) == 0xD0)
+        {
+            deathD0Post = PlatformCommonEntityDeathD0.AdvanceAfterPath(
+                entity.Motion,
+                frameCounter3C);
+            entity = entity with { Motion = deathD0Post.Value.State };
+            removedAfterInteraction = deathD0Post.Value.Outcome == PlatformCommonEntityDeathD0Outcome.CompletedRemoval;
+        }
+
         PlatformCommonEntityAttack70PostResult? attack70Post = null;
         if (dispatch.Route == PlatformCommonEntityActiveRoute.Attack70)
         {
@@ -240,9 +272,6 @@ public static class PlatformTwoCommonEntityCombatSlice
         if (entity.Motion.Type is 0x0A or 0x0B
             && dispatch.Route == PlatformCommonEntityActiveRoute.Ordinary10)
         {
-            // $A839 identifies types $0A/$0B and falls directly into $A845.
-            // This is after projectile/contact interaction, so a Motion3 impulse
-            // created by the current projectile hit is consumed immediately.
             motion3KnockbackPost = PlatformEntityMotion3Knockback.Step(entity.Motion);
             entity = entity with { Motion = motion3KnockbackPost.Value.State };
         }
@@ -252,9 +281,12 @@ public static class PlatformTwoCommonEntityCombatSlice
                 entity,
                 dispatch,
                 interaction,
+                hitReaction40Post,
+                deathD0Post,
                 attack70Post,
                 motion3KnockbackPost,
-                RemovedBeforeInteraction: false),
+                RemovedBeforeInteraction: false,
+                RemovedAfterInteraction: removedAfterInteraction),
             player,
             interaction.ContactPhase.State,
             interaction.SeventhSense);
