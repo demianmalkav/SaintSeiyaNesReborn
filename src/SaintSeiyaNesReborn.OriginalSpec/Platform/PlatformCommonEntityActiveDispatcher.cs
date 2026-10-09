@@ -32,8 +32,10 @@ public readonly record struct PlatformCommonEntityActiveDispatchResult(
 
 /// <summary>
 /// Explicit pre-interaction dispatcher for the closed common entity families.
-/// Types $00-$07 use the full promoted family set; types $0A/$0B are admitted
-/// only on the statically closed `$10` ordinary and `$50` fall routes.
+/// Types $00-$07 use the full promoted family set. Normal producer/writer flow
+/// proves that types $0A/$0B have exactly two reachable live families: `$10`
+/// ordinary and `$50` fall. Terminal removal may clear action to `$00` only
+/// after the visual slot is retired, so `$00` is not an active dispatch family.
 /// </summary>
 public static class PlatformCommonEntityActiveDispatcher
 {
@@ -54,7 +56,7 @@ public static class PlatformCommonEntityActiveDispatcher
             throw new ArgumentOutOfRangeException(nameof(state), state.Type, "Active dispatcher currently covers types $00-$07 and $0A/$0B.");
 
         if (slowHazard0A0B && family is not (0x10 or 0x50))
-            throw new InvalidOperationException($"Type ${state.Type:X2} is currently closed only for action families $10/$50, got ${state.ActionState:X2}.");
+            throw new InvalidOperationException($"Type ${state.Type:X2} has confirmed reachable live action families $10/$50 only; got injected action ${state.ActionState:X2}.");
 
         return family switch
         {
