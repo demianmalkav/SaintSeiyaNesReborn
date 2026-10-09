@@ -66,7 +66,12 @@ internal static class SpecialEntityActive0D0EChecks
             Entity(type: 0x0E, action: 0x00, x: 0x50, y: 0x50, life: 2, cosmo: 3),
             VisualSpritePlus1: 0xFD,
             SpecialControl04: 0x0B,
-            AttachedHazard: PlatformEntityAttachedHazardState.Empty,
+            AttachedHazard: PlatformEntityAttachedHazardState.Empty with
+            {
+                Raw2C = 0x50,
+                Raw2D = 0x90,
+                Raw2F = 0x50,
+            },
             ParentOffset08: 0x44);
 
         var frame = StepHybrid(
@@ -86,7 +91,7 @@ internal static class SpecialEntityActive0D0EChecks
             && frame.ContactState.DrainState == new ContactDrainState(2, 3),
             "type $0E contact carries parent Life/Cosmo drain profile into shared state");
         Require(special.AttachedContact?.Outcome == PlatformEntityAttachedHazardContactOutcome.ContactLatchActive,
-            "attached $AA70 contact runs after main contact and observes the seeded latch");
+            "overlapping attached $AA70 contact runs after main contact and reaches the already-seeded latch");
         Require(special.Control04Advanced && frame.SlotA.State.SpecialControl04 == 0,
             "shared post-interaction +$04 cadence wraps $0B->$00");
         Require(frame.GlobalCounter039A == 0x7F,
