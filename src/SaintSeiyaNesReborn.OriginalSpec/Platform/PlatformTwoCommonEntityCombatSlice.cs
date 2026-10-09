@@ -5,6 +5,7 @@ public sealed record PlatformCommonEntitySlotFrameResult(
     PlatformCommonEntityActiveDispatchResult Dispatch,
     PlatformCommonEntityInteractionResult? Interaction,
     PlatformCommonEntityAttack70PostResult? Attack70Post,
+    PlatformEntityMotion3KnockbackResult? Motion3KnockbackPost,
     bool RemovedBeforeInteraction);
 
 public sealed record PlatformTwoCommonEntityCombatSliceResult(
@@ -22,14 +23,13 @@ public sealed record PlatformTwoCommonEntityCombatSliceResult(
     bool ExitedBeforeEntityPipeline);
 
 /// <summary>
-/// Ordered clean-room slice for the two common movable-entity records processed
-/// by $A442. Slot A ($03BA-$03C9) runs before slot B ($03CA-$03D9).
+/// Ordered clean-room slice for the two movable-entity records processed by
+/// $A442. Slot A ($03BA-$03C9) runs before slot B ($03CA-$03D9).
 ///
-/// Closed common families $10/$30/$40/$50/$70/$D0/$E0 are dispatched
-/// independently per entity, while attack objects, shared $76/$7F/$80 state and
-/// Seventh Sense are threaded from A into B. Family $70 is deliberately split
-/// around interaction: preparation occurs before $9915/$98BA and its $A886
-/// counter/spawn progression occurs afterward.
+/// Types $00-$07 use the promoted common family set. Types $0A/$0B are now
+/// supported on their closed `$10/$50` routes; after an ordinary interaction
+/// they additionally consume record +$03 through the shared `$A845` knockback
+/// helper, exactly after `$9915/$98BA` and before the next slot.
 /// </summary>
 public static class PlatformTwoCommonEntityCombatSlice
 {
@@ -180,6 +180,7 @@ public static class PlatformTwoCommonEntityCombatSlice
                     dispatch,
                     null,
                     null,
+                    null,
                     RemovedBeforeInteraction: true),
                 player,
                 contactState,
@@ -192,6 +193,7 @@ public static class PlatformTwoCommonEntityCombatSlice
                 new PlatformCommonEntitySlotFrameResult(
                     entity,
                     dispatch,
+                    null,
                     null,
                     null,
                     RemovedBeforeInteraction: false),
@@ -234,12 +236,24 @@ public static class PlatformTwoCommonEntityCombatSlice
             entity = entity with { Motion = attack70Post.Value.State };
         }
 
+        PlatformEntityMotion3KnockbackResult? motion3KnockbackPost = null;
+        if (entity.Motion.Type is 0x0A or 0x0B
+            && dispatch.Route == PlatformCommonEntityActiveRoute.Ordinary10)
+        {
+            // $A839 identifies types $0A/$0B and falls directly into $A845.
+            // This is after projectile/contact interaction, so a Motion3 impulse
+            // created by the current projectile hit is consumed immediately.
+            motion3KnockbackPost = PlatformEntityMotion3Knockback.Step(entity.Motion);
+            entity = entity with { Motion = motion3KnockbackPost.Value.State };
+        }
+
         return new SlotCarry(
             new PlatformCommonEntitySlotFrameResult(
                 entity,
                 dispatch,
                 interaction,
                 attack70Post,
+                motion3KnockbackPost,
                 RemovedBeforeInteraction: false),
             player,
             interaction.ContactPhase.State,
@@ -262,17 +276,30 @@ public static class PlatformTwoCommonEntityCombatSlice
 
     private static void ValidateEntity(PlatformCommonEntityRuntimeState entity, string name)
     {
-        if (entity.Motion.Type > 0x07)
+        var type = entity.Motion.Type;
+        var family = entity.Motion.ActionState & 0xF0;
+
+        if (type <= 0x07)
         {
-            throw new InvalidOperationException(
-                $"{name} must be common entity type $00-$07; got ${entity.Motion.Type:X2}.");
+            if (family is not (0x10 or 0x30 or 0x40 or 0x50 or 0x70 or 0xD0 or 0xE0))
+            {
+                throw new InvalidOperationException(
+                    $"{name} action ${entity.Motion.ActionState:X2} is outside the closed type $00-$07 families.");
+            }
+            return;
         }
 
-        var family = entity.Motion.ActionState & 0xF0;
-        if (family is not (0x10 or 0x30 or 0x40 or 0x50 or 0x70 or 0xD0 or 0xE0))
+        if (type is 0x0A or 0x0B)
         {
-            throw new InvalidOperationException(
-                $"{name} action ${entity.Motion.ActionState:X2} is outside the closed common families $10/$30/$40/$50/$70/$D0/$E0.");
+            if (family is not (0x10 or 0x50))
+            {
+                throw new InvalidOperationException(
+                    $"{name} type ${type:X2} is currently closed only for action families $10/$50; got ${entity.Motion.ActionState:X2}.");
+            }
+            return;
         }
+
+        throw new InvalidOperationException(
+            $"{name} type ${type:X2} is outside the currently composed two-slot entity set.");
     }
 }
