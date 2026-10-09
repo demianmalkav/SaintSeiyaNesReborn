@@ -2,13 +2,13 @@
 
 Target: canonical Japanese `Saint Seiya: Ōgon Densetsu Kanketsu Hen` ROM.
 
-Status: the ordinary/default route plus frame-start `$20` crouch, `$40` special cycle and `$50` fall/drop branches are composed in executable clean-room code. Frame-start `$80` remains intentionally unsupported until its routine is isolated to the same evidence level.
+Status: **all observed `$AAE4` frame-start action branches are now structurally modeled**: ordinary/default, `$20` crouch, `$40` special cycle, `$50` fall/drop and `$80` hazard/reinitialization.
 
 ## Dispatcher boundary
 
 This model corresponds only to the player/action portion reached through PRG bank 3 `$AAE4`.
 
-It **does not** yet own:
+It does **not** yet own:
 
 - the later platform object/projectile update pipeline;
 - entity AI/contact processing;
@@ -16,6 +16,8 @@ It **does not** yet own:
 - mode/exit work that happens before `$AAE4`.
 
 Keeping this boundary explicit is necessary because attack objects created during the player step are updated later in the same platform frame while `$3C` still has its old value.
+
+The `$80` branch is exceptional: when its latch has expired, `$AAE4` never returns to this normal continuation. The engine snapshots resources, resets global mode/render/stack state and jumps to `$C180`.
 
 ## Frame-start snapshot
 
@@ -29,7 +31,7 @@ This matters for attack origin logic: `$BBCA/$BCC2` tests old `$4E` exactly agai
 
 ### Ordinary/default
 
-All families except the explicit `$20/$40/$50/$80` branches use the ordinary composition already represented by `PlatformOrdinaryPlayerAction`.
+All families except the explicit `$20/$40/$50/$80` branches use the ordinary composition represented by `PlatformOrdinaryPlayerAction`.
 
 That path preserves:
 
@@ -89,23 +91,82 @@ Consequences:
 - a frame that begins below `$90` can cross the threshold during `$B87D`, then have B consume its latch/play sound but create no object;
 - if the fall lands first, B creates from the snapped landing Y and current neutral action.
 
-## Explicitly unsupported branch
+### Frame-start `$80-$8F` — hazard latch and reinitialization
 
-Frame-start family `$80` is returned as `UnsupportedDamage80`.
+The exact `$AAE4` branch is:
 
-The dispatcher deliberately performs no speculative mutation for it. This prevents later code from silently treating unknown damage/hazard behavior as ordinary locomotion.
+```text
+if (($4E & $F0) == $80) {
+    if ($76 != 0)
+        return;
 
-`$80` is the next reverse-engineering target for complete `$AAE4` coverage.
+    JSR $CA94;
+    $00 = 0;
+    $01 = 0;
+    JSR $C154;
+    SP = $FF;
+    JMP $C180;
+}
+```
+
+No A/B/movement logic is run in either subpath.
+
+#### `$76 != 0`: waiting/frozen player branch
+
+The routine returns immediately. `$AAE4` itself does not decrement `$76` and does not mutate player position/action or B latch state.
+
+This is important because `$76` is an overloaded contact/hazard latch/timer maintained elsewhere. A lower-screen fall-out path already reconstructed in `PlatformCrouchDrop` sets:
+
+- `player_y = $A0`;
+- `$4D = $80`;
+- `$76 = $80`.
+
+The `$80` dispatcher then waits until external timer processing has reduced `$76` to zero.
+
+#### `$76 == 0`: exceptional reinitialization branch
+
+This path does not return to the rest of the active platform frame.
+
+1. `$CA94` maps PRG bank 1 and calls `$951F`;
+2. `$951F` snapshots live Saint resources `$0059-$0071` to persistent `$058C-$05A4`;
+3. resource order changes from internal platform `[Seiya, Shun, Hyoga, Shiryu, Ikki]` to canonical/persistent `[Seiya, Hyoga, Shun, Shiryu, Ikki]`;
+4. `$00` and `$01` are cleared;
+5. `$C154` writes zero to PPU control/mask (`$2000/$2001`), disabling rendering;
+6. `LDX #$FF / TXS` resets the CPU stack pointer;
+7. execution jumps directly to fixed `$C180`.
+
+Because `$02/$03` are not cleared in this branch, this is best modeled as a **platform/main-loop reinitialization preserving stage/Saint selection context**, not as the ordinary player-death state. The true resource-depletion death path elsewhere uses action family `$D0`.
+
+`PlatformDamage80Transition` represents the gate and exceptional exit. `PlatformPersistentResourceSnapshot` models the exact `$951F` resource-copy semantics separately so REBORN does not have to preserve the original RAM aliasing.
+
+## Persistent resource snapshot `$951F`
+
+Live platform resources are five records in internal order:
+
+`[Seiya, Shun, Hyoga, Shiryu, Ikki]`
+
+Each record is:
+
+`[Life low-two BCD digits, Life hundreds, Cosmo low-two BCD digits, Cosmo hundreds, cap byte]`
+
+`$951F` writes the 25 persistent bytes at `$058C-$05A4` in canonical/high-level order:
+
+`[Seiya, Hyoga, Shun, Shiryu, Ikki]`
+
+This is the same canonical order used by the higher-level selector and persistent save/password structures (with Ikki later excluded from password serialization).
+
+The clean-room helper `PlatformResourceSnapshot.Capture` performs only this semantic reorder/copy; no original resource payload is embedded.
 
 ## Executable implementation
 
-`PlatformPlayerActionDispatcher` composes the confirmed dispatcher families into a common state/result type while preserving the existing component models:
+`PlatformPlayerActionDispatcher` now composes every observed `$AAE4` branch through:
 
 - `PlatformOrdinaryPlayerAction`;
 - `PlatformCrouchDrop.StepCrouched`;
 - `PlatformSpecial40Motion`;
 - `PlatformCrouchDrop.StepFall`;
-- `PlatformAttackSystem.ApplyBButton`.
+- `PlatformDamage80Transition`;
+- `PlatformAttackSystem.ApplyBButton` where the original actually reaches `$BBCA`.
 
 The self-test suite asserts ordering-sensitive cases, including:
 
@@ -117,6 +178,8 @@ The self-test suite asserts ordering-sensitive cases, including:
 - fall delta before B;
 - fall crossing the `$90` B-height threshold;
 - landing before B;
-- no invented behavior for `$80`.
+- `$80` waiting with nonzero `$76` and zero player/input mutation;
+- `$80` exceptional reload request once `$76==0`;
+- exact `$951F` persistent resource record order.
 
 No ROM payload is embedded in the executable model.
