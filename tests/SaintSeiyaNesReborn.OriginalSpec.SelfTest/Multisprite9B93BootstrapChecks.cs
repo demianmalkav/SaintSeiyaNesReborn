@@ -10,7 +10,7 @@ internal static class Multisprite9B93BootstrapChecks
         CheckImmediateSelector3AtPlayerX();
         CheckImmediateSelector4ForEightNine();
         CheckTimedCooldownGate();
-        CheckTimedSelector5Layout();
+        CheckSubstate0DDedicatedBootstrap();
         CheckSubstate0CSpriteGap();
         CheckSubstate10StopsAfterFirstPart();
         CheckExistingVisualSkipsBootstrap();
@@ -42,8 +42,8 @@ internal static class Multisprite9B93BootstrapChecks
 
         Require(step.Outcome == PlatformMultisprite9B93BootstrapOutcome.Initialized,
             "immediate main path initializes despite prior cooldown");
-        Require(step.SelectedProfile == 3 && step.Global03A9 == 1,
-            "ordinary immediate path forces selector3");
+        Require(step.SelectedProfile == 3 && step.Global03A9 == 1 && step.Global03A9WasWritten,
+            "ordinary immediate path forces selector3 and writes its global profile byte");
         Require(step.Mode81 == 3 && step.Cooldown03FA == 0x80,
             "immediate path sets mode81=3 and cooldown80");
         Require(step.Visual.Part0 == new PlatformMultisprite9B93Part(0xF8, 0xB4, 0x02, 0x40),
@@ -70,8 +70,8 @@ internal static class Multisprite9B93BootstrapChecks
                 cooldown03FA: 0,
                 playerX3F: 0x50);
 
-            Require(step.SelectedProfile == 4 && step.Global03A9 == 4,
-                "$08/$09 immediate path forces selector4");
+            Require(step.SelectedProfile == 4 && step.Global03A9 == 4 && step.Global03A9WasWritten,
+                "$08/$09 immediate path forces selector4 and writes $03A9");
             Require(step.Visual.Part0.Flags == 0x02,
                 "selector4 uses flags02 like selector3");
             Require(step.Logical.Profile0C == 0x28 && step.Logical.Profile0E == 0x06,
@@ -93,30 +93,47 @@ internal static class Multisprite9B93BootstrapChecks
             "table-driven path waits on 03FA");
         Require(step.Cooldown03FA == 1 && step.Mode81 == 0,
             "timed path decrements once and sets mode81 zero");
+        Require(!step.Global03A9WasWritten,
+            "cooldown return occurs before the later $03A9 profile write");
         Require(step.Visual.AllEmpty,
             "cooldown frame does not populate visual block");
     }
 
-    private static void CheckTimedSelector5Layout()
+    private static void CheckSubstate0DDedicatedBootstrap()
     {
-        var step = PlatformMultisprite9B93Bootstrap.Step(
+        var left = PlatformMultisprite9B93Bootstrap.Step(
             PlatformMultisprite9B93VisualState.Empty,
             engineSubstate02: 0x0D,
             flag74: 1,
             stageDerivedSelector: 5,
             cooldown03FA: 0,
-            playerX3F: 0x44);
+            playerX3F: 0x44,
+            entropy48: 0x00);
 
-        Require(step.Outcome == PlatformMultisprite9B93BootstrapOutcome.Initialized,
-            "zero timed cooldown initializes");
-        Require(step.Mode81 == 0 && step.Visual.Part0.X == 0xF7 && step.Visual.Part1.X == 0xFF,
-            "mode81 zero enters from fixed F7 edge rather than player X");
-        Require(step.Visual.Part0.Sprite == 0xF6 && step.Visual.Part1.Sprite == 0xF7,
-            "selector5 uses F6 sprite base");
-        Require(step.Visual.Part0.Flags == 0x06,
-            "non-3/4 selector ORs flag bit04 into base02");
-        Require(step.Logical == new PlatformMultisprite9B93LogicalBootstrap(0, 0x1E, 0x0A, 0x03, 0x01, true),
-            "selector5 logical profile copied");
+        Require(left.Outcome == PlatformMultisprite9B93BootstrapOutcome.Initialized,
+            "$0D initializes after the normal selector/cooldown gate");
+        Require(left.Mode81 == 0 && left.Cooldown03FA == 0x80,
+            "$0D uses timed mode and resets cooldown before A0E4");
+        Require(left.Visual.Part0 == new PlatformMultisprite9B93Part(0x20, 0x8C, 0x02, 0xEF),
+            "$48 bit3 clear creates the A0E4 left-side part0 record");
+        Require(left.Visual.Part1.IsEmpty && left.Visual.Part2.IsEmpty && left.Visual.Part3.IsEmpty,
+            "$0D dedicated initializer creates only part0");
+        Require(left.Logical == new PlatformMultisprite9B93LogicalBootstrap(0, 0x1E, 0x05, 0x05, 0x01, true),
+            "$0D loads dedicated raw profile bytes from $9B8F rather than selector5 profile");
+        Require(!left.Global03A9WasWritten,
+            "$A0E4 bypasses the ordinary selector $03A9 write");
+
+        var right = PlatformMultisprite9B93Bootstrap.Step(
+            PlatformMultisprite9B93VisualState.Empty,
+            engineSubstate02: 0x0D,
+            flag74: 1,
+            stageDerivedSelector: 5,
+            cooldown03FA: 0,
+            playerX3F: 0x44,
+            entropy48: 0x08);
+
+        Require(right.Visual.Part0 == new PlatformMultisprite9B93Part(0x20, 0x8C, 0x42, 0x11),
+            "$48 bit3 set selects the opposite A0E4 X/facing pair");
     }
 
     private static void CheckSubstate0CSpriteGap()
@@ -133,6 +150,8 @@ internal static class Multisprite9B93BootstrapChecks
             "$0C first row uses base/base+1");
         Require(step.Visual.Part2.Sprite == 0xFA && step.Visual.Part3.Sprite == 0xFB,
             "$0C skips two tile values before second row");
+        Require(step.Global03A9WasWritten && step.Global03A9 == 1,
+            "ordinary timed selector5 initialization writes its $03A9 byte");
     }
 
     private static void CheckSubstate10StopsAfterFirstPart()
@@ -153,6 +172,8 @@ internal static class Multisprite9B93BootstrapChecks
             "$10 branch returns before 9CA6 action clear");
         Require(step.Logical.Phase03 == 0 && step.Cooldown03FA == 0x80,
             "$10 still resets phase and cooldown before early return");
+        Require(step.Global03A9WasWritten,
+            "$10 reaches ordinary selector profile/$03A9 setup before its early return");
     }
 
     private static void CheckExistingVisualSkipsBootstrap()
@@ -173,6 +194,8 @@ internal static class Multisprite9B93BootstrapChecks
             "any non-FE visual type transfers control to active updater rather than bootstrap");
         Require(step.Visual == active && step.Cooldown03FA == 7,
             "bootstrap does not mutate existing active visual/cooldown");
+        Require(!step.Global03A9WasWritten,
+            "existing-active transfer does not rewrite bootstrap globals");
     }
 
     private static void CheckSelectorZeroDoesNothing()
@@ -189,6 +212,8 @@ internal static class Multisprite9B93BootstrapChecks
             "zero stage selector does not initialize object");
         Require(step.Visual.AllEmpty && step.Cooldown03FA == 0x22,
             "zero selector leaves visual and cooldown unchanged");
+        Require(!step.Global03A9WasWritten,
+            "selector-zero jump to empty active updater preserves $03A9");
     }
 
     private static void Require(bool condition, string label)
