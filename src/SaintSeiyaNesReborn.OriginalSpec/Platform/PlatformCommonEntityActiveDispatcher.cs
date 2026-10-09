@@ -60,7 +60,7 @@ public static class PlatformCommonEntityActiveDispatcher
         {
             0x10 => StepOrdinary(state, playerX, playerY, playerJumpPhase49, entropy48, frameCounter3C, cameraDelta43),
             0x30 => StepJump(state, playerX, playerY, frameCounter3C, cameraDelta43),
-            0x40 => StepReaction(state),
+            0x40 => StepReaction(state, cameraDelta43),
             0x50 => StepFall(state, cameraDelta43),
             0x70 => StepAttack70(state, playerX, playerY, playerJumpPhase49, entropy48, frameCounter3C, cameraDelta43),
             0xD0 => StepDeath(state, frameCounter3C, cameraDelta43),
@@ -111,10 +111,16 @@ public static class PlatformCommonEntityActiveDispatcher
         return new(step.State, PlatformCommonEntityActiveRoute.Jump30, continuation, null, step, null, null, null, null, null);
     }
 
-    private static PlatformCommonEntityActiveDispatchResult StepReaction(PlatformCommonEntityMotionState state)
+    private static PlatformCommonEntityActiveDispatchResult StepReaction(
+        PlatformCommonEntityMotionState state,
+        byte cameraDelta43)
     {
-        var step = PlatformCommonEntityHitReaction40.Step(state);
-        return new(step.State, PlatformCommonEntityActiveRoute.HitReaction40, PlatformCommonEntityActiveContinuation.SkipInteraction,
+        var step = PlatformCommonEntityHitReaction40.Step(state, cameraDelta43);
+        var continuation = step.Outcome is PlatformCommonEntityHitReaction40Outcome.RemovedHorizontal
+            or PlatformCommonEntityHitReaction40Outcome.RemovedVerticalBand
+            ? PlatformCommonEntityActiveContinuation.Removed
+            : PlatformCommonEntityActiveContinuation.SkipInteraction;
+        return new(step.State, PlatformCommonEntityActiveRoute.HitReaction40, continuation,
             null, null, step, null, null, null, null);
     }
 
