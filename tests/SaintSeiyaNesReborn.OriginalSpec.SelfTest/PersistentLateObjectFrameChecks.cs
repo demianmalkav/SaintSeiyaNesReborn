@@ -48,7 +48,7 @@ internal static class PersistentLateObjectFrameChecks
             "auxiliary A receives the already-retired projectile from $9B93");
         Require(frame.PrimaryPair!.SlotA.State.Entity.HitPoints == 30,
             "primary A cannot be hit by a projectile consumed by earlier $9B93");
-        Require(frame.PlayerAfterLatePhases!.State.AttackState.Slot0.Object.Type == 0xFE,
+        Require(frame.PlayerAfterLatePhases!.Value.State.AttackState.Slot0.Object.Type == 0xFE,
             "retired projectile remains retired through all later classes and A22C");
     }
 
@@ -116,7 +116,7 @@ internal static class PersistentLateObjectFrameChecks
         Require(frame.ContactState.HazardLatch76 == 0x20
             && frame.ContactState.DrainState == new ContactDrainState(LifeTicks: 3, CosmoTicks: 2),
             "final $76/$7F/$80 state remains owned by the earliest auxiliary contact");
-        Require(frame.PlayerAfterLatePhases!.State.Special76 == 0x20,
+        Require(frame.PlayerAfterLatePhases!.Value.State.Special76 == 0x20,
             "player view of physical $76 remains synchronized after all late classes");
     }
 
@@ -164,10 +164,10 @@ internal static class PersistentLateObjectFrameChecks
         Require(frame.Auxiliary.SlotA.Update.Slot.SpriteType1 == 0x81
             && frame.Auxiliary.SlotA.Update.Slot.X3 == 0x04,
             "fresh $80 auxiliary immediately animates and moves in the same frame");
-        Require(frame.AttackObjectPhase!.UpdatedAttackObjects,
+        Require(frame.AttackObjectPhase!.Value.UpdatedAttackObjects,
             "$A22C executes on the normal path after all object classes");
-        Require(frame.PlayerAfterLatePhases!.State.AttackState.Slot0.RangeCounter == 2
-            && frame.PlayerAfterLatePhases.State.AttackState.Slot0.Object.X == 0x45,
+        Require(frame.PlayerAfterLatePhases!.Value.State.AttackState.Slot0.RangeCounter == 2
+            && frame.PlayerAfterLatePhases.Value.State.AttackState.Slot0.Object.X == 0x45,
             "one and only one late A22C step changes range 3->2 and X $40->$45");
         Require(frame.State.Primary.FrameCounter3C == 1,
             "shared $3C increments exactly once after A22C");
@@ -206,7 +206,7 @@ internal static class PersistentLateObjectFrameChecks
             "$9B93, auxiliaries and primary A/B are all skipped after exceptional player exit");
         Require(frame.AttackObjectPhase?.SkippedBecausePlayerLoopExited == true,
             "$A22C remains explicitly skipped on the exceptional route");
-        Require(frame.PlayerAfterLatePhases!.State.AttackState.Slot0 == existingAttack,
+        Require(frame.PlayerAfterLatePhases!.Value.State.AttackState.Slot0 == existingAttack,
             "existing attack object is not moved or aged when A22C is unreachable");
         Require(frame.State.Multisprite == multi && frame.State.Auxiliary == aux,
             "persistent earlier object classes remain byte-for-byte unchanged");
