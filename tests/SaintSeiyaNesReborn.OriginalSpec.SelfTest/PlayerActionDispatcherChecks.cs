@@ -95,8 +95,6 @@ internal static class PlayerActionDispatcherChecks
         Require(landAttack.State.ActionState4D == 0, "landing returns current action to neutral");
         Require(landAttack.State.AttackState.Slot0.Object.Y == 0x67, "post-landing B origin uses snapped Y");
 
-        // $40 path is a self-contained 16-step visual/action cycle at fixed-bank
-        // $C5CC. Input is ignored: no B latch, no lateral movement, no attack.
         var attackSeed = PlatformAttackState.Empty with { BButtonLatch4C = 7, Busy4B = 3, ActionState4D = 0x40 };
         var special40 = PlatformPlayerActionDispatcher.Step(
             open,
@@ -135,16 +133,53 @@ internal static class PlayerActionDispatcherChecks
         Require(special4F.Special40?.ScreenYDelta == -15, "$4F reports exact upward snap");
         Require(special4F.AttackAttempt is null, "$4F still skips attack processing");
 
-        var damageSeed = PlatformAttackState.Empty with { BButtonLatch4C = 7, Busy4B = 3 };
-        var damage80 = PlatformPlayerActionDispatcher.Step(
+        // $80 family checks only $76. While the hazard/contact latch is nonzero,
+        // AAe4 returns immediately: input and B state are untouched.
+        var damageSeed = PlatformAttackState.Empty with { BButtonLatch4C = 7, Busy4B = 3, ActionState4D = 0x80 };
+        var damageWaitingState = BaseState(
+            action: 0x80,
+            x: 0x40,
+            y: 0xA0,
+            special76: 0x80,
+            attack: damageSeed);
+        var damageWaiting = PlatformPlayerActionDispatcher.Step(
             open,
-            BaseState(action: 0x80, x: 0x40, y: 0x60, attack: damageSeed),
-            PlatformInput.B,
+            damageWaitingState,
+            PlatformInput.B | PlatformInput.Right,
             frameCounter3C: 0,
             cosmo: 100);
-        Require(damage80.Route == PlatformPlayerActionRoute.UnsupportedDamage80, "$80 is surfaced as unsupported");
-        Require(!damage80.IsModeled, "$80 reports not modeled");
-        Require(damage80.State.AttackState == damageSeed, "$80 unsupported route preserves attack state");
+        Require(damageWaiting.Route == PlatformPlayerActionRoute.Damage80Waiting, "$80 with nonzero $76 waits");
+        Require(damageWaiting.IsModeled, "$80 waiting path is modeled");
+        Require(!damageWaiting.ExitsNormalPlayerLoop, "$80 waiting path returns normally");
+        Require(damageWaiting.Damage80?.Outcome == PlatformDamage80Outcome.WaitingForHazardLatch, "$80 exposes waiting outcome");
+        Require(damageWaiting.State == damageWaitingState, "$80 waiting path does not mutate player state");
+        Require(damageWaiting.AttackAttempt is null, "$80 waiting path never reaches BBCA");
+        Require(damageWaiting.State.AttackState.BButtonLatch4C == 7, "$80 waiting path does not release/consume B latch");
+
+        // When $76 is zero the original path never returns to AAe4's caller. It
+        // snapshots resources, clears $00/$01, disables rendering, resets stack and
+        // JMPs to $C180. The player-domain state is the last pre-reload snapshot.
+        var reloadState = BaseState(
+            action: 0x83,
+            x: 0x40,
+            y: 0xA0,
+            special76: 0,
+            attack: damageSeed with { ActionState4D = 0x83 });
+        var damageReload = PlatformPlayerActionDispatcher.Step(
+            open,
+            reloadState,
+            PlatformInput.B | PlatformInput.Left,
+            frameCounter3C: 0,
+            cosmo: 100);
+        Require(damageReload.Route == PlatformPlayerActionRoute.Damage80Reload, "$80 with zero $76 requests reload");
+        Require(damageReload.ExitsNormalPlayerLoop, "$80 reload exits normal player loop");
+        Require(damageReload.Damage80?.RequiresPersistentResourceSnapshot == true, "$80 reload requires $951F snapshot");
+        Require(damageReload.Damage80?.ClearsMainModeBytes00And01 == true, "$80 reload clears $00/$01");
+        Require(damageReload.Damage80?.DisablesRendering == true, "$80 reload disables rendering");
+        Require(damageReload.Damage80?.ResetsCpuStack == true, "$80 reload resets CPU stack");
+        Require(damageReload.Damage80?.RestartAddress == 0xC180, "$80 reload jumps to fixed $C180");
+        Require(damageReload.State == reloadState, "$80 reload does not invent a returning player-state mutation");
+        Require(damageReload.AttackAttempt is null, "$80 reload never reaches BBCA");
     }
 
     private static PlatformPlayerActionState BaseState(
