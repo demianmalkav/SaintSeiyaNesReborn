@@ -33,20 +33,8 @@ public sealed record PlatformPersistentLateObjectMainThreadResult(
 /// <summary>
 /// Persistent composition of the promoted platform main-thread path through the
 /// complete currently-closed late-object order:
-///
-///   $B6D0 generic primary producer
-///   $969D-$9713 exit gate
-///   $8927 scheduled primary producer
-///   pre-player resources / player $AAE4 / post-player $B94B latch
-///   $9B93 multisprite class
-///   $96B4 auxiliary spawn + $9761 slot A + slot B
-///   $A442 primary slot A + slot B
-///   $A22C player attack-object update
-///   one shared $3C increment
-///
-/// Attack objects, $76/$7F/$80 contact/drain state and Seventh Sense are one
-/// physical mutable stream across all late object classes. Persistent object
-/// state is carried directly into the next frame.
+/// B6D0 -> exit gate -> 8927 -> player/B94B -> 9B93 -> auxiliary A/B ->
+/// primary A/B -> A22C -> one shared $3C increment.
 /// </summary>
 public static class PlatformPersistentLateObjectFrame
 {
@@ -66,9 +54,7 @@ public static class PlatformPersistentLateObjectFrame
             state03A4,
             state.Primary);
 
-        return new(
-            state with { Primary = primary.State },
-            primary.NmiRefresh);
+        return new(state with { Primary = primary.State }, primary.NmiRefresh);
     }
 
     public static PlatformPersistentLateObjectMainThreadResult StepMainThread(
@@ -247,31 +233,25 @@ public static class PlatformPersistentLateObjectFrame
             multispriteFlag74,
             multispriteStageSelector,
             entropy48);
-        currentPlayer = ApplySharedCarry(
-            currentPlayer,
-            multisprite.AttackState,
-            multisprite.ContactState);
+        currentPlayer = ApplySharedCarry(currentPlayer, multisprite.AttackState, multisprite.ContactState);
         currentContact = multisprite.ContactState;
         seventhSense = multisprite.SeventhSense;
 
         var auxiliary = PlatformAuxiliaryHazardInteractions.StepPair(
-            state.Auxiliary,
-            currentPlayer.State.AttackState,
-            currentContact,
-            currentPlayer.State.Saint,
-            pre.PlatformDamage,
-            seventhSense,
-            primary.FrameCounter3C,
-            cameraDelta43,
-            currentPlayer.State.Horizontal.PlayerX,
-            currentPlayer.State.PlayerY,
-            currentPlayer.FrameStartAction4E,
-            engineSubstate02,
-            entropy48);
-        currentPlayer = ApplySharedCarry(
-            currentPlayer,
-            auxiliary.AttackState,
-            auxiliary.ContactState);
+            state: state.Auxiliary,
+            entropy48: entropy48,
+            frameCounter3C: primary.FrameCounter3C,
+            cameraDelta43: cameraDelta43,
+            playerX3F: currentPlayer.State.Horizontal.PlayerX,
+            playerY40: currentPlayer.State.PlayerY,
+            frameStartPlayerAction4E: currentPlayer.FrameStartAction4E,
+            attacks: currentPlayer.State.AttackState,
+            contactState: currentContact,
+            saint: currentPlayer.State.Saint,
+            platformDamage: pre.PlatformDamage,
+            seventhSense: seventhSense,
+            engineSubstate02: engineSubstate02);
+        currentPlayer = ApplySharedCarry(currentPlayer, auxiliary.AttackState, auxiliary.ContactState);
         currentContact = auxiliary.ContactState;
         seventhSense = auxiliary.SeventhSense;
 
