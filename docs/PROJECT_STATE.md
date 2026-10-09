@@ -2,161 +2,146 @@
 
 This file is the **single operational source of truth for `continúa`**.
 
-Technical subsystem documents remain authoritative for their own evidence and semantics. This file answers only: what checkpoint is accepted, what remains open, and what exact action must run next.
+Technical subsystem documents remain authoritative for evidence and semantics. This file records the accepted checkpoint, open boundaries and one executable `NEXT`.
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / primary action-space closure`
+- Phase: `ORIGINAL SPEC / post-platform-exit state-machine boundary`
 - State: `READY_FOR_NEXT`
-- Last verified checkpoint: PR `#90` — complete persistent normal platform late-object frame merged to `main`.
-- Merge commit: `a1d5ac06b3507be62b0bca0ea1b2207440d0f9ac`
-- Exact final PR head: `328861152e930e4c35069eca896f2fc30631a213`
+- Last verified checkpoint: PR `#92` — reachable live action-family closure for primary types `$0A/$0B`.
+- Merge commit: `748c36a380226a6ed48994e2a435e9de88514293`
+- Exact final PR head: `9a00d28d15d72411ef76c6b561fabedc9dfa0edf`
 - Verification gate on that exact head:
-  - `ORIGINAL SPEC tests` run `#249`: `SUCCESS`
-  - `Original Spec` run `#438`: `SUCCESS`
+  - `ORIGINAL SPEC tests` run `#253`: `SUCCESS`
+  - `Original Spec` run `#443`: `SUCCESS`
   - build, OriginalSpec self-test and password compatibility fixture: `SUCCESS`
-- Structural prerequisite: PR `#88` extracted the already-closed primary A -> B body as a reusable after-player primitive without changing semantics.
-- Superseded attempt: PR `#89` was closed without merge after CI exposed contract/test compilation issues; those issues were corrected on the same implementation line before the exact #90 head passed all verification.
+- Previous structural checkpoint: PR `#90` closed the complete persistent normal late-object frame.
 - Workflow hardening checkpoint: PR `#74` remains authoritative for continuation/anti-loop semantics.
 
 ## DONE
 
-Closed unless contradictory evidence appears:
+### Persistent normal platform frame
 
-### Complete persistent normal late-object frame
-
-The continuing normal platform main-thread path is now composed as one persistent state boundary:
+Closed normal order:
 
 ```text
-$B6D0 generic primary producer
+$B6D0 generic producer
  -> platform exit gate
  -> $8927 scheduled producer
- -> pre-player resources / player / post-player latch
+ -> player phases
  -> $9B93 multisprite
- -> $96B4 auxiliary spawn
- -> $9761 auxiliary A
- -> $9761 auxiliary B
- -> $A442 primary A
- -> $A442 primary B
- -> $A22C attack-object update
+ -> auxiliary A/B
+ -> primary A/B
+ -> $A22C
  -> one $3C increment
 ```
 
-One physical mutable stream is preserved across late object classes for:
+Shared attacks, `$76/$7F/$80`, Seventh Sense and persistent late-object state are threaded in ROM order. Exceptional player exits and platform exits have regression coverage.
 
-- player attack objects;
-- `$76` contact latch;
-- `$7F/$80` Life/Cosmo drain state;
-- Seventh Sense.
+### Primary entity family coverage
 
-Persistent state now carries the promoted primary entity pair, `$9B93` state and auxiliary-hazard state directly into the next frame.
+Normally reachable primary runtime families are now closed for all promoted types:
 
-Fixtures prove:
+- `$00-$07`: full confirmed common family set;
+- `$08/$09/$0C`: dedicated scheduled/direct special runtime;
+- `$0D/$0E`: dedicated runtime;
+- `$0F`: dedicated direct runtime;
+- `$0A/$0B`: confirmed reachable **live** families exactly `{ $10, $50 }`.
 
-- a projectile consumed by `$9B93` is invisible to auxiliary and primary classes later that frame;
-- a projectile consumed by auxiliary A is invisible to primary A/B;
-- auxiliary contact seeds `$76/$7F/$80` and suppresses later primary overwrite;
-- freshly spawned auxiliary hazards update in the same frame;
-- `$A22C` executes exactly once after all promoted late object classes;
-- normal `$3C` advances exactly once;
-- exceptional player-loop exits preserve completed producer mutations while skipping `$9B93`, auxiliaries, primary A/B, `$A22C` and the normal `$3C` advance;
-- accepted platform exits retain the already-confirmed earlier producer/exit split.
+For `$0A/$0B`, PR #92 proved:
 
-### Primary-family runtime coverage already promoted
+```text
+$B6D0 spawn -> $10
+$10 -> $10 OR $50 OR retirement
+$50 -> $50 OR $10 OR retirement
+projectile -> action unchanged, +$03 impulse only
+contact -> player/contact state only
+$A845 -> +$03/X only
+$A647 -> visual retirement; optional terminal logical $00 clear
+```
 
-- common types `$00-$07`;
-- scheduled/direct special types `$08/$09/$0C`;
-- `$0D/$0E`;
-- direct `$0F`;
-- `$0A/$0B` executable behavior on `$10/$50`, including their special projectile response and `+$03` post-hit impulse.
+The scheduled `$8925-$89D1` producer cannot create `$0A/$0B`; bank-3 `$A4A0/$A4A4` also bypasses the predispatch that can seed `$70`, and `$A970` bypasses the common decision path that can seed `$30`.
 
-The remaining `$0A/$0B` question is not an unimplemented observed route; it is whether `$10/$50` form the complete **reachable** action-family set for normally produced instances.
+Defensive rejection of injected `$30/$40/$70/$D0/$E0` states remains intentional clean-room behavior rather than an assertion about externally corrupted ROM memory.
 
-Do **not** reopen the persistent late-object order merely to re-check sequencing. Reopen only for a failing fixture, contradictory ROM evidence, or a newly promoted side effect crossing its boundary.
+Do not reopen primary action-family coverage unless a fixture fails or contradictory ROM evidence appears.
 
 ## EVIDENCE
 
-Primary artifacts for the latest checkpoint:
+Latest checkpoint artifacts:
+
+- `docs/reverse-engineering/ENTITY_TYPES_0A_0B.md`
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformCommonEntityActiveDispatcher.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/EntityTypes0A0BChecks.cs`
+- merged PR `#92`
+
+Persistent frame artifacts remain:
 
 - `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformPersistentLateObjectFrame.cs`
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformHybridEntityCombatSlice.cs`
 - `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PersistentLateObjectFrameChecks.cs`
 - `docs/reverse-engineering/PERSISTENT_LATE_OBJECT_FRAME.md`
 - merged PR `#90`
 
-Relevant `$0A/$0B` artifacts already promoted:
+Existing exit evidence:
 
-- `docs/reverse-engineering/ENTITY_TYPES_0A_0B.md`
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformCommonEdgeSpawner.cs`
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformCommonEntityPreparation.cs`
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformCommonEntityFall50.cs`
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformCommonEntityLanding.cs`
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformCommonEntityActiveDispatcher.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/EntityTypes0A0BChecks.cs`
+- `docs/reverse-engineering/PLATFORM_EXIT_GATES.md`
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformExitGate.cs`
 
-Current confirmed transition evidence already establishes:
+The platform gate currently surfaces two semantic transitions:
 
-```text
-$B6D0 spawn -> $10
-$10 ordinary -> remain $10 OR start $50 OR remove
-$50 -> remain $50 OR land to $10 OR remove
-projectile response -> action unchanged, +$03 impulse only
-post-hit $A845 -> +$03/X mutation only
-```
-
-The next task must audit the remaining entity-action writers before promoting that chain from strong static evidence to explicit reachable-state closure.
+- normal `State3DReload`;
+- special substate `$11` `State70Special`.
 
 ## OPEN
 
-1. `$0A/$0B` are defensively admitted by the active dispatcher only on `$10/$50`; the repository still lacks one explicit writer-audit statement proving no normal producer/interaction path can generate `$30/$40/$70/$D0/$E0` for those types.
-2. Full renderer-owned animation/tile/Y/attribute/X state remains outside logical runtimes except where exact lifecycle writes have been promoted.
-3. Higher-level native destination/state-machine behavior after semantic `$3D/$70` platform exits remains above the persistent entity-frame layer.
-4. NES-specific snapshot/PPU/stack/reload plumbing remains intentionally outside the clean logical frame boundary.
+1. The immediate engine state-machine behavior **after** semantic `$3D/$70` platform exits is not yet promoted as a clean logical boundary.
+2. For `$3D`, the ROM jumps through `$E100`; the stage-dependent high-level narrative destination remains separate from the immediate reload handshake.
+3. For `$70`, NMI/main-thread state progression around `$D3BF` / `$C538` is not yet represented.
+4. Full renderer-owned tile/Y/attribute/X state remains outside logical runtimes except exact lifecycle writes already promoted.
+5. NES-specific PPU/stack/audio plumbing should remain outside the semantic model unless needed to determine logical state transitions.
 
 ## NEXT
 
-**Close reachable action-family state for primary types `$0A/$0B`.**
+**Promote the immediate post-platform-exit state-machine boundary for `$3D` and `$70`.**
 
 Completion criterion:
 
-> Starting from every confirmed normal producer of `$0A/$0B`, every promoted action-state writer reachable during their lifecycle is accounted for, and the reachable action-family set is either proven to be exactly `{ $10, $50 }` or expanded only where direct evidence requires it.
+> Starting from an accepted `PlatformExitTransitionKind`, the clean-room model represents every directly confirmed logical engine-state mutation required to hand control to the next engine mode, while explicitly separating stage/narrative destination selection and renderer/audio/stack plumbing that are not needed for logical parity.
 
 Required sequence:
 
-1. audit the real producer(s) of `$0A/$0B` and record their initial action family;
-2. audit all action-state writers reached from `$10/$50`, including decision/proximity, landing, projectile interaction, player contact, post-hit `+$03`, removal and any type-aware shared helpers;
-3. explicitly distinguish action-byte writes from `+$03` motion/impulse writes;
-4. check whether the scheduled producer can ever create `$0A/$0B` or whether `$B6D0` is their only normal source;
-5. add only missing discriminating fixtures, preferably producer -> `$10` -> `$50` -> `$10` plus projectile/contact preservation, without duplicating existing coverage;
-6. update `ENTITY_TYPES_0A_0B.md` and dispatcher wording to state the evidence-backed closure while retaining defensive rejection of injected impossible states;
-7. run both verification workflows before checkpointing.
+1. trace main-loop and NMI dispatch for `$00/$01 == $3D` and `$00/$01 == $70`;
+2. identify the minimum persistent logical fields changed before the next stable state is reached;
+3. for `$3D`, separate the generic `$E100` reload handshake from later stage-dependent destination selection;
+4. for `$70`, map the first confirmed state/timer progression through `$D3BF` and `$C538` and identify what event advances out of state `$70`;
+5. implement semantic result/state types without emulating PPU, stack or sound internals;
+6. add discriminating fixtures for normal `$3D` and special `$70` transitions;
+7. update exit documentation and run both verification workflows.
 
 ## BLOCKERS
 
-- None. The required producer, ordinary, fall, landing, projectile/contact and post-hit primitives are already promoted.
+- None. The canonical ROM is available and the existing exit gate already provides deterministic entry conditions.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `entity-0a0b-reachable-action-closure`
+- `last_next_signature`: `post-platform-exit-state-machine`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
 Rules:
 
-- A cycle counts as progress only if it produces code, a fixture, new evidence, an evidence map/table, a discarded hypothesis, or an evidence-backed architectural decision.
+- A cycle counts as progress only with code, test, new evidence, evidence map, discarded hypothesis, or evidence-backed architectural decision.
 - If two consecutive cycles finish with the same blocker, same `NEXT`, and no new evidence, a third identical attempt is forbidden.
-- On anti-loop trigger: change technique/source or roll back to the last verified checkpoint.
-- Closed phases are not re-entered merely because uncertainty remains elsewhere.
+- On anti-loop trigger: change source/technique or return to the last verified checkpoint.
+- Closed primary/frame phases are not re-entered merely because uncertainty exists above them.
 
 ## CONTINUE SEMANTICS
 
 When the user says `continúa` with no narrower instruction:
 
 1. read this file first;
-2. verify that the latest checkpoint still matches current `main` or reconcile newer merged work;
-3. execute `NEXT` in FAST mode until a material result or real blocker;
+2. reconcile it with current `main` if repository history is newer;
+3. execute the single `NEXT` in FAST mode until material progress or a real blocker;
 4. run the smallest relevant VERIFY gate;
 5. checkpoint only after verification;
 6. update `DONE / EVIDENCE / OPEN / NEXT / BLOCKERS / ANTI-LOOP` before ending the cycle.
-
-If repository history is newer than this file, repository history wins temporarily: reconstruct the real checkpoint, update this file, and only then continue.
