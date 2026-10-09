@@ -42,6 +42,8 @@ internal static class EntityTypes0A0BChecks
             cameraDelta43: 0);
         Require(odd.HorizontalDeltaBeforeCamera == 1 && odd.State.X == 0x51,
             "type0B moves one pixel on odd frame");
+        Require(odd.State.DecisionTimer == 0x33,
+            "type0B direct terrain route also preserves its timer byte");
 
         var turn = PlatformCommonEntityPreparation.StepOrdinaryMobile(
             Motion(0x10, 0x0A, 0x50, 0x50, phase: 0, ground: 0xE0, timer: 5, facing: 0x40, rightTerrain: 0x80),
@@ -251,15 +253,17 @@ internal static class EntityTypes0A0BChecks
         byte y,
         byte phase,
         byte ground,
-        byte rightTerrain) =>
+        byte rightTerrain,
+        byte timer = 0x44,
+        byte facing = 0x40) =>
         new(
             ActionState: action,
             X: x,
             Y: y,
             StatePhase: phase,
             GroundDescriptor: ground,
-            DecisionTimer: 0x44,
-            FlagsFacing: 0x40,
+            DecisionTimer: timer,
+            FlagsFacing: facing,
             Type: type,
             TerrainProbeRight: rightTerrain,
             TerrainProbeLeft: 0);
