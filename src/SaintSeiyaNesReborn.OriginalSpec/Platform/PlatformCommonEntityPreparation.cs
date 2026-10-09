@@ -18,11 +18,12 @@ public readonly record struct PlatformCommonEntityPreparationResult(
 
 /// <summary>
 /// Executable reduction of the ordinary mobile path through bank-3
-/// $A55E-$A700 for common entity types $00-$07 entering in action family $10.
+/// $A55E-$A700 for entity types $00-$07 plus the directly shared `$0A/$0B`
+/// route entering in action family $10.
 ///
-/// This composes the already-promoted decision and jump primitives with the
-/// surrounding movement/camera/removal/proximity-fall ordering that precedes
-/// $9915/$98BA. Special-state families and types $08+ remain separate paths.
+/// Types $0A/$0B reuse the surrounding ordinary path but differ inside already
+/// promoted helpers: `$A970` goes directly to the terrain-facing test (no
+/// decision timer) and `$A60B` uses the slow `$3C & 1` horizontal cadence.
 /// </summary>
 public static class PlatformCommonEntityPreparation
 {
@@ -35,12 +36,13 @@ public static class PlatformCommonEntityPreparation
         byte frameCounter3C,
         byte cameraDelta43)
     {
-        if (state.Type > 0x07)
-            throw new ArgumentOutOfRangeException(nameof(state), state.Type, "Ordinary mobile preparation currently covers entity types $00-$07.");
+        if (!IsSupportedOrdinaryType(state.Type))
+            throw new ArgumentOutOfRangeException(nameof(state), state.Type, "Ordinary mobile preparation covers types $00-$07 and $0A/$0B.");
         if ((state.ActionState & 0xF0) != 0x10)
             throw new InvalidOperationException($"Ordinary mobile preparation requires entry action family $10, got ${state.ActionState:X2}.");
 
-        // $A578 -> $A970. A timer expiry can change facing or start $31/$32.
+        // $A578 -> $A970. Types $00-$06 use the decision timer; $07/$0A/$0B
+        // route directly through the terrain-facing check.
         var decision = PlatformCommonEntityDecision.Step(
             state,
             playerX,
@@ -51,8 +53,9 @@ public static class PlatformCommonEntityPreparation
 
         PlatformEntityJumpStepResult? jump = null;
 
-        // If A970 started a jump this very update, A5BB immediately calls C5E6;
-        // the first vertical table sample is therefore consumed in the same frame.
+        // Ordinary types $00-$06 may have just started $31/$32. $0A/$0B never
+        // do so through A970, but retaining the family test keeps the surrounding
+        // ROM flow literal.
         if ((state.ActionState & 0xF0) == 0x30)
         {
             jump = PlatformCommonEntityMotion.StepJumpVertical(state);
@@ -76,13 +79,11 @@ public static class PlatformCommonEntityPreparation
                 : -step;
         }
 
-        // $A636: every path then subtracts camera delta $43 from screen X.
         state = state with
         {
             X = unchecked((byte)(state.X + horizontalDelta - cameraDelta43)),
         };
 
-        // $A63B-$A646: wrapped/edge X $F8-$FF removes the entity record/OAM.
         if (state.X >= 0xF8)
         {
             return new PlatformCommonEntityPreparationResult(
@@ -95,7 +96,6 @@ public static class PlatformCommonEntityPreparation
                 cameraDelta43);
         }
 
-        // $A67A-$A689 removes only the $B0-$BF vertical band here.
         if (state.Y is >= 0xB0 and < 0xC0)
         {
             return new PlatformCommonEntityPreparationResult(
@@ -110,7 +110,9 @@ public static class PlatformCommonEntityPreparation
 
         var proximityFall = false;
 
-        // $A68A-$A6FE. Nonzero phase skips this proximity/drop test entirely.
+        // $A68A-$A6FE. $0A/$0B are not in the explicit $08/$09 or $0D+
+        // exclusions and therefore share the proximity-fall test with common
+        // types when phase is zero.
         if (state.StatePhase == 0
             && state.GroundDescriptor is not (>= 0xE0 and < 0xF0)
             && playerY < 0x81)
@@ -139,17 +141,17 @@ public static class PlatformCommonEntityPreparation
             cameraDelta43);
     }
 
+    private static bool IsSupportedOrdinaryType(byte type) =>
+        type <= 0x07 || type is 0x0A or 0x0B;
+
     private static bool WithinOriginalHorizontalProximity(byte entityX, byte playerX)
     {
         if (entityX >= playerX)
         {
-            // $A6DA-$A6DF: equality at exactly +32 is rejected (BCS).
             var left = unchecked((byte)(entityX - 0x20));
             return left < playerX;
         }
 
-        // $A6E3-$A6F0: the opposite side first rejects playerX<$20, then
-        // accepts equality at exactly -32 because the final branch is BCC.
         if (playerX < 0x20)
             return false;
         var right = unchecked((byte)(entityX + 0x20));
