@@ -1,6 +1,6 @@
 # Hybrid entity slot scheduler — common + special `$08/$09/$0C`
 
-Status: **clean-room composition of already-confirmed slot gate, common runtime and special runtime ordering**.
+Status: **clean-room composition of confirmed slot gate, common runtime, special runtime and primary `$A647` retirement ordering**.
 
 The platform engine owns two logical movable-entity records and processes them in strict A -> B order inside the `$A442` family. Earlier work closed the reusable common per-slot runtime and the dedicated active runtime for scheduled special types `$08/$09/$0C`. This composition places both behind the same slot gate without flattening their distinct semantics.
 
@@ -11,15 +11,17 @@ After the existing pre-player resource phase and post-player `$76` latch update:
 ```text
 slot A activity gate
   -> common runtime OR special 08/09/0C runtime OR skip
+  -> if runtime enters confirmed removal path: $A647 retirement
   -> carry shared state
 slot B activity gate
   -> common runtime OR special 08/09/0C runtime OR skip
+  -> if runtime enters confirmed removal path: $A647 retirement
   -> carry shared state
 late attack-object update
 shared $3C increment
 ```
 
-A slot with visual `+1 == $FE` normally skips. Logical `$40` and `$D0` families retain the previously confirmed activity-gate exceptions and can still run cleanup even after visual retirement.
+A slot with visual `+1 == $FE` normally skips. Logical `$40` and `$D0` families retain the confirmed activity-gate exceptions and can still run cleanup after visual retirement.
 
 ## Route selection
 
@@ -59,12 +61,45 @@ The hybrid slot wrapper retains the special-only values needed by `$08/$09/$0C` 
 
 Common slots carry these fields inertly.
 
-## Visual-state boundary
+## Primary visual retirement `$A647`
 
-`VisualSpritePlus1` is used as the activity-gate input but is intentionally carried unchanged by this slice. The exact renderer-side writes that retire or replace the visual record have not yet been promoted into the composed frame runtime. Inventing those writes here would make the scheduler appear more complete than the current evidence supports.
+The minimum visual lifecycle required for deterministic cross-frame primary-slot composition is now promoted.
 
-Therefore this class closes **logical A -> B scheduling and shared combat state propagation**, not the complete visual lifecycle.
+When an already-modeled common or `$08/$09/$0C` path reaches the original shared removal helper `$A647`, the hybrid scheduler applies `PlatformEntityRemovalA647` after the logical runtime result:
+
+- tracked primary visual `+1` becomes `$FE`;
+- engine `$00 < $30` clears logical action `+$00`;
+- engine `$00 >= $30` preserves the logical action;
+- the helper's exact eleven-base-record retirement and type-`$0D` extra-record behavior are recorded as evidence metadata.
+
+This directly explains the `$A459` exception: a visual-free `$40/$D0` logical family can be a legitimate post-removal state when `$00 >= $30`.
+
+The full renderer-owned sprite array is still not mirrored in the hybrid state. The runtime intentionally tracks the occupancy byte required by slot gating and spawning, while the raw `$F0/$FE` writes across the eleven records are documented separately in `PRIMARY_ENTITY_REMOVAL_A647.md`.
+
+## Cross-frame closure
+
+The result state of one hybrid frame can now be supplied directly to the next frame without manually repairing the primary visual marker.
+
+Fixtures cover both threshold branches and a two-frame path where:
+
+1. frame N retires the visual slot while preserving `$40` at engine `$30`;
+2. frame N+1 sees `visual=$FE + logical=$40`;
+3. `$A459` admits the slot;
+4. reaction cleanup advances once camera correction brings it back into the active range.
+
+A separate fixture passes an `$A647`-freed slot directly to the confirmed scheduled producer and verifies `$FE -> $FD` reuse.
+
+## Remaining visual-state boundary
+
+This does **not** promote arbitrary renderer animation writes or every visual record in the engine. The current closure is narrower and evidence-driven:
+
+- primary slot occupancy/free transition is owned;
+- primary logical clear threshold is owned;
+- attached `$A908/$AA70` visual state remains independently modeled;
+- other entity classes retain their own visual-lifecycle models or open gaps.
 
 ## Next integration boundary
 
-The next useful composition is to bridge the already-closed producer state (`PlatformPrimaryEncounterRefreshAndSpawn` / `PlatformPageEncounterSpawnState`) into this hybrid logical scheduler while keeping visual occupancy and special-only per-slot state explicit. That bridge should not infer visual retirement; it should either receive the renderer-owned visual state or first promote the exact visual lifecycle writes required for deterministic multi-frame composition.
+With primary retirement no longer requiring manual repair, the next useful composition is the persistent producer -> hybrid scheduler bridge: feed `PlatformPrimaryEncounterRefreshAndSpawn` / `PlatformPageEncounterSpawnState` outputs into the hybrid A -> B runtime and carry the resulting slot state forward across frames.
+
+That bridge must preserve the already-confirmed timing boundaries between encounter acceptance, producer execution, entity updates and any NMI-owned rendering work. It should not collapse those phases merely because they now share a state record.

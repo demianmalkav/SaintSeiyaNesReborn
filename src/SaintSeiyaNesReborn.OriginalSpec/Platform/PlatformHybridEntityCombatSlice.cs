@@ -45,7 +45,8 @@ public sealed record PlatformHybridEntitySlotFrameResult(
     PlatformCommonSlotActivityResult Activity,
     PlatformHybridEntitySlotRoute Route,
     PlatformCommonEntitySlotFrameResult? Common,
-    PlatformSpecialEntityActive08090CResult? Special);
+    PlatformSpecialEntityActive08090CResult? Special,
+    PlatformEntityRemovalA647Result? RemovalA647);
 
 public sealed record PlatformHybridEntityCombatSliceResult(
     PlatformPrePlayerResourcePhaseResult PrePlayer,
@@ -73,9 +74,11 @@ public sealed record PlatformHybridEntityCombatSliceResult(
 /// mutated attack state, contact latch/drain state, Seventh Sense and global
 /// $039A value.
 ///
-/// Visual lifecycle mutation itself remains outside this slice: VisualSpritePlus1
-/// is an input gate value carried unchanged here because the corresponding
-/// renderer/visual retirement writes have not been promoted into this runtime.
+/// Primary-slot retirement through $A647 is composed here because this layer
+/// owns both logical slot state and the tracked visual +1 occupancy byte. The
+/// exact renderer-owned tile/Y bytes remain outside the runtime, but an A647
+/// path now deterministically changes VisualSpritePlus1 to $FE and applies the
+/// engine-state-dependent logical action clear needed for cross-frame reuse.
 /// </summary>
 public static class PlatformHybridEntityCombatSlice
 {
@@ -240,7 +243,8 @@ public static class PlatformHybridEntityCombatSlice
                     activity,
                     PlatformHybridEntitySlotRoute.Skipped,
                     Common: null,
-                    Special: null),
+                    Special: null,
+                    RemovalA647: null),
                 player.State.AttackState,
                 contactState,
                 seventhSense,
@@ -283,13 +287,29 @@ public static class PlatformHybridEntityCombatSlice
                 ParentOffset08 = special.State.ParentOffset08,
             };
 
+            PlatformEntityRemovalA647Result? removal = null;
+            if (special.Outcome is PlatformSpecialEntityActive08090COutcome.RemovedBeforeInteraction
+                or PlatformSpecialEntityActive08090COutcome.RemovedByDeathCompletion)
+            {
+                removal = PlatformEntityRemovalA647.Apply(
+                    nextState.Entity,
+                    nextState.VisualSpritePlus1,
+                    engineState00);
+                nextState = nextState with
+                {
+                    Entity = removal.Value.Entity,
+                    VisualSpritePlus1 = removal.Value.VisualSpritePlus1,
+                };
+            }
+
             return new SlotCarry(
                 new PlatformHybridEntitySlotFrameResult(
                     nextState,
                     activity,
                     PlatformHybridEntitySlotRoute.Special08090C,
                     Common: null,
-                    Special: special),
+                    Special: special,
+                    RemovalA647: removal),
                 special.AttackState,
                 special.ContactState,
                 special.SeventhSense,
@@ -314,13 +334,28 @@ public static class PlatformHybridEntityCombatSlice
             engineSubstate02);
 
         var commonState = state with { Entity = common.Slot.Entity };
+        PlatformEntityRemovalA647Result? commonRemoval = null;
+        if (common.Slot.RemovedBeforeInteraction || common.Slot.RemovedAfterInteraction)
+        {
+            commonRemoval = PlatformEntityRemovalA647.Apply(
+                commonState.Entity,
+                commonState.VisualSpritePlus1,
+                engineState00);
+            commonState = commonState with
+            {
+                Entity = commonRemoval.Value.Entity,
+                VisualSpritePlus1 = commonRemoval.Value.VisualSpritePlus1,
+            };
+        }
+
         return new SlotCarry(
             new PlatformHybridEntitySlotFrameResult(
                 commonState,
                 activity,
                 PlatformHybridEntitySlotRoute.Common,
                 Common: common.Slot,
-                Special: null),
+                Special: null,
+                RemovalA647: commonRemoval),
             common.AttackState,
             common.ContactState,
             common.SeventhSense,
