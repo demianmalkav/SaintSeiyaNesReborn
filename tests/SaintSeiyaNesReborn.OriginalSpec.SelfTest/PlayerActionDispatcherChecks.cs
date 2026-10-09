@@ -28,9 +28,6 @@ internal static class PlayerActionDispatcherChecks
         Require(activeJump.Route == PlatformPlayerActionRoute.OrdinaryAirborne, "jump-family frame dispatches ordinary airborne");
         Require(activeJump.State.JumpPhase49 == 9, "dispatcher advances existing jump phase");
 
-        // $20 path: B is processed only after crouch/drop. Down+A first moves the
-        // player six pixels into $50; B then sees the new Y, while its origin rule
-        // still receives OLD frame-start $4E==$20 and adds the crouch +8 offset.
         var crouchDropAttack = PlatformPlayerActionDispatcher.Step(
             open,
             BaseState(action: 0x20, x: 0x40, y: 0x50, facing: 0x40),
@@ -45,8 +42,6 @@ internal static class PlayerActionDispatcherChecks
         Require(crouchDropAttack.State.AttackState.Slot0.Object.Y == 0x65, "attack origin uses post-drop Y plus old-$20 crouch offset");
         Require(crouchDropAttack.State.AttackState.Slot0.Object.X == 0x52, "crouch-path attack uses current X/facing");
 
-        // Releasing Down exits crouch before B. The attack still sees old $4E==$20,
-        // so the +15 crouching origin survives despite current action becoming zero.
         var crouchReleaseAttack = PlatformPlayerActionDispatcher.Step(
             open,
             BaseState(action: 0x20, x: 0x40, y: 0x50, facing: 0x40),
@@ -56,8 +51,6 @@ internal static class PlayerActionDispatcherChecks
         Require(crouchReleaseAttack.State.ActionState4D == 0, "crouch release clears current action before B");
         Require(crouchReleaseAttack.State.AttackState.Slot0.Object.Y == 0x5F, "B origin still uses frame-start $20 snapshot");
 
-        // Facing is updated by B829 before BBCA. Right wins over Left exactly as in
-        // the crouch helper, so the projectile must use right-facing origin here.
         var crouchFacing = PlatformPlayerActionDispatcher.Step(
             open,
             BaseState(action: 0x20, x: 0x40, y: 0x50, facing: 0x00),
@@ -67,8 +60,6 @@ internal static class PlayerActionDispatcherChecks
         Require(crouchFacing.State.Horizontal.Facing42 == 0x40, "crouch updates facing before B");
         Require(crouchFacing.State.AttackState.Slot0.Object.X == 0x52, "B uses post-crouch right facing");
 
-        // $50 path: fall movement happens before B. Starting at $60 therefore
-        // attacks from $63+7 rather than the frame-start Y.
         var fallAttack = PlatformPlayerActionDispatcher.Step(
             open,
             BaseState(action: 0x50, x: 0x40, y: 0x60, facing: 0x40),
@@ -81,8 +72,6 @@ internal static class PlayerActionDispatcherChecks
         Require(fallAttack.AttackAttempt?.Outcome == PlatformAttackAttemptOutcome.Created, "falling B creates attack after fall step");
         Require(fallAttack.State.AttackState.Slot0.Object.Y == 0x6A, "falling attack origin uses post-fall Y+7");
 
-        // A frame can cross the $90 attack-height threshold because of the fall step.
-        // That proves BBCA observes the post-B87D Y, not frame-start Y.
         var fallHeightReject = PlatformPlayerActionDispatcher.Step(
             open,
             BaseState(action: 0x50, x: 0x40, y: 0x8E, facing: 0x40),
@@ -94,8 +83,6 @@ internal static class PlayerActionDispatcherChecks
         Require(fallHeightReject.AttackAttempt?.SoundId == 0x24, "height-rejected fall attack still requests sound");
         Require(fallHeightReject.State.AttackState.BButtonLatch4C == 1, "height rejection still consumes B latch");
 
-        // FloorCenter samples world X+8 and Y+0x20 from the frame-start player
-        // coordinates. Put a solid descriptor exactly under that probe.
         var solid = StageWithDescriptor(x: 0x48, y: 0x7D, descriptor: 0x80);
         var landAttack = PlatformPlayerActionDispatcher.Step(
             solid,
@@ -108,28 +95,56 @@ internal static class PlayerActionDispatcherChecks
         Require(landAttack.State.ActionState4D == 0, "landing returns current action to neutral");
         Require(landAttack.State.AttackState.Slot0.Object.Y == 0x67, "post-landing B origin uses snapped Y");
 
-        // Unknown dispatcher branches must remain explicit no-ops at this layer.
-        var attackSeed = PlatformAttackState.Empty with { BButtonLatch4C = 7, Busy4B = 3 };
+        // $40 path is a self-contained 16-step visual/action cycle at fixed-bank
+        // $C5CC. Input is ignored: no B latch, no lateral movement, no attack.
+        var attackSeed = PlatformAttackState.Empty with { BButtonLatch4C = 7, Busy4B = 3, ActionState4D = 0x40 };
         var special40 = PlatformPlayerActionDispatcher.Step(
             open,
             BaseState(action: 0x40, x: 0x40, y: 0x60, attack: attackSeed),
             PlatformInput.B | PlatformInput.Right,
             frameCounter3C: 0,
             cosmo: 100);
-        Require(special40.Route == PlatformPlayerActionRoute.UnsupportedSpecial40, "$40 is surfaced as unsupported");
-        Require(!special40.IsModeled, "$40 reports not modeled");
-        Require(special40.State == BaseState(action: 0x40, x: 0x40, y: 0x60, attack: attackSeed), "$40 unsupported route does not invent state mutation");
-        Require(special40.AttackAttempt is null, "$40 unsupported route does not fake B processing");
+        Require(special40.Route == PlatformPlayerActionRoute.Special40, "$40 dispatches exact special cycle");
+        Require(special40.IsModeled, "$40 is modeled");
+        Require(special40.Special40?.CompletedCycle == false, "$40 first step does not complete cycle");
+        Require(special40.State.ActionState4D == 0x41, "$40 advances action to $41");
+        Require(special40.State.PlayerY == 0x61, "$40 advances Y by one");
+        Require(special40.State.Horizontal.PlayerX == 0x40, "$40 ignores horizontal input");
+        Require(special40.AttackAttempt is null, "$40 skips BBCA entirely");
+        Require(special40.State.AttackState.BButtonLatch4C == 7, "$40 does not touch B latch");
+        Require(special40.State.AttackState.Busy4B == 3, "$40 does not touch attack busy counter");
 
+        var special4E = PlatformPlayerActionDispatcher.Step(
+            open,
+            BaseState(action: 0x4E, x: 0x40, y: 0x6E),
+            PlatformInput.None,
+            frameCounter3C: 0,
+            cosmo: 100);
+        Require(special4E.State.ActionState4D == 0x4F, "$4E advances to terminal $4F");
+        Require(special4E.State.PlayerY == 0x6F, "$4E adds final downward pixel");
+
+        var special4F = PlatformPlayerActionDispatcher.Step(
+            open,
+            BaseState(action: 0x4F, x: 0x40, y: 0x6F),
+            PlatformInput.B | PlatformInput.Left,
+            frameCounter3C: 0,
+            cosmo: 100);
+        Require(special4F.Special40?.CompletedCycle == true, "$4F completes special cycle");
+        Require(special4F.State.ActionState4D == 0, "$4F completion resets action");
+        Require(special4F.State.PlayerY == 0x60, "$4F completion subtracts accumulated 15 pixels");
+        Require(special4F.Special40?.ScreenYDelta == -15, "$4F reports exact upward snap");
+        Require(special4F.AttackAttempt is null, "$4F still skips attack processing");
+
+        var damageSeed = PlatformAttackState.Empty with { BButtonLatch4C = 7, Busy4B = 3 };
         var damage80 = PlatformPlayerActionDispatcher.Step(
             open,
-            BaseState(action: 0x80, x: 0x40, y: 0x60, attack: attackSeed),
+            BaseState(action: 0x80, x: 0x40, y: 0x60, attack: damageSeed),
             PlatformInput.B,
             frameCounter3C: 0,
             cosmo: 100);
         Require(damage80.Route == PlatformPlayerActionRoute.UnsupportedDamage80, "$80 is surfaced as unsupported");
         Require(!damage80.IsModeled, "$80 reports not modeled");
-        Require(damage80.State.AttackState == attackSeed, "$80 unsupported route preserves attack state");
+        Require(damage80.State.AttackState == damageSeed, "$80 unsupported route preserves attack state");
     }
 
     private static PlatformPlayerActionState BaseState(
