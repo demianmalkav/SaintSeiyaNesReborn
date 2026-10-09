@@ -1,5 +1,12 @@
 namespace SaintSeiyaNesReborn.OriginalSpec.Platform;
 
+public sealed record PlatformLatchedCommonProducerEarlyResult(
+    PlatformPrimaryEncounterLatchState ActiveEncounter,
+    byte StagedDescriptor03B7,
+    PlatformPageEncounterSpawnState State,
+    PlatformCommonEdgeSpawnPairResult? CommonEdge,
+    bool NoActiveEncounter);
+
 public sealed record PlatformLatchedCommonProducerPhaseResult(
     PlatformPrimaryEncounterLatchState ActiveEncounter,
     byte StagedDescriptor03B7,
@@ -12,28 +19,26 @@ public sealed record PlatformLatchedCommonProducerPhaseResult(
 /// Main-thread common-entity producer phase using the encounter configuration
 /// already accepted into semantic $58/profile state by the NMI-side latch.
 ///
-/// Confirmed order in the active platform update is bank-0 $B6D0 first, then
-/// bank-1 $8000 whose $8927 call runs the scheduled-special producer. Both are
-/// invoked before platform damage and bank-3 $AAE4 player processing.
+/// Confirmed active-platform order is not a single uninterrupted producer block:
+/// fixed/main platform code calls bank-0 $B6D0 first, then evaluates the bank-1
+/// $969D platform-exit gate, and only on the continuing path reaches bank-1
+/// $8000 whose $8927 call runs the scheduled-special producer.
 ///
-/// The generic producer receives staged $03B7 separately from active $58; this
-/// preserves the original mismatch gate during deferred page transitions. The
-/// scheduled producer sees active $58/profile but has no $03B7 equality gate.
+/// StepCommon(...) and StepScheduled(...) expose that evidence-backed split.
+/// Step(...) remains the compatibility composition for callers that already know
+/// they are on a non-exit path.
 /// </summary>
 public static class PlatformLatchedCommonProducerPhase
 {
-    public static PlatformLatchedCommonProducerPhaseResult Step(
+    public static PlatformLatchedCommonProducerEarlyResult StepCommon(
         PlatformStageMap stage,
         PlatformPrimaryEncounterLatchState activeEncounter,
         byte stagedDescriptor03B7,
-        byte cameraLow44,
-        byte cameraHigh45,
         int scrollX,
         byte playerX,
         byte cameraDelta43,
         byte entropy48,
-        PlatformPageEncounterSpawnState state,
-        IReadOnlyList<PlatformSpecialSpawnEntry> scheduledEntries)
+        PlatformPageEncounterSpawnState state)
     {
         if (activeEncounter.ActiveEngine58 == 0 || activeEncounter.ActiveConfig is null)
         {
@@ -42,15 +47,11 @@ public static class PlatformLatchedCommonProducerPhase
                 stagedDescriptor03B7,
                 state,
                 null,
-                null,
                 NoActiveEncounter: true);
         }
 
-        var config = activeEncounter.ActiveConfig.Value;
-        if (config.Engine58 != activeEncounter.ActiveEngine58)
-            throw new InvalidOperationException("Active encounter config does not match active $58.");
+        var config = ValidateAndGetConfig(activeEncounter);
 
-        // First: fixed/main platform maps bank 0 and calls $B6D0.
         var common = config.StepCommonEdgeSpawner(
             stage,
             scrollX,
@@ -73,19 +74,43 @@ public static class PlatformLatchedCommonProducerPhase
             Cooldown03B8 = common.Cooldown03B8,
         };
 
-        // Second: bank-1 $8000 calls $8927. It uses active $58/profile and the
-        // current camera schedule. It does not compare $03B7 with $58.
+        return new(
+            activeEncounter,
+            stagedDescriptor03B7,
+            afterCommon,
+            common,
+            NoActiveEncounter: false);
+    }
+
+    public static PlatformLatchedCommonProducerPhaseResult StepScheduled(
+        PlatformLatchedCommonProducerEarlyResult early,
+        byte cameraLow44,
+        byte cameraHigh45,
+        IReadOnlyList<PlatformSpecialSpawnEntry> scheduledEntries)
+    {
+        if (early.NoActiveEncounter)
+        {
+            return new(
+                early.ActiveEncounter,
+                early.StagedDescriptor03B7,
+                early.State,
+                early.CommonEdge,
+                null,
+                NoActiveEncounter: true);
+        }
+
+        var config = ValidateAndGetConfig(early.ActiveEncounter);
         var scheduled = config.TryScheduledSpecialSpawn(
-            afterCommon.EntityA,
-            afterCommon.VisualSpriteA,
-            afterCommon.EntityB,
-            afterCommon.VisualSpriteB,
+            early.State.EntityA,
+            early.State.VisualSpriteA,
+            early.State.EntityB,
+            early.State.VisualSpriteB,
             cameraLow44,
             cameraHigh45,
-            afterCommon.LastTriggerLow03A2,
+            early.State.LastTriggerLow03A2,
             scheduledEntries);
 
-        var afterScheduled = afterCommon with
+        var afterScheduled = early.State with
         {
             EntityA = scheduled.SlotA.Entity,
             VisualSpriteA = scheduled.SlotA.VisualSprite,
@@ -95,11 +120,57 @@ public static class PlatformLatchedCommonProducerPhase
         };
 
         return new(
-            activeEncounter,
-            stagedDescriptor03B7,
+            early.ActiveEncounter,
+            early.StagedDescriptor03B7,
             afterScheduled,
-            common,
+            early.CommonEdge,
             scheduled,
             NoActiveEncounter: false);
+    }
+
+    /// <summary>
+    /// Compatibility composition for an already-established non-exit path:
+    /// generic $B6D0 first, scheduled $8927 second.
+    /// </summary>
+    public static PlatformLatchedCommonProducerPhaseResult Step(
+        PlatformStageMap stage,
+        PlatformPrimaryEncounterLatchState activeEncounter,
+        byte stagedDescriptor03B7,
+        byte cameraLow44,
+        byte cameraHigh45,
+        int scrollX,
+        byte playerX,
+        byte cameraDelta43,
+        byte entropy48,
+        PlatformPageEncounterSpawnState state,
+        IReadOnlyList<PlatformSpecialSpawnEntry> scheduledEntries)
+    {
+        var early = StepCommon(
+            stage,
+            activeEncounter,
+            stagedDescriptor03B7,
+            scrollX,
+            playerX,
+            cameraDelta43,
+            entropy48,
+            state);
+
+        return StepScheduled(
+            early,
+            cameraLow44,
+            cameraHigh45,
+            scheduledEntries);
+    }
+
+    private static PlatformPrimaryEncounterSpawnConfig ValidateAndGetConfig(
+        PlatformPrimaryEncounterLatchState activeEncounter)
+    {
+        if (activeEncounter.ActiveConfig is not PlatformPrimaryEncounterSpawnConfig config)
+            throw new InvalidOperationException("Active encounter does not have a spawn config.");
+
+        if (config.Engine58 != activeEncounter.ActiveEngine58)
+            throw new InvalidOperationException("Active encounter config does not match active $58.");
+
+        return config;
     }
 }
