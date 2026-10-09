@@ -6,6 +6,7 @@ public readonly record struct PlatformAirborneVerticalState(
     byte ActionState,
     byte JumpPhase49,
     byte HighJumpSelector038A,
+    byte Support038D,
     byte Special76);
 
 public readonly record struct PlatformAirborneVerticalResult(
@@ -211,7 +212,7 @@ public static class PlatformAirborneVerticalMotion
             PlayerY = targetY,
             JumpPhase49 = 0,
             ActionState = (byte)PlatformActionFamily.Neutral,
-            HighJumpSelector038A = 0,
+            Support038D = 0,
         };
         return new LandingResolution(landed, true, true, false);
     }
