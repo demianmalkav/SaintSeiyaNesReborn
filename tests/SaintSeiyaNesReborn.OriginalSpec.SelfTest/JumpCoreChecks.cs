@@ -64,12 +64,10 @@ internal static class JumpCoreChecks
         Require(ProfileDuration(directional, PlatformSaintIndex.Shiryu) == 44 && MaxRise(directional, PlatformSaintIndex.Shiryu) == 34, "Shiryu directional jump.");
         Require(ProfileDuration(directional, PlatformSaintIndex.Ikki) == 54 && MaxRise(directional, PlatformSaintIndex.Ikki) == 39, "Ikki directional jump.");
 
-        // First jump frame: phase 1 -> 2, ordinary delta +8 means screen Y -8.
         var first = PlatformJumpCore.StepVertical(ordinary, PlatformSaintIndex.Seiya, default);
         Require(first.State.JumpPhase49 == 2 && first.AppliedDelta == 8 && first.State.PlayerY == ordinary.PlayerY - 8,
             "First ordinary jump frame consumes table index zero.");
 
-        // Once phase reaches duration, the table is no longer read: free-fall is +3 px/frame.
         var freeFallStart = ordinary with { JumpPhase49 = 31, PlayerY = 0x60 };
         var falling = PlatformJumpCore.StepVertical(freeFallStart, PlatformSaintIndex.Seiya, default);
         Require(falling.State.JumpPhase49 == 32 && falling.AppliedDelta == -3 && falling.State.PlayerY == 0x63,
@@ -106,7 +104,7 @@ internal static class JumpCoreChecks
     }
 
     private static PlatformJumpState Jumping(byte action, bool high) => new(
-        PlayerY: 0xC0,
+        PlayerY: 0x90,
         PlayerYPage41: 0,
         JumpPhase49: 1,
         JumpButtonLatch4A: 1,
@@ -128,7 +126,7 @@ internal static class JumpCoreChecks
         {
             var step = PlatformJumpCore.StepVertical(state, saint, default);
             state = step.State;
-            var relative = unchecked((sbyte)(state.PlayerY - startY));
+            var relative = state.PlayerY - startY;
             minRelative = Math.Min(minRelative, relative);
         }
         return -minRelative;
