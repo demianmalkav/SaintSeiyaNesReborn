@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using SaintSeiyaNesReborn.OriginalSpec;
 using SaintSeiyaNesReborn.OriginalSpec.Platform;
 
 internal static class ContactFramePhaseChecks
