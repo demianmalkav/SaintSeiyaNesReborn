@@ -20,7 +20,10 @@ public readonly record struct PlatformCombatEntity(
     byte Y,
     byte Type,
     byte HitPoints,
-    byte SeventhSenseRewardBcd);
+    byte SeventhSenseRewardBcd,
+    byte Motion3 = 0,
+    byte RightTerrain0A = 0,
+    byte LeftTerrain0B = 0);
 
 public enum PlatformEntityDamageOutcome
 {
@@ -123,9 +126,6 @@ public static class PlatformProjectileHit
         var remaining = entity.HitPoints - damage;
         if (remaining > 0)
         {
-            // Surviving ordinary entities enter reaction family $40. The ROM
-            // has additional type<8 motion/recoil work after this state write;
-            // that is intentionally a separate layer.
             return new PlatformEntityDamageResult(
                 entity with
                 {
