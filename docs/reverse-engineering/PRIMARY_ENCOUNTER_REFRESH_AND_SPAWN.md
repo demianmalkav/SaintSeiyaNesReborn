@@ -1,121 +1,105 @@
-# Primary encounter refresh → acceptance → producer composition
+# Primary encounter NMI → main-thread producer bridge
 
 Status: **CONFIRMED by composition of already closed static ROM paths**.
 
-The earlier clean-room layers intentionally modeled three pieces separately:
+The platform encounter runtime is split across two execution contexts that must remain separate in the clean-room model:
 
-1. fixed-bank refresh gate `$D7F2` plus bank-1 `$9915` entry gating;
-2. safe acceptance latch `$996C-$9A2D` for staged `$03B7` versus active `$58`;
-3. common/scheduled primary-encounter producers.
+1. NMI-side refresh/acceptance (`$D269 -> $D7F2 -> bank-1 $9915/$996C`);
+2. main-thread producer order (bank-0 `$B6D0`, then bank-1 `$8927`).
 
-This document closes the semantic gap between them.
+`PlatformPrimaryEncounterRefreshAndSpawn` is a state bridge between those contexts, not a new unordered monolithic frame step.
 
-## The important distinction
+## Persistent state carried across the boundary
 
-The page selected by camera high byte `$45` is **not necessarily the encounter currently active in `$58`**.
+`PlatformPrimaryEncounterRefreshAndSpawnState` keeps three independent views:
 
-When the camera reaches a page with a new primary encounter descriptor, `$996C` stages that descriptor in `$03B7`. If either common entity slot is unsafe for replacement, acceptance is deferred:
+- `EncounterLatch`: active `$58` plus the profile already accepted for it;
+- `StagedDescriptor03B7`: latest page descriptor actually staged by `$996C`;
+- `SpawnState`: logical/visual common-slot state plus `$03B8` cooldown and `$03A2` scheduled trigger latch.
 
-```text
-current page descriptor = NEW
-$03B7                  = NEW
-$58/profile            = OLD
-```
+They can legitimately disagree during a deferred transition.
 
-The producers must therefore consume the profile attached to accepted `$58`, not simply rebuild their configuration from the current page every frame.
+## NMI phase
 
-This distinction is now explicit in `PlatformPageEncounterSpawnPhase.StepAccepted(...)`.
+`StepNmi(...)` delegates to `PlatformNmiPrimaryEncounterRefreshPhase`.
 
-## Composed clean-room state
+If the refresh gate reaches `$996C`, the current page descriptor is staged. Safe replacement updates active `$58/profile`; unsafe replacement keeps the old active encounter while still updating staged `$03B7`.
 
-`PlatformPrimaryEncounterRefreshAndSpawnState` keeps the three persistent views separate:
+If the refresh gate suppresses `$996C`, the bridge deliberately preserves the previous staged `$03B7`. It does not infer or copy the visible page descriptor.
 
-- `EncounterLatch`: active `$58` plus its resolved spawn profile;
-- `StagedDescriptor03B7`: newest descriptor staged by `$996C`;
-- `SpawnState`: the two common records/visual markers plus producer timers/latches.
-
-They may legitimately disagree while a page change is pending.
-
-## Per-update composition
-
-`PlatformPrimaryEncounterRefreshAndSpawn.Step(...)` performs:
+Example deferred transition:
 
 ```text
-PlatformPrimaryEncounterRefreshGate
-  ↓ when $996C is actually invoked
-PlatformPrimaryEncounterAcceptance
-  ↓ accepted ActiveConfig (old config survives deferral)
-PlatformPageEncounterSpawnPhase.StepAccepted
-```
+visible page descriptor = $A8
+old active $58          = $86
+slot A family           = $40
 
-If the refresh gate does not invoke `$996C`, both active `$58/profile` and staged `$03B7` remain unchanged for this composition.
-
-If `$996C` is invoked, the current page descriptor is staged even when acceptance is deferred.
-
-## Deferred replacement behavior
-
-A discriminating fixture uses:
-
-```text
-old accepted $58 = $86   (generic common producer)
-new page          = $A8   (scheduled type $08)
-slot A family     = $40   (unsafe replacement)
-```
-
-Result:
-
-```text
+NMI result:
 $03B7 = $A8
 $58   = $86
-producer route = generic B6D0 using config $86
 ```
 
-Because generic `$B6D0` also compares staged `$03B7` against active `$58`, that producer then reports `SpawnGateMismatch`. This preserves both pieces of original state instead of collapsing the frame into either the old or new page semantics.
+## Main-thread producer phase
 
-## Safe replacement behavior
+`StepMainThread(...)` delegates to `PlatformLatchedCommonProducerPhase` using exactly the state produced by the prior NMI boundary.
 
-With both common slots safe, the same change accepts `$A8` immediately:
+Confirmed order remains:
 
 ```text
-$03B7 = $A8
-$58   = $A8
-active profile = newly resolved type08 profile
-producer route = scheduled $8925
+bank 0 $B6D0
+  ↓
+bank 1 $8927
+  ↓
+platform damage
+  ↓
+player $AAE4
 ```
 
-The scheduled producer can therefore consume the newly accepted encounter configuration in the same composed phase.
+The bridge does not collapse the two producer routes into an either/or router.
 
-## Refresh suppression
+### Generic `$B6D0`
 
-The fixed/bank-1 refresh gate can suppress `$996C` entirely. In that case the model does **not** silently stage the current page descriptor. The prior latch and prior `$03B7` survive, and producers continue from the prior accepted configuration.
+Receives both active `$58/profile` and staged `$03B7`.
 
-This is distinct from `DeferredUnsafe`, where `$996C` did run and `$03B7` was updated.
-
-## Accepted zero
-
-A safely accepted zero page descriptor produces:
+Therefore a deferred page change can block the generic producer through the original mismatch gate:
 
 ```text
-$03B7 = $00
-$58   = $00
-ActiveConfig = null
+$03B7 != 0 && $03B7 != $58
 ```
 
-`StepAccepted(...)` then suppresses both primary producer routes while preserving unrelated producer state.
+### Scheduled `$8927`
 
-## Containment
+Consumes active `$58/profile` but has no invented `$03B7 == $58` requirement.
 
-Valid game flow keeps `$45` inside the current stage page table. The clean-room composition explicitly contains malformed/out-of-range page inputs rather than reading unrelated memory and inventing an encounter descriptor.
+Consequently an older special encounter can remain scheduled-active while a newer page descriptor is staged but still unsafe to accept.
+
+## Discriminating composed cases
+
+The bridge self-tests cover:
+
+1. **Deferred common/special change**: NMI stages the new descriptor while old `$58` survives; main-thread `$B6D0` sees the mismatch.
+2. **Safe special acceptance**: NMI accepts `$A8`; main-thread `$B6D0` excludes the scheduled type normally and later `$8927` spawns it.
+3. **Refresh suppression**: NMI does not touch active or staged encounter state; the previous main-thread producer continues.
+4. **Deferred old special**: `$B6D0` is mismatch-blocked while `$8927` can still evaluate the old active special encounter.
+5. **Accepted zero**: NMI clears active `$58/profile`; the later main-thread producer phase is a contained no-op.
+
+## Why two methods instead of one
+
+`StepNmi(...)` and `StepMainThread(...)` are intentionally separate. A higher-level scheduler can place the NMI boundary at the correct point relative to main-thread execution without losing which state existed in which context.
+
+This matters for frame parity and prevents a subtle class of bugs where the clean-room remake lets the current page descriptor become active too early simply because both operations were placed in one convenient method.
 
 ## Consequence for REBORN
 
-The modern runtime should retain this separation even if the presentation layer eventually hides it:
+The modern runtime should preserve these logical layers even if its eventual renderer and encounter streaming are redesigned:
 
 ```text
 visible page / camera context
-staged encounter descriptor
-accepted active encounter
-spawn producer state
+staged page encounter ($03B7 semantics)
+accepted active encounter ($58/profile semantics)
+producer state
+NMI boundary
+main-thread boundary
 ```
 
-Keeping those concepts distinct is necessary for frame parity at page boundaries and gives REBORN a clean place to modernize encounter streaming later without corrupting ORIGINAL SPEC behavior.
+That separation gives ORIGINAL SPEC deterministic parity and gives REBORN a safe place to replace the NES scheduling machinery later without changing game rules accidentally.
