@@ -6,6 +6,7 @@ public sealed record PlatformCommonEntitySlotFrameResult(
     PlatformCommonEntityInteractionResult? Interaction,
     PlatformCommonEntityHitReaction40Result? HitReaction40Post,
     PlatformCommonEntityDeathD0Result? DeathD0Post,
+    PlatformEntity08090CPostResult? Special08090CPost,
     PlatformCommonEntityAttack70PostResult? Attack70Post,
     PlatformEntityMotion3KnockbackResult? Motion3KnockbackPost,
     bool RemovedBeforeInteraction,
@@ -29,10 +30,13 @@ public sealed record PlatformTwoCommonEntityCombatSliceResult(
 /// Ordered clean-room slice for the two movable-entity records processed by
 /// $A442. Slot A ($03BA-$03C9) runs before slot B ($03CA-$03D9).
 ///
-/// The crucial late ordering after an interaction is preserved literally:
-/// $9915/$98BA -> $A79E ($40) -> $A7FB ($D0) -> $A839/$A845 ($0A/$0B)
-/// -> $A886 ($70). Therefore a hit that CREATES $40 or $D0 can already advance
-/// that new family in the same frame.
+/// Supported sets:
+/// - types $00-$07: common promoted families;
+/// - types $08/$09/$0C: basic post-trigger `$00/$40/$50/$D0` paths;
+/// - types $0A/$0B: `$10/$50` plus same-frame $A845 motion3 handling.
+///
+/// The late ordering after an interaction remains literal: $A79E reaction,
+/// type-$0C bob at $A7D0, $A7FB death, type-$0A/$0B $A845, then $A886 `$70`.
 /// </summary>
 public static class PlatformTwoCommonEntityCombatSlice
 {
@@ -98,31 +102,15 @@ public static class PlatformTwoCommonEntityCombatSlice
         }
 
         var slotA = ProcessSlot(
-            entityA,
-            currentPlayer,
-            currentContact,
-            hitboxA,
-            pre.PlatformDamage,
-            seventhSense,
-            frameCounter3C,
-            entropy48,
-            cameraDelta43,
-            engineSubstate02);
+            entityA, currentPlayer, currentContact, hitboxA, pre.PlatformDamage,
+            seventhSense, frameCounter3C, entropy48, cameraDelta43, engineSubstate02);
         currentPlayer = slotA.Player;
         currentContact = slotA.ContactState;
         seventhSense = slotA.SeventhSense;
 
         var slotB = ProcessSlot(
-            entityB,
-            currentPlayer,
-            currentContact,
-            hitboxB,
-            pre.PlatformDamage,
-            seventhSense,
-            frameCounter3C,
-            entropy48,
-            cameraDelta43,
-            engineSubstate02);
+            entityB, currentPlayer, currentContact, hitboxB, pre.PlatformDamage,
+            seventhSense, frameCounter3C, entropy48, cameraDelta43, engineSubstate02);
         currentPlayer = slotB.Player;
         currentContact = slotB.ContactState;
         seventhSense = slotB.SeventhSense;
@@ -177,38 +165,16 @@ public static class PlatformTwoCommonEntityCombatSlice
 
         if (dispatch.Continuation == PlatformCommonEntityActiveContinuation.Removed)
         {
-            return new SlotCarry(
-                new PlatformCommonEntitySlotFrameResult(
-                    entity,
-                    dispatch,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    RemovedBeforeInteraction: true,
-                    RemovedAfterInteraction: false),
-                player,
-                contactState,
-                seventhSense);
+            return CarryWithoutInteraction(
+                entity, dispatch, player, contactState, seventhSense,
+                removedBefore: true);
         }
 
         if (dispatch.Continuation == PlatformCommonEntityActiveContinuation.SkipInteraction)
         {
-            return new SlotCarry(
-                new PlatformCommonEntitySlotFrameResult(
-                    entity,
-                    dispatch,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    RemovedBeforeInteraction: false,
-                    RemovedAfterInteraction: false),
-                player,
-                contactState,
-                seventhSense);
+            return CarryWithoutInteraction(
+                entity, dispatch, player, contactState, seventhSense,
+                removedBefore: false);
         }
 
         var interaction = PlatformCommonEntityInteractionPhases.ResolveProjectileHitThenContact(
@@ -238,18 +204,15 @@ public static class PlatformTwoCommonEntityCombatSlice
 
         PlatformCommonEntityHitReaction40Result? hitReaction40Post = null;
         PlatformCommonEntityDeathD0Result? deathD0Post = null;
+        PlatformEntity08090CPostResult? special08090CPost = null;
         var removedAfterInteraction = false;
 
-        // $A749 jumps directly into $A79E after ordinary interaction. A state
-        // $40 created by the just-finished hit therefore advances immediately.
         if (entity.Motion.Type <= 0x07 && (entity.Motion.ActionState & 0xF0) == 0x40)
         {
             hitReaction40Post = PlatformCommonEntityHitReaction40.AdvanceAfterPath(entity.Motion);
             entity = entity with { Motion = hitReaction40Post.Value.State };
         }
 
-        // The same fall-through reaches $A7FB. A kill-created $D0 can therefore
-        // consume its cadence tick on the kill frame itself.
         if (entity.Motion.Type <= 0x07 && (entity.Motion.ActionState & 0xF0) == 0xD0)
         {
             deathD0Post = PlatformCommonEntityDeathD0.AdvanceAfterPath(
@@ -257,6 +220,15 @@ public static class PlatformTwoCommonEntityCombatSlice
                 frameCounter3C);
             entity = entity with { Motion = deathD0Post.Value.State };
             removedAfterInteraction = deathD0Post.Value.Outcome == PlatformCommonEntityDeathD0Outcome.CompletedRemoval;
+        }
+
+        if (dispatch.Route == PlatformCommonEntityActiveRoute.Special08090C)
+        {
+            special08090CPost = PlatformEntityTypes08090C.AdvanceAfterInteraction(
+                entity.Motion,
+                frameCounter3C);
+            entity = entity with { Motion = special08090CPost.Value.State };
+            removedAfterInteraction |= special08090CPost.Value.Removed;
         }
 
         PlatformCommonEntityAttack70PostResult? attack70Post = null;
@@ -283,6 +255,7 @@ public static class PlatformTwoCommonEntityCombatSlice
                 interaction,
                 hitReaction40Post,
                 deathD0Post,
+                special08090CPost,
                 attack70Post,
                 motion3KnockbackPost,
                 RemovedBeforeInteraction: false,
@@ -290,6 +263,31 @@ public static class PlatformTwoCommonEntityCombatSlice
             player,
             interaction.ContactPhase.State,
             interaction.SeventhSense);
+    }
+
+    private static SlotCarry CarryWithoutInteraction(
+        PlatformCommonEntityRuntimeState entity,
+        PlatformCommonEntityActiveDispatchResult dispatch,
+        PlatformPlayerActionDispatchResult player,
+        PlatformContactPhaseState contactState,
+        int seventhSense,
+        bool removedBefore)
+    {
+        return new SlotCarry(
+            new PlatformCommonEntitySlotFrameResult(
+                entity,
+                dispatch,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                RemovedBeforeInteraction: removedBefore,
+                RemovedAfterInteraction: false),
+            player,
+            contactState,
+            seventhSense);
     }
 
     private static void ValidateEntry(
@@ -314,20 +312,21 @@ public static class PlatformTwoCommonEntityCombatSlice
         if (type <= 0x07)
         {
             if (family is not (0x10 or 0x30 or 0x40 or 0x50 or 0x70 or 0xD0 or 0xE0))
-            {
-                throw new InvalidOperationException(
-                    $"{name} action ${entity.Motion.ActionState:X2} is outside the closed type $00-$07 families.");
-            }
+                throw new InvalidOperationException($"{name} action ${entity.Motion.ActionState:X2} is outside the closed type $00-$07 families.");
+            return;
+        }
+
+        if (type is 0x08 or 0x09 or 0x0C)
+        {
+            if (family is not (0x00 or 0x40 or 0x50 or 0xD0))
+                throw new InvalidOperationException($"{name} type ${type:X2} basic support is limited to $00/$40/$50/$D0; got ${entity.Motion.ActionState:X2}.");
             return;
         }
 
         if (type is 0x0A or 0x0B)
         {
             if (family is not (0x10 or 0x50))
-            {
-                throw new InvalidOperationException(
-                    $"{name} type ${type:X2} is currently closed only for action families $10/$50; got ${entity.Motion.ActionState:X2}.");
-            }
+                throw new InvalidOperationException($"{name} type ${type:X2} is currently closed only for $10/$50; got ${entity.Motion.ActionState:X2}.");
             return;
         }
 
