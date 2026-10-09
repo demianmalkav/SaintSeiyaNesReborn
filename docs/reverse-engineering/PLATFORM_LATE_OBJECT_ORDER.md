@@ -12,7 +12,7 @@ For the currently implemented classes:
 bank-1 pre-player resource / attack-busy phase
     -> $AAE4 player action
     -> $B94B shared $76 decrement
-    -> [$9B93 common-entity spawn/setup: NOT YET promoted]
+    -> [$9B93 separate $07E0/$03FB multisprite class: NOT YET promoted]
     -> $96B4 auxiliary hazard spawn
     -> $9761 auxiliary slot A
     -> $9761 auxiliary slot B
@@ -22,7 +22,7 @@ bank-1 pre-player resource / attack-busy phase
     -> $C402 increment $3C
 ```
 
-`PlatformHazardAndCommonEntityFrameSlice` starts from common entity records supplied by the caller; those records are assumed to represent the state after the still-unpromoted `$9B93` phase.
+Static inspection of `$9B93` shows that it starts with visual pointer `$07E0` and logical pointer `$03FB`, scans four presentation entries separated by five bytes, and owns its own logical/profile data. It is therefore **not** the spawner for common records `$03BA/$03CA`. Those two common records remain explicit inputs to the currently composed slice until their actual producer/setup path is independently identified.
 
 ## One physical attack state
 
@@ -85,6 +85,8 @@ Because `$96B4` precedes `$9761`, a hazard created during the current frame is i
 
 When `$AAE4` takes the `$80/$76==0` exceptional reload path, it does not return into the normal late-object pipeline. The composed model therefore skips auxiliary hazards, common entities, `$A22C`, and the normal `$C402` increment.
 
-## Remaining gap
+## Remaining gaps
 
-The major earlier object-phase gap is now `$9B93`, which prepares/spawns common records before `$96B4`. Promoting that routine will allow the composed slice to own entity population as well as entity simulation, removing the current requirement that the caller supply post-`$9B93` records.
+The immediately preceding unpromoted object class is `$9B93`, rooted at `$07E0/$03FB`. It must be reconstructed as its own multisprite/environmental subsystem and inserted before `$96B4`.
+
+The producer/setup path for the `$03BA/$03CA` common entity records is a separate unresolved question; it must not be inferred from `$9B93` merely because `$A442` consumes those records later in the frame.
