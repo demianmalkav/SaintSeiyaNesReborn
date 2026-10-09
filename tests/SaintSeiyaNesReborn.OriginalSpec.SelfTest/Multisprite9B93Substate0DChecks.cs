@@ -154,13 +154,13 @@ internal static class Multisprite9B93Substate0DChecks
             10,
             0,
             frameCounter3C: 0,
-            cameraDelta43: 0,
+            cameraDelta43: 4,
             playerX3F: 0x20,
             playerY40: 0x30,
             frameStartPlayerAction4E: 0);
 
         Require(step.Outcome == PlatformMultisprite9B93Substate0DOutcome.RemovedHorizontalBoundary,
-            "part0 post-move X below4 triggers A01F cleanup");
+            "low-X forced-right step +2 minus camera4 lands below X4 and triggers A01F cleanup");
         Require(step.State.Visual.AllEmpty && step.State.Logical.Phase03 == 0,
             "horizontal removal clears all four records and logical phase");
         Require(step.Contact is null && step.ProjectileHits is null,
