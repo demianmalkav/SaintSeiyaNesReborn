@@ -20,7 +20,7 @@ public sealed record PlatformPersistentLateObjectMainThreadResult(
     PlatformPrePlayerResourcePhaseResult? PrePlayer,
     PlatformPostPlayerLatchResult? PostPlayerLatch,
     PlatformMultisprite9B93FrameResult? Multisprite,
-    PlatformAuxiliaryHazardInteractionPairResult? Auxiliary,
+    PlatformAuxiliaryHazardPairFrameResult? Auxiliary,
     PlatformHybridEntityPairResult? PrimaryPair,
     PlatformAttackObjectPhaseResult? AttackObjectPhase,
     PlatformPlayerActionDispatchResult? PlayerAfterLatePhases,
@@ -97,7 +97,6 @@ public static class PlatformPersistentLateObjectFrame
         var primary = state.Primary;
         var bridge = ToEncounterBridgeState(primary);
 
-        // $C30A: generic primary producer runs before the platform exit gate.
         var early = PlatformLatchedCommonProducerPhase.StepCommon(
             stage,
             bridge.EncounterLatch,
@@ -162,7 +161,6 @@ public static class PlatformPersistentLateObjectFrame
                 PlayerExitedBeforeLateObjects: false);
         }
 
-        // Continuing path reaches bank-1 $8000/$8927 before player processing.
         var producer = PlatformLatchedCommonProducerPhase.StepScheduled(
             early,
             cameraLow44,
@@ -208,9 +206,6 @@ public static class PlatformPersistentLateObjectFrame
             LastTriggerLow03A2 = producer.State.LastTriggerLow03A2,
         };
 
-        // Exceptional player actions return before all later object classes and
-        // before the normal C402 frame-counter increment. A22C is represented by
-        // its existing no-op result for an exited player.
         if (currentPlayer.ExitsNormalPlayerLoop)
         {
             var skippedAttack = PlatformAttackFramePhases.UpdateObjectsAfterPlayer(
@@ -236,7 +231,6 @@ public static class PlatformPersistentLateObjectFrame
 
         var seventhSense = primary.SeventhSense;
 
-        // First late object class: independent $07E0/$03FB multisprite.
         var multisprite = PlatformMultisprite9B93Runtime.Step(
             state.Multisprite,
             currentPlayer.State.AttackState,
@@ -260,8 +254,6 @@ public static class PlatformPersistentLateObjectFrame
         currentContact = multisprite.ContactState;
         seventhSense = multisprite.SeventhSense;
 
-        // Then auxiliary spawn/update A -> B. Freshly spawned hazards are updated
-        // in this same frame by PlatformAuxiliaryHazardInteractions.StepPair.
         var auxiliary = PlatformAuxiliaryHazardInteractions.StepPair(
             state.Auxiliary,
             currentPlayer.State.AttackState,
@@ -283,7 +275,6 @@ public static class PlatformPersistentLateObjectFrame
         currentContact = auxiliary.ContactState;
         seventhSense = auxiliary.SeventhSense;
 
-        // Primary logical records are later than both earlier object classes.
         var pair = PlatformHybridEntityCombatSlice.StepPairAfterPlayer(
             producerSlotA,
             producerSlotB,
@@ -301,7 +292,6 @@ public static class PlatformPersistentLateObjectFrame
             engineState00,
             alternateParent08_03AB);
 
-        // $A22C executes once after all collision-capable late object classes.
         var attackPhase = PlatformAttackFramePhases.UpdateObjectsAfterPlayer(
             pair.PlayerAfterSlots,
             primary.FrameCounter3C);
