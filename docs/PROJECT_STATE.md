@@ -6,17 +6,17 @@ Technical subsystem documents remain authoritative for evidence and semantics. T
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / normal reload interactive transition`
+- Phase: `ORIGINAL SPEC / normal reload post-interactive destination`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#98` — bounded narrative `$04=$8F` branch through `$E100` to stable engine state `$00`, substate `$00`.
-- Merge commit: `97b0a495ce707e339b5b96f3ce36ea878f7f4a33`
-- Exact final PR head: `af77331bd34c3d0f513e6fa65b2efa9f6ad93775`
+- Last verified technical checkpoint: PR `#102` — normal warm-reload interactive state machine around `$F025 <-> $A275`.
+- Merge commit: `f14581d6ea6431b380c7f23d814273ab10e25865`
+- Exact final PR head: `a65528b6aa0b8ead320890d20f4c7d57d892018b`
 - Verification gate on that exact head:
-  - `ORIGINAL SPEC tests` run `#265`: `SUCCESS`
-  - `Original Spec` run `#455`: `SUCCESS`
+  - `ORIGINAL SPEC tests` run `#273`: `SUCCESS`
+  - `Original Spec` run `#459`: `SUCCESS`
   - build, OriginalSpec self-test and password compatibility fixture: `SUCCESS`
-- Latest operational-state reconciliation before recovery curation: PR `#100`, merge `82b1bcd1531df0d0e4bf20cd11cce9c8df943b7f`; this is documentation/state discovery and does **not** supersede PR #98 as the last verified technical checkpoint.
-- Previous checkpoints: PR `#96` closed narrative `$80-$89`; PR `#94` closed the immediate `$3D`/special `$70->$80` post-exit boundary; PR `#92` closed primary-family reachability; PR `#90` closed the persistent normal platform frame.
+- Recovery curation: PR `#101`, merge `c6b872bbc6ceee276e7454cead93ac989a9f866e`.
+- Previous technical checkpoints: PR `#98` closed `$04=$8F -> $E100 -> $00/$00`; PR `#96` closed narrative `$80-$89`; PR `#94` closed immediate post-exit `$70->$80`; PR `#92` closed primary-family reachability; PR `#90` closed the persistent normal platform frame.
 - Workflow hardening checkpoint: PR `#74` remains authoritative for continuation/anti-loop semantics.
 
 ## DONE
@@ -31,26 +31,10 @@ special platform exit
  -> $80 -> $81 -> $82 -> $83 -> $84 -> $85 -> $86 -> $87 -> $88 -> $89
  -> $04=$8F, $00/$01=$3D
  -> $E100
+ -> stable $00/$00
 ```
 
-### Narrative `$04=$8F` reload destination
-
-PR #98 proves that the narrative return is not a generic multibranch reload case.
-
-Closed invariants:
-
-```text
-state $72 clears $03
-$73-$89 do not write $03
-$89 enters $E100 with $04=$8F, $00/$01=$3D, $03=$00
-$E505[$03=$00] -> $0533=$00
-$06AB=$FF from established lifecycle
-$E13C -> $E257
-$E263 sees $04=$8F -> $E20E
-common commit -> $00/$01=$00, $03=$00, $05=$01, JMP $C180
-```
-
-Artifacts:
+Artifacts for the bounded `$8F` return:
 
 - `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformNarrative8FReload.cs`
 - `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/Narrative8FReloadChecks.cs`
@@ -59,115 +43,130 @@ Artifacts:
 
 Do not reopen the `$8F` branch unless a fixture fails or contradictory ROM evidence appears.
 
+### Normal warm-reload interactive mini-state
+
+PR #102 closes the selector around fixed `$E327-$E35D`, `$F025`, NMI-side bank-5 `$A20B` and main-side bank-5 `$A275`.
+
+Closed invariants:
+
+```text
+entry seeds:
+  $0670=$00
+  $0584=$05
+  $0585=$00
+  $0586=$00
+  $DB=$FF
+
+case 5 = initialization/interstitial setup
+case 0 = idle/unlock; writes $DB=0
+
+$A20B accepts direction only while $DB=0
+$0585 = 0 left / 2 right
+$0586 = 0 up   / 1 down
+
+confirm at $A275:
+  $0584 = $0585 + $0586 + 1
+
+therefore real user choices are exactly cases 1..4:
+  left/up    -> 1 -> $DB=2
+  left/down  -> 2 -> $DB=3 -> Talk $9C91
+  right/up   -> 3 -> $DB=4
+  right/down -> 4 -> $DB=1
+```
+
+The selector subgraph can release the `$E35A` loop with exactly:
+
+```text
+$0670 ∈ { $01, $02, $04, $DD, $FE, $FF }
+```
+
+Sources:
+
+- `$01`: fixed `$F0A1`, Talk `$9D20`, or downstream post-action sink `$ACAA`;
+- `$02`: Talk/stage-3 `$9DC5` or downstream `$ACAA`;
+- `$04`: Talk stage `$0D` at `$A1CC`;
+- `$DD/$FE/$FF`: downstream stage scripts through `$ACAA`.
+
+`$0670=$03` is not reachable from this selector subgraph; its bank-5 writer belongs to another initialization/event family.
+
+The larger Bronze/Gold round at `$F813` remains delegated to the already isolated battle dispatchers `$A361/$A381`; it is not duplicated in the warm-reload model.
+
+Artifacts:
+
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformWarmReloadInteractiveState.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/WarmReloadInteractiveStateChecks.cs`
+- `docs/reverse-engineering/PLATFORM_WARM_RELOAD_INTERACTIVE_STATE.md`
+- merged PR `#102`
+
+Do not reopen the selector geometry or the release set unless contradictory ROM evidence or a fixture failure appears.
+
 ## EVIDENCE
 
-### Normal platform exit differs structurally
+### Normal platform exit entry remains character-dependent
 
 A normal accepted platform exit does:
 
 ```text
-$96CB  $04=$00
-       snapshot Saints
-       $00/$01=$3D
-       JMP $E100
+$04=$00
+snapshot Saints
+$00/$01=$3D
+JMP $E100
 ```
 
-The established lifecycle still carries `$06AB=$FF`, so `$E100` reaches `$E257`; `$04=$00` bypasses both exceptional `$FF` and `$8F` selectors and continues at `$E26A`.
+The established lifecycle carries `$06AB=$FF`, so `$E100` reaches the warm branch through `$E257` and then `$E26A`.
 
-### `$03` is character-dependent at normal platform exits
-
-The platform exit gate itself proves that RAM `$03` is the internal active-Saint index in this mode: `$96A8-$96AC` compares `$03` against internal index `1` to block Shun in substate `$10`.
-
-Therefore `$E121-$E126` maps the active Saint through `$E505` into `$0533`. For internal Saint indices `$00-$04`, the relevant table entries are:
+RAM `$03` is the internal active-Saint index in platform mode. `$E121-$E126` maps it through `$E505` into battle/UI index `$0533`:
 
 ```text
 $03:    00 01 02 03 04
 $0533:  00 02 01 03 04
 ```
 
-The normal reload cannot be reduced to the `$8F` path's fixed `$0533=0` assumption.
+This character dimension remains live for the post-loop destination work.
 
-### First warm selector and reset
+### Principal progression index is not identical to `$050E`
 
-At `$E26A`, `$0670` is the first generic branch selector. `$ED57` calls bank-1 `$A973` unless `$0670` is `2` or `3`.
-
-`$A973` clears:
+The table at `$F016` begins:
 
 ```text
-$066F
-$0670
-$0677
-$0678
-$064D/$064E
-$067C
-$068A
-$068E
-$0690
-$06B8
+$067D: 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D
+$050E: 00 01 02 03 04 05 0F 06 10 07 08 09 0C 0A
 ```
 
-and then returns A=`$050E` through `$BDCA`.
+`$050E=$0F` and `$10` are intercepted earlier in `$E100` and assign progression before the ordinary interactive selector. They are not additional unknown selector cases.
 
-This means the ordinary `$0670=0` path re-enters the rest of `$E100` with `$0670=0` and `$06B8=0` after the reset.
+### The interactive loop is now a closed boundary
 
-### Reload contains an interactive mini-state, not a flat destination table
-
-For the ordinary path, `$E33D+` eventually seeds:
-
-```text
-$0584 = 5
-```
-
-and calls `$F025`.
-
-`$F025` is a six-way dispatcher using `$0584`; its pointer table is:
-
-```text
-case 0 -> $F03C
-case 1 -> $F057
-case 2 -> $F0B1
-case 3 -> $F0D3
-case 4 -> $F041
-case 5 -> $F1D9
-```
-
-Case 5 prepares the interstitial/menu state. `$E34C` then switches to bank 5 and calls `$A275`. `$A275` waits for an input condition, updates `$0584` from `$0585/$0586`, and returns. The loop calls `$F025` again with the newly selected case.
-
-Thus a normal platform reload can spend multiple iterations inside `$F025 <-> $A275` before `$0670` changes and `$E35A` is allowed to leave the loop.
-
-`$FF11` is not the escape in this ROM: it would set `$0670=1` only if ROM byte `$FFDE` were nonzero, but canonical `$FFDE=$00`. Terminal `$0670` changes must therefore come from the selected case handlers / banked routines themselves.
-
-This is a material architectural correction: the normal reload boundary must model an interactive intermediate state before its final engine-state commit.
+Once `$E35A` observes one of the six proved nonzero `$0670` release values, control falls through beyond `$E35D`. No further input/menu semantics need to be reconstructed before following the final reload destination path.
 
 ## OPEN
 
-1. The transition graph of `$F025` cases 0-5 and bank-5 `$A275` is not yet promoted as a semantic state machine.
-2. We have not yet enumerated which selected cases can write terminal `$0670` values and which of those are reachable for each platform `$050E` / active-Saint combination.
-3. Principal platform exits `$02=$00-$0B` should be closed first; special normal exits `$0C-$10` can follow once the interactive core is understood.
-4. The final common `$E22C-$E254` destination outputs for normal exits remain unresolved until the interactive mini-state's terminal outcomes are known.
-5. Cold `$06AB=0`, `$04=$FF`, renderer/audio/stack internals remain outside scope unless they alter the normal-exit logical transition.
+1. The fixed-bank logic beginning immediately after the `$E35A/$E35D` loop has not yet been reduced into semantic branches for each reachable `$0670` outcome.
+2. We have not yet mapped those post-loop outcomes, together with `$050E`, `$0533`, `$067D` and any directly required progression fields, into the value eventually pushed into common commit `$E22C`.
+3. The corresponding final `$03` produced by `$0533 -> $E505` at `$E245-$E24B` remains to be stated for every reachable normal principal-exit outcome.
+4. Principal normal exits remain the priority. Cold `$06AB=0`, `$04=$FF`, renderer/audio/stack internals and unrelated reload families stay out of scope unless they materially alter those outcomes.
 
 ## NEXT
 
-**Reconstruct the `$F025 <-> $A275` interactive warm-reload mini-state for principal platform exits `$02=$00-$0B`.**
+**Close the post-interactive normal warm-reload path from `$E35F+` to the common `$E22C-$E254` commit for principal platform exits.**
 
 Completion criterion:
 
-> For normal principal platform exits, every reachable `$0584` case transition is accounted for, every terminal write that can release the `$E35A` `$0670==0` loop is identified, and the resulting semantic outcomes are represented without emulating PPU drawing or controller-register plumbing.
+> Starting from the six confirmed nonzero `$0670` values that release `$E35A`, derive every reachable final logical destination for principal normal platform exits: value committed to `$00/$01`, resulting `$03`, and any persistent progression field that materially distinguishes the outcome. Represent the transition semantically without reproducing presentation-only work.
 
 Required sequence:
 
-1. map the six `$F025` cases and identify which are pure presentation, which branch by `$050E/$0533`, and which call routines capable of changing `$0670`;
-2. reconstruct `$A275` only as an input-to-case transition over `$0584/$0585/$0586`;
-3. trace the called bank-5 handlers (notably `$9C91` and any descendants) only until their `$0670`/progression effects are closed;
-4. use principal-stage `$067D -> $050E` mapping where confirmed, and retain active-Saint `$03 -> $0533` mapping as a separate dimension;
-5. produce a transition table showing entry case, condition, next `$0584` or terminal `$0670` outcome;
-6. implement the semantic mini-state plus discriminating fixtures once the graph is closed;
-7. then resume `$E35A+` to derive the final normal reload commit.
+1. disassemble the fixed-bank path beginning immediately after `$E35D` through every branch that can rejoin `$E22C` or another stable engine-state handoff;
+2. partition behavior by the confirmed release set `{01,02,04,DD,FE,FF}` and discard branches proved unreachable from the warm selector;
+3. trace only selectors that materially affect the destination, including `$050E`, `$0533`, `$067D` and directly required dependencies;
+4. identify the exact A value entering `$E22C` (or any alternative stable-state handoff) for each reachable principal outcome;
+5. derive the final `$03` at `$E245-$E24B` through `$0533 -> $E505`;
+6. implement the bounded semantic normal-reload result and discriminating fixtures;
+7. document the complete principal-exit transition table and run both verification workflows.
 
 ## BLOCKERS
 
-- None. The canonical ROM, fixed-bank dispatcher and bank-5 handlers are available.
+- None. The canonical ROM and the closed interactive release set provide a finite entry space for `$E35F+`.
 
 ## RECOVERY CONTRACT
 
@@ -183,13 +182,13 @@ Recovery order:
 6. when private assets are required, use the private Drive `PRIVATE_WORKSPACE_MANIFEST — Saint Seiya Reborn`; when a result depends on private traces/save states/captures, consult `04_REVERSE_ENGINEERING/EVIDENCE_INDEX`;
 7. Drive never overrides this file and never owns a separate `NEXT`.
 
-Private Drive IDs/URLs are intentionally not stored in this public repository. The manifest records them privately. As of the recovery curation, the canonical ROM and localization corpus are present; historical private trace/save-state packs were not present and must not be assumed to exist.
+Private Drive IDs/URLs are intentionally not stored in this public repository. The manifest records them privately. Historical private trace/save-state packs were not present at curation time and must not be assumed to exist.
 
-Recovery is considered healthy when a fresh session can identify from durable artifacts alone: the target ROM revision, the last verified technical checkpoint, what is closed, the active boundary, one executable `NEXT`, and whether any private evidence pack is required.
+Recovery is healthy when a fresh session can identify from durable artifacts alone: target ROM revision, last verified technical checkpoint, closed boundaries, active boundary, one executable `NEXT`, and whether private evidence is required.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `warm-reload-f025-a275-interactive-state`
+- `last_next_signature`: `warm-reload-post-loop-final-destination`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
@@ -197,7 +196,7 @@ A cycle must produce code, tests, new evidence, an evidence map, a discarded hyp
 
 ## CONTINUE SEMANTICS
 
-When the user says `continúa` with no narrower instruction:
+When the user says `continúa` or `next` with no narrower instruction:
 
 1. read this file first;
 2. reconcile it with current `main` if repository history is newer;
