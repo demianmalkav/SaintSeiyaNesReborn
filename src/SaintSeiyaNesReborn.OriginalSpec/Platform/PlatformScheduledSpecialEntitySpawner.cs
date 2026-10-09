@@ -31,6 +31,11 @@ public readonly record struct PlatformScheduledSpecialSpawnResult(
     public bool Spawned => Outcome == PlatformScheduledSpecialSpawnOutcome.Spawned;
 }
 
+public readonly record struct PlatformScheduledSpecialSpawnPairResult(
+    PlatformScheduledSpecialSpawnResult SlotA,
+    PlatformScheduledSpecialSpawnResult SlotB,
+    byte LastTriggerLow03A2);
+
 /// <summary>
 /// Clean-room semantic reduction of PRG-bank-1 $8925-$89D1.
 ///
@@ -43,6 +48,10 @@ public readonly record struct PlatformScheduledSpecialSpawnResult(
 /// schedule. Trigger matching uses $45 as camera high and ($44 & $F8) as camera
 /// low. $03A2 remembers only the trigger LOW byte, so two entries sharing that
 /// low byte are considered duplicates even if their high bytes differ.
+///
+/// Slot A is attempted before slot B. A successful A spawn therefore updates
+/// $03A2 before B scans the same schedule, which normally makes B reject that
+/// trigger as a duplicate in the same frame. If A is occupied, B can take it.
 /// </summary>
 public static class PlatformScheduledSpecialEntitySpawner
 {
@@ -52,6 +61,41 @@ public static class PlatformScheduledSpecialEntitySpawner
 
     public static bool IsSupportedType(byte engine58) =>
         (engine58 & 0x0F) is 0x08 or 0x09 or 0x0C or 0x0D or 0x0E;
+
+    public static PlatformScheduledSpecialSpawnPairResult TrySpawnPair(
+        PlatformCommonEntityRuntimeState entityA,
+        byte visualSpriteA,
+        PlatformCommonEntityRuntimeState entityB,
+        byte visualSpriteB,
+        byte engine58,
+        byte cameraLow44,
+        byte cameraHigh45,
+        byte lastTriggerLow03A2,
+        PlatformSpecialSpawnProfile profile,
+        IReadOnlyList<PlatformSpecialSpawnEntry> schedule)
+    {
+        var a = TrySpawn(
+            entityA,
+            visualSpriteA,
+            engine58,
+            cameraLow44,
+            cameraHigh45,
+            lastTriggerLow03A2,
+            profile,
+            schedule);
+
+        var b = TrySpawn(
+            entityB,
+            visualSpriteB,
+            engine58,
+            cameraLow44,
+            cameraHigh45,
+            a.LastTriggerLow03A2,
+            profile,
+            schedule);
+
+        return new PlatformScheduledSpecialSpawnPairResult(a, b, b.LastTriggerLow03A2);
+    }
 
     public static PlatformScheduledSpecialSpawnResult TrySpawn(
         PlatformCommonEntityRuntimeState existingEntity,
