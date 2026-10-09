@@ -66,6 +66,7 @@ public readonly record struct PlatformMultisprite9B93BootstrapResult(
     PlatformMultisprite9B93LogicalBootstrap Logical,
     byte SelectedProfile,
     byte Global03A9,
+    bool Global03A9WasWritten,
     byte Mode81,
     byte Cooldown03FA);
 
@@ -73,19 +74,29 @@ public readonly record struct PlatformMultisprite9B93BootstrapResult(
 /// Bootstrap portion of bank-3 `$9B93-$9CAB` for the independent multisprite
 /// class rooted at visual `$07E0` and logical `$03FB`.
 ///
-/// This intentionally stops before the `$9CAC+` active updater. The caller may
-/// supply the stage-derived selector used on the table-driven path; for the
-/// `$02<0C && $74==0` path the ROM overrides it with selector 3 or 4.
+/// Existing active visuals transfer to `$9CAC+`. Empty visuals may initialize
+/// through the ordinary selector profile path, except engine substate `$0D`,
+/// which branches from `$9C0F` to its dedicated initializer at `$A0E4`.
 /// </summary>
 public static class PlatformMultisprite9B93Bootstrap
 {
+    private static readonly PlatformMultisprite9B93LogicalBootstrap Substate0DLogical =
+        new(
+            Phase03: 0,
+            Profile0C: 0x1E,
+            Profile0D: 0x05,
+            Profile0E: 0x05,
+            Profile0F: 0x01,
+            Action00WasCleared: true);
+
     public static PlatformMultisprite9B93BootstrapResult Step(
         PlatformMultisprite9B93VisualState visual,
         byte engineSubstate02,
         byte flag74,
         byte stageDerivedSelector,
         byte cooldown03FA,
-        byte playerX3F)
+        byte playerX3F,
+        byte entropy48 = 0)
     {
         if (!visual.AllEmpty)
         {
@@ -95,6 +106,7 @@ public static class PlatformMultisprite9B93Bootstrap
                 default,
                 SelectedProfile: 0,
                 Global03A9: 0,
+                Global03A9WasWritten: false,
                 Mode81: 0,
                 Cooldown03FA: cooldown03FA);
         }
@@ -112,6 +124,9 @@ public static class PlatformMultisprite9B93Bootstrap
             selector = stageDerivedSelector;
         }
 
+        // Selector zero jumps directly to the active updater at $9CAC. With an
+        // all-empty visual block that updater immediately returns; neither $81
+        // nor $03A9 is written on this path.
         if (selector == 0)
         {
             return new(
@@ -120,6 +135,7 @@ public static class PlatformMultisprite9B93Bootstrap
                 default,
                 selector,
                 Global03A9: 0,
+                Global03A9WasWritten: false,
                 Mode81: 0,
                 cooldown03FA);
         }
@@ -127,6 +143,8 @@ public static class PlatformMultisprite9B93Bootstrap
         var profile = PlatformMultisprite9B93Profile.ForSelector(selector);
         var mode81 = immediate ? (byte)3 : (byte)0;
 
+        // Timed path writes $81=0 before checking/decrementing $03FA. It returns
+        // before the later $03A9 profile write when cooldown is still nonzero.
         if (!immediate && cooldown03FA != 0)
         {
             return new(
@@ -134,16 +152,41 @@ public static class PlatformMultisprite9B93Bootstrap
                 visual,
                 default,
                 selector,
-                profile.Global03A9,
+                Global03A9: 0,
+                Global03A9WasWritten: false,
                 mode81,
                 unchecked((byte)(cooldown03FA - 1)));
         }
 
         cooldown03FA = 0x80;
+
+        // `$9C03` clears logical phase before the `$02==$0D` branch. `$A0E4`
+        // then creates one dedicated part and loads raw profile bytes from
+        // `$9B8F`: 1E,05,05,01. It does NOT write global `$03A9` and does not
+        // use the selector's ordinary sprite/profile tables.
+        if (engineSubstate02 == 0x0D)
+        {
+            var rightVariant = (entropy48 & 0x08) != 0;
+            var part0 = new PlatformMultisprite9B93Part(
+                Y: 0x20,
+                Sprite: 0x8C,
+                Flags: rightVariant ? (byte)0x42 : (byte)0x02,
+                X: rightVariant ? (byte)0x11 : (byte)0xEF);
+
+            return new(
+                PlatformMultisprite9B93BootstrapOutcome.Initialized,
+                visual with { Part0 = part0 },
+                Substate0DLogical,
+                selector,
+                Global03A9: 0,
+                Global03A9WasWritten: false,
+                Mode81: 0,
+                cooldown03FA);
+        }
+
         var flags = (byte)(0x02 | (selector is 3 or 4 ? 0x00 : 0x04));
         var xBase = mode81 == 0 ? (byte)0xF7 : playerX3F;
         var sprite = profile.SpriteBase;
-
         var p0 = new PlatformMultisprite9B93Part(0xF8, sprite, flags, xBase);
 
         // `$02==$10` branches directly to RTS after the first record. It has
@@ -158,11 +201,16 @@ public static class PlatformMultisprite9B93Bootstrap
                 Logical(profile, actionCleared: false),
                 selector,
                 profile.Global03A9,
+                Global03A9WasWritten: true,
                 mode81,
                 cooldown03FA);
         }
 
-        var p1 = new PlatformMultisprite9B93Part(0xF8, unchecked((byte)(sprite + 1)), flags, unchecked((byte)(xBase + 8)));
+        var p1 = new PlatformMultisprite9B93Part(
+            0xF8,
+            unchecked((byte)(sprite + 1)),
+            flags,
+            unchecked((byte)(xBase + 8)));
         sprite = unchecked((byte)(sprite + 2));
 
         // `$02==$0C` skips two sprite/tile values between the two rows.
@@ -170,7 +218,11 @@ public static class PlatformMultisprite9B93Bootstrap
             sprite = unchecked((byte)(sprite + 2));
 
         var p2 = new PlatformMultisprite9B93Part(0x00, sprite, flags, xBase);
-        var p3 = new PlatformMultisprite9B93Part(0x00, unchecked((byte)(sprite + 1)), flags, unchecked((byte)(xBase + 8)));
+        var p3 = new PlatformMultisprite9B93Part(
+            0x00,
+            unchecked((byte)(sprite + 1)),
+            flags,
+            unchecked((byte)(xBase + 8)));
 
         return new(
             PlatformMultisprite9B93BootstrapOutcome.Initialized,
@@ -178,6 +230,7 @@ public static class PlatformMultisprite9B93Bootstrap
             Logical(profile, actionCleared: true),
             selector,
             profile.Global03A9,
+            Global03A9WasWritten: true,
             mode81,
             cooldown03FA);
     }
