@@ -8,8 +8,8 @@ public readonly record struct PlatformSpecialSpawnEntry(
 
 public readonly record struct PlatformSpecialSpawnProfile(
     byte HitPoints0C,
-    byte LifeDrainTicks0D,
-    byte CosmoDrainTicks0E,
+    byte CosmoDrainTicks0D,
+    byte LifeDrainTicks0E,
     byte SeventhSenseRewardBcd0F);
 
 public enum PlatformScheduledSpecialSpawnOutcome
@@ -43,6 +43,10 @@ public readonly record struct PlatformScheduledSpecialSpawnPairResult(
 /// record ($03BA or $03CA) for special types selected by the low nibble of $58:
 /// $08, $09, $0C, $0D and $0E. The caller supplies the already-extracted
 /// substate schedule so ROM-owned table bytes do not need to live in source.
+///
+/// Logical record offsets +$0C..+$0F are HP, Cosmo-drain, Life-drain and reward.
+/// The distinction matters later because $98BA/$AA70 copy +$0E -> $7F (Life
+/// ticks) and +$0D -> $80 (Cosmo ticks).
 ///
 /// The original checks visual sprite byte +1 for $FE before scanning the
 /// schedule. Trigger matching uses $45 as camera high and ($44 & $F8) as camera
@@ -174,8 +178,8 @@ public static class PlatformScheduledSpecialEntitySpawner
         {
             Motion = motion,
             HitPoints = profile.HitPoints0C,
-            LifeDrainTicks = profile.LifeDrainTicks0D,
-            CosmoDrainTicks = profile.CosmoDrainTicks0E,
+            LifeDrainTicks = profile.LifeDrainTicks0E,
+            CosmoDrainTicks = profile.CosmoDrainTicks0D,
             SeventhSenseRewardBcd = profile.SeventhSenseRewardBcd0F,
         };
 
