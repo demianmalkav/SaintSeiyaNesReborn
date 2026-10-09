@@ -1,3 +1,5 @@
+using SaintSeiyaNesReborn.OriginalSpec;
+
 namespace SaintSeiyaNesReborn.OriginalSpec.Platform;
 
 public sealed record PlatformCommonEntitySlotRuntimeResult(
@@ -92,16 +94,12 @@ public static class PlatformCommonEntitySlotRuntime
         PlatformCommonEntityDeathD0Result? deathD0Post = null;
         var removedAfterInteraction = false;
 
-        // $A749 falls directly into $A79E. A just-created $40 therefore
-        // advances on this same update, without a second camera correction.
         if (entity.Motion.Type <= 0x07 && (entity.Motion.ActionState & 0xF0) == 0x40)
         {
             hitReaction40Post = PlatformCommonEntityHitReaction40.AdvanceAfterPath(entity.Motion);
             entity = entity with { Motion = hitReaction40Post.Value.State };
         }
 
-        // The same fall-through reaches $A7FB; cadence-aligned kill-created D0
-        // can advance immediately on the lethal-hit frame.
         if (entity.Motion.Type <= 0x07 && (entity.Motion.ActionState & 0xF0) == 0xD0)
         {
             deathD0Post = PlatformCommonEntityDeathD0.AdvanceAfterPath(
@@ -149,9 +147,7 @@ public static class PlatformCommonEntitySlotRuntime
         var family = entity.Motion.ActionState & 0xF0;
 
         if (type <= 0x07)
-        {
             return family is 0x10 or 0x30 or 0x40 or 0x50 or 0x70 or 0xD0 or 0xE0;
-        }
 
         if (type is 0x0A or 0x0B)
             return family is 0x10 or 0x50;
@@ -165,7 +161,6 @@ public static class PlatformCommonEntitySlotRuntime
             return;
 
         var type = entity.Motion.Type;
-        var family = entity.Motion.ActionState & 0xF0;
         if (type <= 0x07)
         {
             throw new InvalidOperationException(
