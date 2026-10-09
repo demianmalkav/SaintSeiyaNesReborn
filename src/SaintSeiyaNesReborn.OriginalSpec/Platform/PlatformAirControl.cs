@@ -36,7 +36,7 @@ public static class PlatformAirControl
 
         var directionBits = state.ActionState4D & 0x03;
         if (directionBits == 0)
-            return StepFreeVerticalFamily(stage, state, input, probes, jumpPhase49, halfPhase, frameCounter3C, saint);
+            return StepFreeVerticalFamily(stage, state, input, probes, jumpPhase49, halfPhase, frameCounter3C);
 
         var increments = PlatformMovementIncrements.FromFrame(saint, frameCounter3C);
         return directionBits == 1
@@ -51,25 +51,34 @@ public static class PlatformAirControl
         PlatformCollisionDescriptors probes,
         byte phase,
         int halfPhase,
-        byte frameCounter,
-        PlatformSaintIndex saint)
+        byte frameCounter)
     {
-        // $BDAB checks Right before Left. Free steering speed is raw $3C&1 for
-        // every Saint; Shun's distinct airborne tables do not apply here.
+        // $BDAB tests Right first, but a lower-right rejection falls through to
+        // the Left test instead of returning. Thus Right has priority only when
+        // its first lower-side gate accepts the attempt.
         var freeStep = (byte)(frameCounter & 1);
+        var rejectedInput = false;
 
         if ((input & PlatformInput.Right) != 0)
-            return StepRight(stage, state, probes, phase, halfPhase, freeStep, cancelOnBlock: false);
+        {
+            if (!BlocksAirRight(probes.LowerRight))
+                return StepRight(stage, state, probes, phase, halfPhase, freeStep, cancelOnBlock: false);
+            rejectedInput = true;
+        }
 
         if ((input & PlatformInput.Left) != 0)
-            return StepLeft(state, probes, phase, halfPhase, freeStep, cancelOnBlock: false);
+        {
+            if (!BlocksAirLeft(probes.LowerLeft))
+                return StepLeft(state, probes, phase, halfPhase, freeStep, cancelOnBlock: false);
+            rejectedInput = true;
+        }
 
         state = state with { HorizontalAmount43 = 0 };
         if (phase < halfPhase)
-            return Unmoved(state);
+            return Unmoved(state, collisionBlocked: rejectedInput);
 
-        // With no live horizontal input during the second half, the original
-        // nudges away from blocking lower-side geometry one pixel at a time.
+        // If neither live-direction attempt survives its initial lower probe,
+        // second-half side correction still runs exactly like the no-input path.
         var horizontal = state.Horizontal;
         var playerMoved = false;
         var cameraMoved = false;
@@ -103,7 +112,7 @@ public static class PlatformAirControl
             playerMoved,
             cameraMoved,
             DirectionalFamilyCancelled: false,
-            CollisionBlocked: false);
+            CollisionBlocked: rejectedInput);
     }
 
     private static PlatformAirControlResult StepLockedRight(
@@ -188,7 +197,7 @@ public static class PlatformAirControl
                 return Unmoved(state with { Horizontal = horizontal });
 
             horizontal = horizontal with { PlayerX = (byte)candidate };
-            return MovedPlayer(state with { Horizontal = horizontal });
+            return MovedPlayer(state with { Horizontal = horizontal }, step != 0);
         }
 
         var localCandidate = horizontal.PlayerX + step;
@@ -280,8 +289,10 @@ public static class PlatformAirControl
         DirectionalFamilyCancelled: false,
         CollisionBlocked: true);
 
-    private static PlatformAirControlResult Unmoved(PlatformAirControlState state) => new(
-        state, false, false, false, false);
+    private static PlatformAirControlResult Unmoved(
+        PlatformAirControlState state,
+        bool collisionBlocked = false) => new(
+        state, false, false, false, collisionBlocked);
 
     private static PlatformAirControlResult MovedPlayer(PlatformAirControlState state, bool moved = true) => new(
         state, moved, false, false, false);
