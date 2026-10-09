@@ -6,134 +6,125 @@ Technical subsystem documents remain authoritative for evidence and semantics. T
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / post-platform-exit state-machine boundary`
+- Phase: `ORIGINAL SPEC / post-exit narrative-state closure`
 - State: `READY_FOR_NEXT`
-- Last verified checkpoint: PR `#92` — reachable live action-family closure for primary types `$0A/$0B`.
-- Merge commit: `748c36a380226a6ed48994e2a435e9de88514293`
-- Exact final PR head: `9a00d28d15d72411ef76c6b561fabedc9dfa0edf`
+- Last verified checkpoint: PR `#94` — immediate post-platform-exit state-machine boundary.
+- Merge commit: `9f0b2e67727b7da73ba39df12a165633b7660f2d`
+- Exact final PR head: `d7056e904cb7b242b2bc5b176c85f54f3639393c`
 - Verification gate on that exact head:
-  - `ORIGINAL SPEC tests` run `#253`: `SUCCESS`
-  - `Original Spec` run `#443`: `SUCCESS`
+  - `ORIGINAL SPEC tests` run `#257`: `SUCCESS`
+  - `Original Spec` run `#447`: `SUCCESS`
   - build, OriginalSpec self-test and password compatibility fixture: `SUCCESS`
-- Previous structural checkpoint: PR `#90` closed the complete persistent normal late-object frame.
+- Previous checkpoints: PR `#92` closed primary-family reachability; PR `#90` closed the persistent normal late-object frame.
 - Workflow hardening checkpoint: PR `#74` remains authoritative for continuation/anti-loop semantics.
 
 ## DONE
 
-### Persistent normal platform frame
+### Immediate normal `$3D` post-exit boundary
 
-Closed normal order:
-
-```text
-$B6D0 generic producer
- -> platform exit gate
- -> $8927 scheduled producer
- -> player phases
- -> $9B93 multisprite
- -> auxiliary A/B
- -> primary A/B
- -> $A22C
- -> one $3C increment
-```
-
-Shared attacks, `$76/$7F/$80`, Seventh Sense and persistent late-object state are threaded in ROM order. Exceptional player exits and platform exits have regression coverage.
-
-### Primary entity family coverage
-
-Normally reachable primary runtime families are now closed for all promoted types:
-
-- `$00-$07`: full confirmed common family set;
-- `$08/$09/$0C`: dedicated scheduled/direct special runtime;
-- `$0D/$0E`: dedicated runtime;
-- `$0F`: dedicated direct runtime;
-- `$0A/$0B`: confirmed reachable **live** families exactly `{ $10, $50 }`.
-
-For `$0A/$0B`, PR #92 proved:
+The clean logical result of a normal platform exit is now closed as:
 
 ```text
-$B6D0 spawn -> $10
-$10 -> $10 OR $50 OR retirement
-$50 -> $50 OR $10 OR retirement
-projectile -> action unchanged, +$03 impulse only
-contact -> player/contact state only
-$A845 -> +$03/X only
-$A647 -> visual retirement; optional terminal logical $00 clear
+clear $04
+request five-Saint snapshot
+$00 = $3D
+$01 = $3D
+handoff -> $E100 reload
+NMI mirror $01=$3D -> $E000
 ```
 
-The scheduled `$8925-$89D1` producer cannot create `$0A/$0B`; bank-3 `$A4A0/$A4A4` also bypasses the predispatch that can seed `$70`, and `$A970` bypasses the common decision path that can seed `$30`.
+PPU disable, stack reset and sound helper internals remain implementation plumbing. Stage/narrative destination selection inside the broad `$E100` reload remains a separate boundary.
 
-Defensive rejection of injected `$30/$40/$70/$D0/$E0` states remains intentional clean-room behavior rather than an assertion about externally corrupted ROM memory.
+### Special substate `$11` transition `$70->$80`
 
-Do not reopen primary action-family coverage unless a fixture fails or contradictory ROM evidence appears.
+The split NMI/main sequence is now promoted with state-mirror asymmetry preserved:
+
+```text
+accepted exit
+ -> $70 ($57=$C0)
+ -> NMI even-frame countdown
+ -> $71 ($57=$80)
+ -> main countdown
+ -> $72 scripted X movement
+ -> $73 NMI text-stream gate
+ -> $74 ($57=$80)
+ -> main countdown
+ -> $75 main delay
+ -> $80 ($57=$20)
+```
+
+Confirmed ownership:
+
+```text
+$70 : NMI
+$71 : main
+$72 : main
+$73 : NMI text terminator
+$74 : main
+$75 : main
+```
+
+Transitions that modify only `$00` deliberately leave `$01` on the previous mirrored state until the next global main-thread `$00->$01` copy.
+
+Artifacts:
+
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformPostExitStateMachine.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PostExitStateMachineChecks.cs`
+- `docs/reverse-engineering/PLATFORM_POST_EXIT_STATE_MACHINE.md`
+- merged PR `#94`
+
+Do not reopen this boundary unless a fixture fails or contradictory ROM evidence appears.
 
 ## EVIDENCE
 
-Latest checkpoint artifacts:
+Direct control-flow facts already established beyond the `$80` handoff:
 
-- `docs/reverse-engineering/ENTITY_TYPES_0A_0B.md`
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformCommonEntityActiveDispatcher.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/EntityTypes0A0BChecks.cs`
-- merged PR `#92`
+- NMI dispatcher routes state high nibble `$80` through bank-1 `$8C19`.
+- `$8C19` decrements `$57`; at zero it reaches `$8D28`.
+- For states `$80-$88`, `$8D39-$8D73` selects state-specific script pointers from table `$911C`.
+- Script terminator `$FF` reaches `$8DDB`, which increments both `$00/$01`, seeds `$57=$80`, `$26=$80`, `$27=$80`.
+- Therefore a completed script advances `$80->$81`, `$81->$82`, and so on.
+- `$8D35` treats state `$89` and above differently: it writes `$04=$8F`, `$00/$01=$3D` and jumps to `$E100`.
 
-Persistent frame artifacts remain:
-
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformPersistentLateObjectFrame.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PersistentLateObjectFrameChecks.cs`
-- `docs/reverse-engineering/PERSISTENT_LATE_OBJECT_FRAME.md`
-- merged PR `#90`
-
-Existing exit evidence:
-
-- `docs/reverse-engineering/PLATFORM_EXIT_GATES.md`
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformExitGate.cs`
-
-The platform gate currently surfaces two semantic transitions:
-
-- normal `State3DReload`;
-- special substate `$11` `State70Special`.
+These facts are not yet promoted into a clean runtime/fixture set.
 
 ## OPEN
 
-1. The immediate engine state-machine behavior **after** semantic `$3D/$70` platform exits is not yet promoted as a clean logical boundary.
-2. For `$3D`, the ROM jumps through `$E100`; the stage-dependent high-level narrative destination remains separate from the immediate reload handshake.
-3. For `$70`, NMI/main-thread state progression around `$D3BF` / `$C538` is not yet represented.
-4. Full renderer-owned tile/Y/attribute/X state remains outside logical runtimes except exact lifecycle writes already promoted.
-5. NES-specific PPU/stack/audio plumbing should remain outside the semantic model unless needed to determine logical state transitions.
+1. NMI-driven state chain `$80-$89` after the special `$70-$75` sequence is not yet modeled.
+2. Exact semantic role/content of each `$80-$88` script is not required for state parity, but script-pointer mapping and terminator progression should be documented.
+3. State `$89` final transition back to `$3D/$E100` is not yet represented.
+4. Generic stage/narrative destination selection inside `$E100` remains unresolved.
+5. Full renderer-owned tile/Y/attribute/X state remains outside logical runtimes except exact lifecycle writes already promoted.
 
 ## NEXT
 
-**Promote the immediate post-platform-exit state-machine boundary for `$3D` and `$70`.**
+**Promote the NMI-driven `$80-$89` narrative-state chain and its final `$3D/$E100` reload handoff.**
 
 Completion criterion:
 
-> Starting from an accepted `PlatformExitTransitionKind`, the clean-room model represents every directly confirmed logical engine-state mutation required to hand control to the next engine mode, while explicitly separating stage/narrative destination selection and renderer/audio/stack plumbing that are not needed for logical parity.
+> Starting from state `$80` with the timer seeded by the closed `$75->$80` transition, the semantic model reproduces NMI countdown/script selection, `$FF`-terminator progression through `$80-$88`, and the confirmed state `$89` conversion to `$04=$8F`, `$00/$01=$3D`, reload `$E100`, without emulating PPU text rendering.
 
 Required sequence:
 
-1. trace main-loop and NMI dispatch for `$00/$01 == $3D` and `$00/$01 == $70`;
-2. identify the minimum persistent logical fields changed before the next stable state is reached;
-3. for `$3D`, separate the generic `$E100` reload handshake from later stage-dependent destination selection;
-4. for `$70`, map the first confirmed state/timer progression through `$D3BF` and `$C538` and identify what event advances out of state `$70`;
-5. implement semantic result/state types without emulating PPU, stack or sound internals;
-6. add discriminating fixtures for normal `$3D` and special `$70` transitions;
-7. update exit documentation and run both verification workflows.
+1. extract the `$911C` pointer mapping for states `$80-$88` and distinguish the special `$73` pointer;
+2. verify timer/scratch seeding on every `$8DDB` terminator;
+3. establish whether main-thread logic mutates `$80-$89` or only mirrors/runs generic housekeeping;
+4. model text progress as a semantic terminator event, not renderer internals;
+5. model state `$89` final `$3D/$E100` conversion;
+6. add fixtures for `$80->$81`, an interior state, `$88->$89`, and `$89->$3D`;
+7. document the boundary and run both verification workflows.
 
 ## BLOCKERS
 
-- None. The canonical ROM is available and the existing exit gate already provides deterministic entry conditions.
+- None. The canonical ROM and the relevant NMI routines are available.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `post-platform-exit-state-machine`
+- `last_next_signature`: `state-80-89-nmi-narrative-chain`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
-Rules:
-
-- A cycle counts as progress only with code, test, new evidence, evidence map, discarded hypothesis, or evidence-backed architectural decision.
-- If two consecutive cycles finish with the same blocker, same `NEXT`, and no new evidence, a third identical attempt is forbidden.
-- On anti-loop trigger: change source/technique or return to the last verified checkpoint.
-- Closed primary/frame phases are not re-entered merely because uncertainty exists above them.
+A cycle must produce code, tests, new evidence, an evidence map, a discarded hypothesis, or an evidence-backed decision. Two identical no-progress cycles forbid a third identical attempt.
 
 ## CONTINUE SEMANTICS
 
