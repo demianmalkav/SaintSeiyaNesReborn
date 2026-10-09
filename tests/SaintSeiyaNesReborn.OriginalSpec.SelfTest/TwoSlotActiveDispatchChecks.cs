@@ -7,11 +7,11 @@ internal static class TwoSlotActiveDispatchChecks
     [ModuleInitializer]
     internal static void Run()
     {
-        CheckSurvivingHitContinuesReactionNextFrame();
+        CheckSurvivingHitAdvancesReactionSameFrameThenContinues();
         CheckFallLandingStores10ButSkipsInteractionThisFrame();
     }
 
-    private static void CheckSurvivingHitContinuesReactionNextFrame()
+    private static void CheckSurvivingHitAdvancesReactionSameFrameThenContinues()
     {
         var active = new PlatformAttackSlot(
             new PlatformAttackObject(0x50, 0x64, 0x40, 0x50, 0, 0, 0, 0),
@@ -41,10 +41,14 @@ internal static class TwoSlotActiveDispatchChecks
 
         Require(frameN.SlotA!.Interaction!.HitSequence.Results[0].Result.Outcome == PlatformProjectileHitOutcome.HpSurvived,
             "frame N slot A survives Hyoga projectile hit");
-        Require(frameN.SlotA.Entity.Motion.ActionState == 0x40,
-            "surviving hit stores $40 reaction for next frame");
-        Require(frameN.SlotA.Entity.Motion.StatePhase == 0x48,
-            "right-facing hit seeds +$03 recoil byte $48");
+        Require(frameN.SlotA.HitReaction40Post.HasValue,
+            "surviving hit falls through into same-frame A79E reaction phase");
+        Require(frameN.SlotA.Entity.Motion.ActionState == 0x41,
+            "hit-created $40 advances immediately to $41 in frame N");
+        Require(frameN.SlotA.Entity.Motion.StatePhase == 0x47,
+            "right-facing hit seeds $48 and same-frame A845 consumes it to $47");
+        Require(frameN.SlotA.Entity.Motion.X == 0x54,
+            "ordinary pre-hit path returns X to $50, then same-frame recoil applies +4");
         Require(frameN.SlotA.Entity.HitPoints == 20,
             "frame N stores reduced HP");
 
@@ -65,17 +69,17 @@ internal static class TwoSlotActiveDispatchChecks
             engineSubstate02: 1);
 
         Require(frameN1.SlotA!.Dispatch.Route == PlatformCommonEntityActiveRoute.HitReaction40,
-            "frame N+1 dispatches persisted $40 family rather than forcing ordinary route");
+            "frame N+1 dispatches persisted $41 family");
         Require(frameN1.SlotA.Dispatch.Continuation == PlatformCommonEntityActiveContinuation.SkipInteraction,
             "$40 reaction path bypasses projectile/contact interactions");
         Require(frameN1.SlotA.Interaction is null,
             "reaction slot does not invoke $9915/$98BA");
-        Require(frameN1.SlotA.Entity.Motion.ActionState == 0x41,
-            "reaction timer advances $40->$41");
-        Require(frameN1.SlotA.Entity.Motion.StatePhase == 0x47,
-            "recoil byte advances $48->$47");
-        Require(frameN1.SlotA.Entity.Motion.X == 0x54,
-            "reaction applies +4 X without camera subtraction");
+        Require(frameN1.SlotA.Entity.Motion.ActionState == 0x42,
+            "next reaction tick advances $41->$42");
+        Require(frameN1.SlotA.Entity.Motion.StatePhase == 0x46,
+            "recoil byte advances $47->$46");
+        Require(frameN1.SlotA.Entity.Motion.X == 0x57,
+            "frame-start reaction applies camera -1 then recoil +4: $54->$53->$57");
         Require(frameN1.SlotA.Entity.HitPoints == 20,
             "reaction frame preserves HP after prior hit");
     }
