@@ -20,11 +20,11 @@ El proyecto parte de la versión japonesa como referencia canónica de comportam
 - mapper 1 / MMC1
 - 128 KiB PRG + 128 KiB CHR
 
-Los detalles completos están en `docs/reverse-engineering/CANONICAL_ROM.md`.
+Los hashes y la geometría completos están en `docs/reverse-engineering/CANONICAL_ROM.md`. La ROM no vive en este repositorio público.
 
 ## Idioma
 
-La ROM japonesa es la fuente técnica y narrativa primaria. El juego final tendrá **español** como idioma principal. El japonés se preservará internamente como referencia y cada línea localizada tendrá un identificador estable.
+La ROM japonesa es la fuente técnica y narrativa primaria. El juego final tendrá **español** como idioma principal. El japonés se preserva como referencia y la localización usa identificadores estables.
 
 ## Estado de evidencia
 
@@ -35,14 +35,28 @@ Todo hallazgo técnico se etiqueta como:
 - `UNKNOWN`: pendiente de investigar.
 - `DISPROVEN`: hipótesis descartada por evidencia posterior.
 
-## Regla de propiedad intelectual
+## Fuentes de verdad y reanudación
 
-No se versionarán ROMs, dumps binarios originales, manuales escaneados ni otros materiales protegidos dentro del repositorio público. Ese material de referencia queda fuera de Git y se gestiona en el espacio privado de trabajo.
+Este README es **orientativo** y no decide qué se investiga a continuación.
 
-## Próxima fase
+Para retomar el proyecto sin contexto previo:
 
-1. Completar mapa de bancos PRG/CHR y MMC1.
-2. Construir mapa RAM verificado para selección, plataforma y combates.
-3. Instrumentar texto, combate, movimiento, eventos y password.
-4. Producir una especificación reproducible del original.
-5. Construir la implementación nativa para Windows y expandirla bajo la capa REBORN.
+1. leer `docs/PROJECT_STATE.md`; es la **única fuente operativa** para el checkpoint aceptado, límites abiertos y `NEXT`;
+2. consultar los documentos técnicos, código y tests que ese estado cite para la frontera activa;
+3. usar `docs/REVERSE_ENGINEERING_STATUS.md` como mapa global de subsistemas, nunca como cola de trabajo;
+4. aplicar `docs/WORK_PROTOCOL.md` para `FAST -> VERIFY -> CHECKPOINT -> NEXT`;
+5. cuando hagan falta activos privados, consultar el `PRIVATE_WORKSPACE_MANIFEST — Saint Seiya Reborn` en la raíz privada de Drive y el `EVIDENCE_INDEX` de `04_REVERSE_ENGINEERING`.
+
+Si README, documentos históricos, Drive o contexto de chat contradicen `docs/PROJECT_STATE.md` reconciliado con `main`, prevalecen `PROJECT_STATE.md` y el historial Git verificado.
+
+## Estado técnico general
+
+ORIGINAL SPEC ya contiene implementaciones semánticas y fixtures para partes sustanciales de plataforma, entidades, hazards, colisiones, recursos, combate, transiciones globales y localización. El frente activo está por encima del gameplay de frame normal: se está cerrando la transición interactiva del **warm reload** normal antes de derivar sus destinos finales.
+
+El detalle global por subsistema vive en `docs/REVERSE_ENGINEERING_STATUS.md`; el punto exacto de continuación vive exclusivamente en `docs/PROJECT_STATE.md`.
+
+## Propiedad intelectual y almacenamiento
+
+GitHub contiene código propio, documentación, tests y tablas reconstruidas. No se versionan ROMs, dumps completos de PRG/CHR, manuales escaneados protegidos, música ni gráficos originales extraídos.
+
+Drive es el almacén privado para ROM, localización de trabajo, save states, trazas extensas, capturas, dumps temporales, manuales aportados y builds grandes. Su manifiesto privado localiza esos activos, pero nunca mantiene un `NEXT` independiente.
