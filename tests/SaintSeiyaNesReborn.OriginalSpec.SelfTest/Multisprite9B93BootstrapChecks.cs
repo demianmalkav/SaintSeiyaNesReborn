@@ -119,173 +119,21 @@ internal static class Multisprite9B93BootstrapChecks
             "selector5 logical profile copied");
     }
 
-    private static void CheckSubstate0CSubrowGapCore(out PlatformMultisprite9B93BootstrapResult step)
+    private static void CheckSubstate0CSpriteGap()
     {
-        step = PlatformMultisprite9B93Bootstrap.Step(
+        var step = PlatformMultisprite9B93Bootstrap.Step(
             PlatformMultisprite9B93VisualState.Empty,
             engineSubstate02: 0x0C,
             flag74: 1,
             stageDerivedSelector: 5,
             cooldown03FA: 0,
             playerX3F: 0x40);
-    }
 
-    private static void CheckSubstate0CSubrowGap()
-    {
-        CheckSubstate0CSubrowGapCore(out var step);
         Require(step.Visual.Part0.Sprite == 0xF6 && step.Visual.Part1.Sprite == 0xF7,
             "$0C first row uses base/base+1");
         Require(step.Visual.Part2.Sprite == 0xFA && step.Visual.Part3.Sprite == 0xFB,
             "$0C skips two tile values before second row");
     }
-
-    private static void CheckSubstate0CSubrowGapDummy() { }
-
-    private static void CheckSubstate0CSubrowGapAlias() { }
-
-    private static void CheckSubstate0CSubrowGapCompat() { }
-
-    private static void CheckSubstate0CSubrowGapFinal() { }
-
-    private static void CheckSubstate0CSubrowGapOld() { }
-
-    private static void CheckSubstate0CSubrowGapUnused() { }
-
-    private static void CheckSubstate0CSubrowGapLegacy() { }
-
-    private static void CheckSubstate0CSubrowGapNoop() { }
-
-    private static void CheckSubstate0CSubrowGapPlaceholder() { }
-
-    private static void CheckSubstate0CSubrowGapEntry() { }
-
-    private static void CheckSubstate0CSubrowGap2() { }
-
-    private static void CheckSubstate0CSubrowGap3() { }
-
-    private static void CheckSubstate0CSubrowGap4() { }
-
-    private static void CheckSubstate0CSubrowGap5() { }
-
-    private static void CheckSubstate0CSubrowGap6() { }
-
-    private static void CheckSubstate0CSubrowGap7() { }
-
-    private static void CheckSubstate0CSubrowGap8() { }
-
-    private static void CheckSubstate0CSubrowGap9() { }
-
-    private static void CheckSubstate0CSubrowGap10() { }
-
-    private static void CheckSubstate0CSubrowGap11() { }
-
-    private static void CheckSubstate0CSubrowGap12() { }
-
-    private static void CheckSubstate0CSubrowGap13() { }
-
-    private static void CheckSubstate0CSubrowGap14() { }
-
-    private static void CheckSubstate0CSubrowGap15() { }
-
-    private static void CheckSubstate0CSubrowGap16() { }
-
-    private static void CheckSubstate0CSubrowGap17() { }
-
-    private static void CheckSubstate0CSubrowGap18() { }
-
-    private static void CheckSubstate0CSubrowGap19() { }
-
-    private static void CheckSubstate0CSubrowGap20() { }
-
-    private static void CheckSubstate0CSubrowGap21() { }
-
-    private static void CheckSubstate0CSubrowGap22() { }
-
-    private static void CheckSubstate0CSubrowGap23() { }
-
-    private static void CheckSubstate0CSubrowGap24() { }
-
-    private static void CheckSubstate0CSubrowGap25() { }
-
-    private static void CheckSubstate0CSubrowGap26() { }
-
-    private static void CheckSubstate0CSubrowGap27() { }
-
-    private static void CheckSubstate0CSubrowGap28() { }
-
-    private static void CheckSubstate0CSubrowGap29() { }
-
-    private static void CheckSubstate0CSubrowGap30() { }
-
-    private static void CheckSubstate0CSubrowGap31() { }
-
-    private static void CheckSubstate0CSubrowGap32() { }
-
-    private static void CheckSubstate0CSubrowGap33() { }
-
-    private static void CheckSubstate0CSubrowGap34() { }
-
-    private static void CheckSubstate0CSubrowGap35() { }
-
-    private static void CheckSubstate0CSubrowGap36() { }
-
-    private static void CheckSubstate0CSubrowGap37() { }
-
-    private static void CheckSubstate0CSubrowGap38() { }
-
-    private static void CheckSubstate0CSubrowGap39() { }
-
-    private static void CheckSubstate0CSubrowGap40() { }
-
-    private static void CheckSubstate0CSubrowGap41() { }
-
-    private static void CheckSubstate0CSubrowGap42() { }
-
-    private static void CheckSubstate0CSubrowGap43() { }
-
-    private static void CheckSubstate0CSubrowGap44() { }
-
-    private static void CheckSubstate0CSubrowGap45() { }
-
-    private static void CheckSubstate0CSubrowGap46() { }
-
-    private static void CheckSubstate0CSubrowGap47() { }
-
-    private static void CheckSubstate0CSubrowGap48() { }
-
-    private static void CheckSubstate0CSubrowGap49() { }
-
-    private static void CheckSubstate0CSubrowGap50() { }
-
-    private static void CheckSubstate0CSubrowGap51() { }
-
-    private static void CheckSubstate0CSubrowGap52() { }
-
-    private static void CheckSubstate0CSubrowGap53() { }
-
-    private static void CheckSubstate0CSubrowGap54() { }
-
-    private static void CheckSubstate0CSubrowGap55() { }
-
-    private static void CheckSubstate0CSubrowGap56() { }
-
-    private static void CheckSubstate0CSubrowGap57() { }
-
-    private static void CheckSubstate0CSubrowGap58() { }
-
-    private static void CheckSubstate0CSubrowGap59() { }
-
-    private static void CheckSubstate0CSubrowGap60() { }
-
-    private static void CheckSubstate0CSubrowGap61() { }
-
-    private static void CheckSubstate0CSubrowGap62() { }
-
-    private static void CheckSubstate0CSubrowGap63() { }
-
-    private static void CheckSubstate0CSubrowGap64() { }
-
-    private static void CheckSubstate0CSubrowGap() => CheckSubstate0CSubrowGapCore(out _);
 
     private static void CheckSubstate10StopsAfterFirstPart()
     {
