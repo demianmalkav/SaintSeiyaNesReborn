@@ -58,7 +58,7 @@ internal static class PageEncounterSpawnPhaseChecks
             entropy48: 0,
             spawnGate03B7: 0,
             state,
-            [new PlatformSpecialSpawnEntry(0x38, 0x00, 0x60)]);
+            scheduledEntries: [new PlatformSpecialSpawnEntry(0x38, 0x00, 0x60)]);
 
         Require(result.Route == PlatformPageEncounterSpawnRoute.ScheduledSpecial8925,
             "type08 routes to schedule producer");
@@ -85,8 +85,16 @@ internal static class PageEncounterSpawnPhaseChecks
         var initial = InitialState(cooldown: 7) with { LastTriggerLow03A2 = 0x28 };
 
         var result = PlatformPageEncounterSpawnPhase.Step(
-            stage, 0, 0, 0, 0x40, 0, 0, 0, initial,
-            Array.Empty<PlatformSpecialSpawnEntry>());
+            stage,
+            cameraLow44: 0,
+            cameraHigh45: 0,
+            scrollX: 0,
+            playerX: 0x40,
+            cameraDelta43: 0,
+            entropy48: 0,
+            spawnGate03B7: 0,
+            state: initial,
+            scheduledEntries: Array.Empty<PlatformSpecialSpawnEntry>());
 
         Require(result.Route == PlatformPageEncounterSpawnRoute.None && result.EmptyEncounter,
             "zero descriptor page is an explicit no-op");
@@ -99,8 +107,16 @@ internal static class PageEncounterSpawnPhaseChecks
         var initial = InitialState(cooldown: 9);
 
         var result = PlatformPageEncounterSpawnPhase.Step(
-            stage, 0, cameraHigh45: 2, 0, 0x40, 0, 0, 0, initial,
-            Array.Empty<PlatformSpecialSpawnEntry>());
+            stage,
+            cameraLow44: 0,
+            cameraHigh45: 2,
+            scrollX: 0,
+            playerX: 0x40,
+            cameraDelta43: 0,
+            entropy48: 0,
+            spawnGate03B7: 0,
+            state: initial,
+            scheduledEntries: Array.Empty<PlatformSpecialSpawnEntry>());
 
         Require(result.Route == PlatformPageEncounterSpawnRoute.None && result.PageOutOfRange,
             "out-of-range page is contained as no-op");
