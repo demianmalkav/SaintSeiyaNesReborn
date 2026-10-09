@@ -22,10 +22,6 @@ public readonly record struct PlatformEntityJumpStepResult(
 /// <summary>
 /// Clean-room common movable-entity motion primitives reconstructed from bank 3
 /// and fixed-bank helpers used by the $A442 entity pipeline.
-///
-/// This class intentionally does not claim the complete stochastic chase/jump
-/// decision state machine yet. It promotes only the closed horizontal cadence,
-/// terrain-facing predicates, jump vertical phase and landing rules.
 /// </summary>
 public static class PlatformCommonEntityMotion
 {
@@ -99,9 +95,9 @@ public static class PlatformCommonEntityMotion
 
     /// <summary>
     /// Fixed $C5E6 vertical phase. From current phase $10 onward, landing is
-    /// attempted before phase increment. If no landing occurs, phase increments;
-    /// nextPhase >= $20 falls at +3 px/update, otherwise table[nextPhase-2] is
-    /// subtracted from the 8-bit Y coordinate.
+    /// attempted before phase increment through the shared $C491 resolver. If
+    /// no landing occurs, phase increments; nextPhase >= $20 falls at +3
+    /// px/update, otherwise table[nextPhase-2] is subtracted from 8-bit Y.
     /// </summary>
     public static PlatformEntityJumpStepResult StepJumpVertical(PlatformCommonEntityMotionState state)
     {
@@ -110,7 +106,7 @@ public static class PlatformCommonEntityMotion
 
         if (state.StatePhase >= JumpLandingCheckPhase)
         {
-            var landing = TryLand(state);
+            var landing = PlatformCommonEntityLanding.Resolve(state);
             if (landing.Landed)
                 return new(landing.State, true, false, landing.ScreenYDelta, -1);
         }
@@ -151,55 +147,5 @@ public static class PlatformCommonEntityMotion
             }
         }
         return (UsedJumpSource.Length, -minimum, apex, y);
-    }
-
-    private readonly record struct LandingResult(
-        PlatformCommonEntityMotionState State,
-        bool Landed,
-        int ScreenYDelta);
-
-    /// <summary>
-    /// Fixed $C491 landing resolver. Exact acceptance rules:
-    /// - entity Y must be below $86;
-    /// - ground descriptor must be >= $A8;
-    /// - descriptor < $F0 lands only when Y low nibble < 6, snapping to row;
-    /// - descriptor >= $F0 lands only when Y low nibble >= 8, snapping to row+8.
-    /// On landing phase clears; types $08/$09/$0C return to state $00, all other
-    /// types return to state $10.
-    /// </summary>
-    private static LandingResult TryLand(PlatformCommonEntityMotionState state)
-    {
-        if (state.Y >= 0x86 || state.GroundDescriptor < 0xA8)
-            return new(state, false, 0);
-
-        byte snappedY;
-        var low = state.Y & 0x0F;
-        if (state.GroundDescriptor >= 0xF0)
-        {
-            if (low < 8)
-                return new(state, false, 0);
-            snappedY = (byte)((state.Y & 0xF0) | 0x08);
-        }
-        else
-        {
-            if (low >= 6)
-                return new(state, false, 0);
-            snappedY = (byte)(state.Y & 0xF0);
-        }
-
-        var nextAction = state.Type is 0x08 or 0x09 or 0x0C
-            ? (byte)0x00
-            : (byte)0x10;
-        var delta = snappedY - state.Y;
-
-        return new(
-            state with
-            {
-                Y = snappedY,
-                StatePhase = 0,
-                ActionState = nextAction,
-            },
-            true,
-            delta);
     }
 }
