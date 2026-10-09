@@ -7,8 +7,8 @@ public enum PlatformPlayerActionRoute
     OrdinaryGrounded,
     OrdinaryAirborne,
     Crouch,
+    Special40,
     Fall,
-    UnsupportedSpecial40,
     UnsupportedDamage80,
 }
 
@@ -34,21 +34,21 @@ public readonly record struct PlatformPlayerActionDispatchResult(
     PlatformCollisionDescriptors Probes,
     PlatformOrdinaryPlayerActionResult? Ordinary,
     PlatformCrouchStepResult? Crouch,
+    PlatformSpecial40StepResult? Special40,
     PlatformFallStepResult? Fall,
     PlatformAttackAttemptResult? AttackAttempt)
 {
-    public bool IsModeled => Route is not PlatformPlayerActionRoute.UnsupportedSpecial40
-        and not PlatformPlayerActionRoute.UnsupportedDamage80;
+    public bool IsModeled => Route != PlatformPlayerActionRoute.UnsupportedDamage80;
 }
 
 /// <summary>
 /// Frame-start action dispatcher corresponding to the reconstructed portion of
-/// PRG bank 3 $AAE4. It composes only branches whose semantics are already known:
-/// ordinary/default, crouch $20, and fall/drop $50.
+/// PRG bank 3 $AAE4. It composes every branch whose semantics are already known:
+/// ordinary/default, crouch $20, special cycle $40, and fall/drop $50.
 ///
-/// $40 and $80 are surfaced explicitly as unsupported rather than being routed
-/// through ordinary behavior. This layer also stops before the later object
-/// pipeline and before global frame-counter $3C is advanced.
+/// $80 is surfaced explicitly as unsupported rather than being routed through
+/// ordinary behavior. This layer also stops before the later object pipeline and
+/// before global frame-counter $3C is advanced.
 /// </summary>
 public static class PlatformPlayerActionDispatcher
 {
@@ -64,9 +64,6 @@ public static class PlatformPlayerActionDispatcher
         var frameStartAction4E = state.ActionState4D;
         var family = PlatformActionState.Family(frameStartAction4E);
 
-        if (family == (byte)PlatformActionFamily.Special40)
-            return Unsupported(stage, state, frameStartAction4E, PlatformPlayerActionRoute.UnsupportedSpecial40);
-
         if (family == (byte)PlatformActionFamily.DamageOrHazard)
             return Unsupported(stage, state, frameStartAction4E, PlatformPlayerActionRoute.UnsupportedDamage80);
 
@@ -79,6 +76,9 @@ public static class PlatformPlayerActionDispatcher
                 cosmo,
                 engineSubstate01,
                 frameStartAction4E);
+
+        if (family == (byte)PlatformActionFamily.Special40)
+            return StepSpecial40(stage, state, frameStartAction4E);
 
         if (family == (byte)PlatformActionFamily.FallOrDrop)
             return StepFall(
@@ -135,6 +135,7 @@ public static class PlatformPlayerActionDispatcher
                 : PlatformPlayerActionRoute.OrdinaryGrounded,
             ordinary.Probes,
             ordinary,
+            null,
             null,
             null,
             ordinary.AttackAttempt);
@@ -204,7 +205,41 @@ public static class PlatformPlayerActionDispatcher
             null,
             crouch,
             null,
+            null,
             attack);
+    }
+
+    private static PlatformPlayerActionDispatchResult StepSpecial40(
+        PlatformStageMap stage,
+        PlatformPlayerActionState state,
+        byte frameStartAction4E)
+    {
+        var probes = stage.SamplePlayer(
+            state.Horizontal.PlayerX,
+            state.PlayerY,
+            state.Horizontal.ScrollX);
+
+        // $AAE4: JSR $C5CC then return. No B/attack or grounded/airborne path.
+        var special = PlatformSpecial40Motion.Step(
+            new PlatformSpecial40State(state.PlayerY, state.ActionState4D));
+
+        var next = state with
+        {
+            PlayerY = special.State.PlayerY,
+            ActionState4D = special.State.ActionState4D,
+            AttackState = state.AttackState with { ActionState4D = special.State.ActionState4D },
+        };
+
+        return new PlatformPlayerActionDispatchResult(
+            next,
+            frameStartAction4E,
+            PlatformPlayerActionRoute.Special40,
+            probes,
+            null,
+            null,
+            special,
+            null,
+            null);
     }
 
     private static PlatformPlayerActionDispatchResult StepFall(
@@ -277,6 +312,7 @@ public static class PlatformPlayerActionDispatcher
             probes,
             null,
             null,
+            null,
             fall,
             attack);
     }
@@ -296,6 +332,7 @@ public static class PlatformPlayerActionDispatcher
             frameStartAction4E,
             route,
             probes,
+            null,
             null,
             null,
             null,
