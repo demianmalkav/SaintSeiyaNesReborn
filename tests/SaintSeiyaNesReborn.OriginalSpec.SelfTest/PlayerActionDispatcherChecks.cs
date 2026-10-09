@@ -94,9 +94,9 @@ internal static class PlayerActionDispatcherChecks
         Require(fallHeightReject.AttackAttempt?.SoundId == 0x24, "height-rejected fall attack still requests sound");
         Require(fallHeightReject.State.AttackState.BButtonLatch4C == 1, "height rejection still consumes B latch");
 
-        // Landing also resolves before B. A solid center probe snaps to $60 and the
-        // subsequent projectile is created from the landed position.
-        var solid = StageWithDescriptor(x: 0x40, y: 0x60, descriptor: 0x80);
+        // FloorCenter samples world X+8 and Y+0x20 from the frame-start player
+        // coordinates. Put a solid descriptor exactly under that probe.
+        var solid = StageWithDescriptor(x: 0x48, y: 0x7D, descriptor: 0x80);
         var landAttack = PlatformPlayerActionDispatcher.Step(
             solid,
             BaseState(action: 0x50, x: 0x40, y: 0x5D, facing: 0x40),
