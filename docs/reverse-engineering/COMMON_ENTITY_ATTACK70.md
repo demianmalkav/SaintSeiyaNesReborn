@@ -19,11 +19,13 @@ $70 pre-state
   -> movement / $43 / removal / proximity fall
   -> $9915 projectile -> entity
   -> $98BA entity -> player contact
-  -> ...
+  -> $A79E same-frame $40 reaction handling
+  -> $A7FB same-frame $D0 death cadence handling
+  -> $A839/$A845 type-$0A/$0B motion3 handling
   -> $A886 late $70 progression
 ```
 
-This means the late `$70` counter must observe mutations produced by `$9915`. If a projectile changes the entity to `$40` or `$D0`, `$A886` no longer sees family `$70` and the attack counter does not advance.
+This ordering is significant. If `$9915` changes a common entity from `$70` to `$40`, `$A79E` immediately advances the newly created reaction in that same frame (for example `$40->$41` plus one `$A845` recoil tick for type `<$08`). If the hit kills it and writes `$D0`, `$A7FB` can consume a death cadence tick in that same frame when `($3C & 3)==0`. By the time `$A886` is reached, the entity no longer has family `$70`, so the attack counter does not advance or spawn.
 
 ## Late counter `$A886-$A8DB`
 
@@ -59,4 +61,4 @@ Zero object-type table entries cause `$A908` to return without creating a second
 - `PrepareCommon(...)`: pre-interaction decision/movement/removal/proximity behavior for common types `$00-$07`;
 - `AdvanceAfterInteraction(...)`: late `$A886` progression, spawn-call metadata, and sounds.
 
-`PlatformTwoCommonEntityCombatSlice` invokes the second phase only after `$9915/$98BA`, preserving interruption semantics. Spawn attempts are surfaced as semantic events/templates; the secondary object buffer itself will be integrated when the `$96B4/$9761` pipelines are reconstructed.
+`PlatformTwoCommonEntityCombatSlice` now composes the intervening `$A79E/$A7FB` phases before calling the second `$70` phase. Spawn attempts are surfaced as semantic events/templates; the secondary object buffer itself will be integrated when the `$96B4/$9761` pipelines are reconstructed.
