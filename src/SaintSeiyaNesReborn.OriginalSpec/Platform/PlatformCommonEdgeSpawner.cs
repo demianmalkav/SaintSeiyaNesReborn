@@ -86,9 +86,7 @@ public static class PlatformCommonEdgeSpawner
         cooldown03B8 = a.Cooldown03B8;
 
         if ((engine58 & 0x80) == 0)
-        {
             return new(a, null, cooldown03B8, PairProcessed: true);
-        }
 
         var b = StepSlot(
             stage,
@@ -236,8 +234,8 @@ public static class PlatformCommonEdgeSpawner
         {
             Motion = motion,
             HitPoints = profile.HitPoints0C,
-            LifeDrainTicks = profile.LifeDrainTicks0D,
-            CosmoDrainTicks = profile.CosmoDrainTicks0E,
+            LifeDrainTicks = profile.LifeDrainTicks0E,
+            CosmoDrainTicks = profile.CosmoDrainTicks0D,
             SeventhSenseRewardBcd = profile.SeventhSenseRewardBcd0F,
         };
 
