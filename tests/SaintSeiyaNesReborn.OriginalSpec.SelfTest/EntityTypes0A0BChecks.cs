@@ -33,7 +33,7 @@ internal static class EntityTypes0A0BChecks
                 cooldown03B8: 0,
                 new PlatformSpecialSpawnProfile(0x30, 2, 3, 0x10),
                 ProducerExisting(),
-                visualSprite: 0xFE);
+                existingVisualSprite: 0xFE);
 
             Require(result.Spawned,
                 $"generic B6D0 producer creates type {type:X2}");
