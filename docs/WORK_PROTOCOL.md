@@ -209,6 +209,8 @@ Antes de iniciar una continuación:
 
 `continúa` no significa volver a explorar el proyecto completo ni repetir la última investigación. Significa ejecutar el `NEXT` vigente hasta obtener un resultado material o un bloqueo real.
 
+`docs/REVERSE_ENGINEERING_STATUS.md` es sólo un mapa global de madurez y navegación. Nunca se deriva un `NEXT` desde sus áreas abiertas, listas históricas o estimaciones.
+
 ## 16. Carriles FAST y VERIFY
 
 El trabajo se divide deliberadamente en dos carriles:
@@ -265,3 +267,47 @@ No se crean checkpoints por cantidad de operaciones sino por cambios materiales 
 - integración cerrada con CI verde.
 
 Los commits deben describir el resultado semántico conseguido. El checkpoint registra también la evidencia que lo valida y el próximo límite todavía abierto.
+
+## 20. Manifiesto privado e índice de evidencia
+
+La raíz privada de Drive mantiene `PRIVATE_WORKSPACE_MANIFEST — Saint Seiya Reborn`. Su función es **localizar activos privados**, no describir el flujo de trabajo. Debe registrar al menos:
+
+- ROM canónica y revisión/hash esperados;
+- artefacto de localización de trabajo vigente;
+- mapa de carpetas privadas y su propósito;
+- presencia o ausencia explícita de traces, save states, capturas y builds;
+- reglas de recuperación de esos activos.
+
+`04_REVERSE_ENGINEERING` mantiene `EVIDENCE_INDEX — 04_REVERSE_ENGINEERING`. Sólo un pack privado indexado allí se considera evidencia privada curada. Un archivo suelto no indexado se trata como staging hasta clasificarlo.
+
+Drive **nunca** mantiene un `NEXT` independiente. Si el manifiesto privado, el índice de evidencia o una nota privada contradicen GitHub, prevalecen `PROJECT_STATE.md` y el historial Git verificado; después se corrige Drive.
+
+Cuando se añade, reemplaza, mueve o elimina un activo privado material, el manifiesto o índice correspondiente se actualiza en el mismo ciclo. Una carpeta vacía relevante debe constar explícitamente como vacía para distinguir “todavía no existe evidencia” de “evidencia perdida”.
+
+No se publican en el repositorio público IDs, enlaces privados ni credenciales de Drive.
+
+Para un checkpoint cuya reproducibilidad dependa materialmente de evidencia binaria o voluminosa, el pack privado debe registrar como mínimo:
+
+- identificador del pack;
+- hash/revisión de ROM;
+- PR/commit/checkpoint relacionado;
+- banco/direcciones y RAM/breakpoints relevantes;
+- condición/input de reproducción;
+- observación esperada;
+- lista de archivos incluidos;
+- nivel de evidencia y relación de supersesión si corresponde.
+
+No se crea un pack privado sólo para duplicar documentación, código o fixtures que GitHub ya preserva de forma suficiente.
+
+## 21. Prueba de recuperación sin contexto
+
+Periódicamente, y antes de cambios estructurales grandes, el proyecto debe poder superar esta prueba conceptual sin depender del historial de chat:
+
+1. partir de `main` limpio;
+2. leer `docs/PROJECT_STATE.md` y poder identificar el último checkpoint técnico verificado, la frontera activa y un único `NEXT`;
+3. localizar desde Git los documentos, código y tests que fundamentan esa frontera;
+4. identificar la ROM canónica por `CANONICAL_ROM.md` y contrastarla con el manifiesto privado si hace falta rematerializarla;
+5. consultar `EVIDENCE_INDEX` sólo si el checkpoint requiere evidencia privada;
+6. ejecutar el `NEXT` bajo `FAST -> VERIFY -> CHECKPOINT -> NEXT`.
+
+La prueba se considera superada si una sesión nueva puede decir, sin usar memoria conversacional, **qué está cerrado, qué sigue abierto, qué debe ejecutar a continuación, contra qué ROM trabaja y qué activos privados existen realmente**.
