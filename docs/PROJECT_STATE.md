@@ -8,19 +8,18 @@ Technical subsystem documents remain authoritative for their own evidence and se
 
 - Phase: `ORIGINAL SPEC / persistent platform frame + entity-family promotion`
 - State: `READY_FOR_NEXT`
-- Last verified checkpoint: PR `#79` — exact platform-exit gate composed into the persistent main-thread frame and merged to `main`.
-- Merge commit: `d3b291f7fc2df330c073fa1209afd8b0b592c8f5`
-- Verification gate on exact final PR head `f8891c7912ce671452e721e8c785311ecbf30a58`:
-  - `ORIGINAL SPEC tests` run `#224`: `SUCCESS`
-  - `Original Spec` run `#404`: `SUCCESS`
+- Last verified checkpoint: PR `#81` — scheduled primary entity types `$0D/$0E` promoted from their real bank-3 entry path and integrated into the persistent hybrid scheduler.
+- Merge commit: `be773e7bfce81701511ebcb7229fa8eae9bf6293`
+- Verification gate on exact final PR head `f654dcd2226decba231dcbe88d5712e7e3a4498c`:
+  - `ORIGINAL SPEC tests` run `#229`: `SUCCESS`
+  - `Original Spec` run `#411`: `SUCCESS`
 - Workflow hardening checkpoint: PR `#74` remains authoritative for continuation/anti-loop semantics.
 - Last material result:
-  - direct canonical-ROM inspection fixed the main-thread order as `$B6D0 -> $969D exit gate -> continuing-path $8000/$8927`;
-  - `PlatformLatchedCommonProducerPhase` now exposes that boundary as `StepCommon(...)` / `StepScheduled(...)` while retaining the old non-exit composition;
-  - `PlatformPersistentPrimaryEntityFrame.StepMainThread(...)` now returns explicit `Continued`, `State3DReload`, or `State70Special` outcomes;
-  - accepted exits preserve already-completed `$B6D0` mutations but suppress `$8927`, later player/entity processing and `$3C` advancement;
-  - the `$10` Shun rejection and `$11` special `$70` transition are regression-tested through the persistent frame;
-  - the continuing full path is semantically parity-checked against `StepMainThreadNonExit(...)`.
+  - `$0D/$0E` are now routed through a dedicated runtime from `$A48B/$A48F -> $A4BF -> $A55E`, without inheriting the `$08/$09/$0C` `+$04/$039A` pre-dispatch;
+  - shared `$50/$E0`, optional `$30`, movement/removal, `$9915/$98BA`, `$AA70`, post-interaction `+$04`, `$40`, `$D0` and type-aware `$70` semantics are composed where the ROM actually shares them;
+  - type `$0D` additionally models its `$A0-$AF` progression and `$A647` terminal retirement including the extra type-$0D visual record;
+  - actual `$8927` spawn output for both `$0D` and `$0E` reaches the persistent/hybrid frame successfully;
+  - shared attack/contact state and persistent slot state continue correctly into subsequent frames.
 
 ## DONE
 
@@ -30,7 +29,8 @@ The following boundaries are closed unless contradictory evidence appears.
 
 - activity gate precedes semantic route selection;
 - common admitted slots use `PlatformCommonEntitySlotRuntime`;
-- `$08/$09/$0C` admitted slots use `PlatformSpecialEntityActive08090C`;
+- `$08/$09/$0C` use `PlatformSpecialEntityActive08090C`;
+- `$0D/$0E` use `PlatformSpecialEntityActive0D0E`;
 - attack state, `$76/$7F/$80`, Seventh Sense and `$039A` carry A -> B in-order.
 
 ### Primary removal / occupancy lifecycle
@@ -38,18 +38,19 @@ The following boundaries are closed unless contradictory evidence appears.
 - confirmed removal paths compose exact `$A647` primary retirement;
 - tracked visual occupancy becomes `$FE`;
 - logical `+$00` clear obeys engine `$00 < $30`;
+- type `$0D` receives the confirmed extra `+$2C/+$2D` visual retirement;
 - frame N retirement can feed frame N+1 gating and later producer reuse directly.
 
 ### Persistent producer -> hybrid state bridge
 
 - NMI acceptance remains separate from main-thread producers;
 - encounter latch / `$03B7`, richer slots, `$03B8`, `$03A2`, Seventh Sense, `$039A` and `$3C` persist together;
-- both promoted producers reset logical `+$04`, skip `+$08`, and do not own the attached `$A908/$AA70` hazard record;
+- both promoted producers reset logical `+$04`, skip `+$08`, and do not own the external attached `$A908/$AA70` hazard record;
 - producer output feeds the hybrid runtime without manual slot reconstruction.
 
 ### Main-thread exit split
 
-Direct ROM order is now closed as:
+Direct ROM order remains closed as:
 
 ```text
 $C30A JSR $B6D0
@@ -59,13 +60,19 @@ if continuing: $C319 JSR $8000
 bank-1 $800C JSR $8927
 ```
 
-Closed invariants:
+Accepted exits preserve completed `$B6D0` mutations and suppress `$8927`, later player/entities and `$3C` advancement.
 
-- `$B6D0` executes before the exit gate;
-- accepted `$3D/$70` exits preserve pre-gate mutations;
-- accepted exits do not execute `$8927`, player/entities or shared `$3C` advance;
-- rejected exits continue through the existing verified path;
-- `PlatformExitGate` remains the single source for coordinates, jump-phase, Shun and transition-kind predicates.
+### Scheduled `$0D/$0E` active route
+
+- direct dispatcher entry bypasses `$A4A7-$A55B`;
+- global `$039A` is not mutated merely by `$0D/$0E` activity;
+- ordinary interaction reaches `$9915 -> $98BA -> $AA70` in that order;
+- `$AA70` still applies its own geometry before the `$76` latch test;
+- post-interaction `+$04` cadence remains shared at `$A738-$A747`;
+- type `$0D` `$A0-$AF` and terminal removal are closed;
+- type `$0E` terminal `$70` returns to `$10` through the shared type-aware late helper.
+
+VERIFY note for PR #81: the first `Original Spec` run failed only because the ordering fixture supplied `AttachedHazardState.Empty` (`Y=$F0`) and therefore `$AA70` rejected on geometry before reaching the latch check. Direct ROM flow confirmed `$AA70` follows `$98BA`; the fixture was corrected to use an overlapping attached record. Runtime semantics were not changed by the fix, and the final head passed both workflows.
 
 Do **not** reopen these boundaries merely to re-check them. Reopen only for a failing fixture, contradictory ROM evidence, or a newly promoted side effect crossing one of them.
 
@@ -74,53 +81,49 @@ Do **not** reopen these boundaries merely to re-check them. Reopen only for a fa
 Primary artifacts:
 
 - `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformPersistentPrimaryEntityFrame.cs`
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformLatchedCommonProducerPhase.cs`
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformExitGate.cs`
 - `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformHybridEntityCombatSlice.cs`
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformSpecialEntityActive08090C.cs`
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformSpecialEntityActive0D0E.cs`
 - `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformEntityRemovalA647.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PersistentPrimaryEntityFrameChecks.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PersistentPrimaryEntityExitGateChecks.cs`
-- `docs/reverse-engineering/PERSISTENT_PRIMARY_ENTITY_FRAME.md`
-- `docs/reverse-engineering/PLATFORM_EXIT_GATES.md`
-- merged PRs `#73` through `#79` relevant to this composition chain.
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/SpecialEntityActive0D0EChecks.cs`
+- `docs/reverse-engineering/SPECIAL_ENTITY_ACTIVE_0D0E.md`
+- merged PRs `#73` through `#81` relevant to the persistent composition chain.
 
-VERIFY note for PR #79: the first .NET run reached the new parity fixture and failed only because it compared the entire `Hybrid` record object, whose nested structure does not define the intended semantic equality. Persistent state and producer equality had already passed. The fixture was changed to compare observable hybrid invariants; the runtime was not changed. The exact final head then passed both workflows.
+Direct canonical-ROM anchors for the latest boundary include `$A478-$A4BF`, `$A55E+`, `$A700-$A749`, `$A79E+`, `$A86B-$A885`, `$A886+` and `$A647`.
 
 ## OPEN
 
-1. `$8927` can produce scheduled types `$0D/$0E`, but `PlatformHybridEntityCombatSlice` currently promotes only `$08/$09/$0C` as scheduled-special active routes; `$0D/$0E` therefore remain an immediate runtime integration gap.
-2. Direct ROM dispatch shows `$0D/$0E` are **not** variants of the `$08/$09/$0C` predispatch: type checks at `$A489-$A48F` branch to `$A4BF -> $A55E`, bypassing `$A4A7-$A55B` (`+$04` / `$039A` predispatch logic).
-3. The action-family and interaction semantics reached from `$A55E` for `$0D/$0E` are not yet promoted as a closed runtime.
-4. Type `$0F` has its own jump to `$A74C` and remains separate future work.
-5. Full renderer-owned animation/tile/Y/attribute/X state remains outside this logical/occupancy runtime except for evidence-backed lifecycle writes already promoted.
-6. Higher-level native destination/state-machine behavior after semantic `$3D/$70` exit remains above this entity-frame layer.
+1. Type `$0F` remains outside the hybrid scheduler and has a distinct direct dispatcher jump at `$A495 -> $A74C`; it must not be forced through common or `$0D/$0E` semantics.
+2. The `$0F` path has already-visible special rules that are not yet promoted: unconditional `Y += 2`, facing-dependent horizontal motion, removal at `Y >= $A0` or `X < $04`, dedicated projectile/contact geometry, and a type-specific `$D0` cadence shortcut.
+3. Full renderer-owned animation/tile/Y/attribute/X state remains outside this logical/occupancy runtime except for evidence-backed lifecycle writes already promoted.
+4. Higher-level native destination/state-machine behavior after semantic `$3D/$70` exit remains above this entity-frame layer.
 
 ## NEXT
 
-**Promote the scheduled `$0D/$0E` active runtime from their real `$A55E` entry path and integrate it into the hybrid scheduler without reusing the `$08/$09/$0C` predispatch.**
+**Promote type `$0F` as a dedicated active runtime from its real `$A495 -> $A74C` path and integrate it into the persistent hybrid scheduler.**
 
 Completion criterion:
 
-> A type `$0D` or `$0E` produced by `$8927` can enter the persistent/hybrid frame, execute its evidence-backed active action/interaction/removal path, carry shared combat/contact state correctly, and persist into the next frame without falling into the unsupported common dispatcher or the wrong `$08/$09/$0C` predispatch.
+> A type `$0F` produced by the generic edge producer can enter the persistent/hybrid frame, execute its direct `$A74C` movement / interaction / reaction / death path with the correct geometry and cadence, retire through `$A647` when required, and persist or free the slot correctly on the following frame without entering the common dispatcher or any scheduled-special pre-dispatch.
 
 Required sequence:
 
-1. map the exact control flow for `$0D/$0E` from `$A48B/$A48F -> $A4BF -> $A55E` through action-family dispatch and the later interaction/removal boundary;
-2. identify which existing promoted common family primitives are genuinely shared and which type-specific branches require new code;
-3. prove that `$0D/$0E` bypass `$A4A7-$A55B` predispatch and therefore do not inherit `$08/$09/$0C` `+$04/$039A` behavior by assumption;
-4. create a dedicated semantic route/runtime for `$0D/$0E` rather than widening `PlatformSpecialEntityActive08090C`;
-5. integrate that route into `PlatformHybridEntityCombatSlice` behind the existing activity gate;
-6. add fixtures beginning from actual `$8927` spawn output for both `$0D` and `$0E`, including at least one interaction path and one removal/next-frame path;
-7. document unresolved type-specific renderer or auxiliary-object effects instead of inventing them;
+1. close direct control flow from `$A495 -> $A74C` through `$A79E/$A7FB/$A886` for type `$0F`;
+2. model exact `$A74C` movement: `Y += 2`, facing-dependent horizontal ±2 plus camera correction, and removal thresholds;
+3. model the dedicated `$9915/$98BA` parameter set installed at `$A78E-$A79B` and prove whether `$AA70` / `+$04` are absent on this route;
+4. model type `$0F` `$D0` cadence, including the `$A7FD CMP #$0F` shortcut that bypasses the normal `($3C & 3)` gate;
+5. determine which late `$A886` `$70` semantics are genuinely shared and reuse only those primitives;
+6. create a dedicated hybrid route/runtime rather than widening common or `$0D/$0E` code;
+7. add fixtures beginning from actual generic `$B6D0` type-`$0F` output, with at least one interaction case and one removal/next-frame case;
 8. run both verification workflows before checkpointing.
 
 ## BLOCKERS
 
-- None for the first reverse-engineering pass. The canonical ROM is available privately and the dispatcher entry split for `$0D/$0E` is already identified.
+- None for the first reverse-engineering pass. The canonical ROM is available privately and the direct `$0F` entry jump is already identified.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `scheduled-0d0e-active-route`
+- `last_next_signature`: `type0f-direct-a74c-runtime`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
