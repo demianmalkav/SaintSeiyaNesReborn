@@ -91,10 +91,10 @@ internal static class PrimaryEncounterAcceptanceChecks
         Require(result.State.ActiveEngine58 == 0xB6,
             "accepted descriptor becomes active $58");
         Require(result.State.ActiveConfig?.Profile.HitPoints0C == 120
-            && result.State.ActiveConfig?.Profile.LifeDrainTicks0D == 4
-            && result.State.ActiveConfig?.Profile.CosmoDrainTicks0E == 8
+            && result.State.ActiveConfig?.Profile.CosmoDrainTicks0D == 8
+            && result.State.ActiveConfig?.Profile.LifeDrainTicks0E == 4
             && result.State.ActiveConfig?.Profile.SeventhSenseRewardBcd0F == 0x13,
-            "acceptance rebuilds exact tier profile");
+            "acceptance rebuilds exact tier profile with +$0D Cosmo / +$0E Life");
         Require(result.RecomputedProfile,
             "nonzero accept marks profile recomputation");
         Require(!result.ContinueToSecondarySchedule9BB9,
