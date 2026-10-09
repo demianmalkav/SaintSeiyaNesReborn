@@ -5,6 +5,8 @@ public sealed record PlatformOrdinaryMobileEntityCombatSliceResult(
     PlatformPostPlayerLatchResult PostPlayerLatch,
     PlatformCommonEntityPreparationResult? Preparation,
     PlatformCommonEntityInteractionResult? Interaction,
+    PlatformCommonEntityHitReaction40Result? HitReaction40Post,
+    PlatformCommonEntityDeathD0Result? DeathD0Post,
     PlatformAttackObjectPhaseResult AttackObjectPhase,
     PlatformPlayerActionDispatchResult PlayerAfterLatePhases,
     PlatformContactPhaseState ContactState,
@@ -14,15 +16,17 @@ public sealed record PlatformOrdinaryMobileEntityCombatSliceResult(
     byte FrameCounterAfter3C,
     bool FrameCounterAdvanced,
     bool EntityRemovedBeforeInteraction,
+    bool EntityRemovedAfterInteraction,
     bool ExitedBeforeEntityPipeline);
 
 /// <summary>
 /// End-to-end active-platform slice for one ordinary mobile common entity
-/// (type $00-$07, entry action family $10), now including the entity's own
-/// $A55E-$A700 preparation before the already-modeled interaction phases.
+/// (type $00-$07, entry action family $10), including preparation, interaction,
+/// and the same-frame post-interaction $A79E/$A7FB phases.
 ///
-/// The entity decision reads the player's state after $AAE4 and $B94B, matching
-/// the original order: player simulation precedes the later $A442 entity path.
+/// The entity decision reads the player's state after $AAE4 and $B94B. A hit
+/// that creates $40 or $D0 is then advanced in the same update exactly as the
+/// original fall-through after $9915/$98BA.
 /// </summary>
 public static class PlatformOrdinaryMobileEntityCombatSlice
 {
@@ -80,25 +84,16 @@ public static class PlatformOrdinaryMobileEntityCombatSlice
                 playerAfterLatch,
                 frameCounter3C);
 
-            return new PlatformOrdinaryMobileEntityCombatSliceResult(
-                pre,
-                latch,
-                null,
-                null,
-                skippedAttack,
-                skippedAttack.Player,
-                contactBeforeEntity,
-                entity,
-                seventhSense,
-                frameCounter3C,
-                frameCounter3C,
+            return new(
+                pre, latch, null, null, null, null,
+                skippedAttack, skippedAttack.Player, contactBeforeEntity, entity,
+                seventhSense, frameCounter3C, frameCounter3C,
                 FrameCounterAdvanced: false,
                 EntityRemovedBeforeInteraction: false,
+                EntityRemovedAfterInteraction: false,
                 ExitedBeforeEntityPipeline: true);
         }
 
-        // $A442 runs after the player step. Entity AI therefore sees the player's
-        // already-updated position and jump phase from this same frame.
         var preparation = PlatformCommonEntityPreparation.StepOrdinaryMobile(
             entity.Motion,
             playerAfterLatch.State.Horizontal.PlayerX,
@@ -111,27 +106,18 @@ public static class PlatformOrdinaryMobileEntityCombatSlice
 
         if (preparation.Outcome != PlatformCommonEntityPreparationOutcome.ReadyForInteraction)
         {
-            // Removing one common entity returns from that entity update; it does
-            // not abort the platform frame. A22C and C402 still execute later.
             var attackPhase = PlatformAttackFramePhases.UpdateObjectsAfterPlayer(
                 playerAfterLatch,
                 frameCounter3C);
             var nextCounter = unchecked((byte)(frameCounter3C + 1));
 
-            return new PlatformOrdinaryMobileEntityCombatSliceResult(
-                pre,
-                latch,
-                preparation,
-                null,
-                attackPhase,
-                attackPhase.Player,
-                contactBeforeEntity,
-                entity,
-                seventhSense,
-                frameCounter3C,
-                nextCounter,
+            return new(
+                pre, latch, preparation, null, null, null,
+                attackPhase, attackPhase.Player, contactBeforeEntity, entity,
+                seventhSense, frameCounter3C, nextCounter,
                 FrameCounterAdvanced: true,
                 EntityRemovedBeforeInteraction: true,
+                EntityRemovedAfterInteraction: false,
                 ExitedBeforeEntityPipeline: false);
         }
 
@@ -152,6 +138,25 @@ public static class PlatformOrdinaryMobileEntityCombatSlice
 
         entity = entity.WithCombatEntity(interaction.Entity);
 
+        PlatformCommonEntityHitReaction40Result? hitReaction40Post = null;
+        PlatformCommonEntityDeathD0Result? deathD0Post = null;
+        var removedAfterInteraction = false;
+
+        if ((entity.Motion.ActionState & 0xF0) == 0x40)
+        {
+            hitReaction40Post = PlatformCommonEntityHitReaction40.AdvanceAfterPath(entity.Motion);
+            entity = entity with { Motion = hitReaction40Post.Value.State };
+        }
+
+        if ((entity.Motion.ActionState & 0xF0) == 0xD0)
+        {
+            deathD0Post = PlatformCommonEntityDeathD0.AdvanceAfterPath(
+                entity.Motion,
+                frameCounter3C);
+            entity = entity with { Motion = deathD0Post.Value.State };
+            removedAfterInteraction = deathD0Post.Value.Outcome == PlatformCommonEntityDeathD0Outcome.CompletedRemoval;
+        }
+
         var playerAfterInteraction = playerAfterLatch with
         {
             State = playerAfterLatch.State with
@@ -166,20 +171,13 @@ public static class PlatformOrdinaryMobileEntityCombatSlice
             frameCounter3C);
         var afterCounter = unchecked((byte)(frameCounter3C + 1));
 
-        return new PlatformOrdinaryMobileEntityCombatSliceResult(
-            pre,
-            latch,
-            preparation,
-            interaction,
-            lateAttack,
-            lateAttack.Player,
-            interaction.ContactPhase.State,
-            entity,
-            interaction.SeventhSense,
-            frameCounter3C,
-            afterCounter,
+        return new(
+            pre, latch, preparation, interaction, hitReaction40Post, deathD0Post,
+            lateAttack, lateAttack.Player, interaction.ContactPhase.State, entity,
+            interaction.SeventhSense, frameCounter3C, afterCounter,
             FrameCounterAdvanced: true,
             EntityRemovedBeforeInteraction: false,
+            EntityRemovedAfterInteraction: removedAfterInteraction,
             ExitedBeforeEntityPipeline: false);
     }
 }
