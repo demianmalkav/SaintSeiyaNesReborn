@@ -9,7 +9,8 @@ public enum PlatformPlayerActionRoute
     Crouch,
     Special40,
     Fall,
-    UnsupportedDamage80,
+    Damage80Waiting,
+    Damage80Reload,
 }
 
 public readonly record struct PlatformPlayerActionState(
@@ -36,19 +37,23 @@ public readonly record struct PlatformPlayerActionDispatchResult(
     PlatformCrouchStepResult? Crouch,
     PlatformSpecial40StepResult? Special40,
     PlatformFallStepResult? Fall,
+    PlatformDamage80StepResult? Damage80,
     PlatformAttackAttemptResult? AttackAttempt)
 {
-    public bool IsModeled => Route != PlatformPlayerActionRoute.UnsupportedDamage80;
+    public bool IsModeled => true;
+    public bool ExitsNormalPlayerLoop => Damage80?.ExitsNormalPlayerLoop == true;
 }
 
 /// <summary>
-/// Frame-start action dispatcher corresponding to the reconstructed portion of
-/// PRG bank 3 $AAE4. It composes every branch whose semantics are already known:
-/// ordinary/default, crouch $20, special cycle $40, and fall/drop $50.
+/// Frame-start action dispatcher corresponding to PRG bank 3 $AAE4.
+/// Every observed branch is represented:
+/// ordinary/default, crouch $20, special cycle $40, fall/drop $50, and the
+/// $80 hazard/reload gate.
 ///
-/// $80 is surfaced explicitly as unsupported rather than being routed through
-/// ordinary behavior. This layer also stops before the later object pipeline and
-/// before global frame-counter $3C is advanced.
+/// This layer stops before the later object pipeline and before global
+/// frame-counter $3C is advanced. A $80 reload result is exceptional: the
+/// original resets the CPU stack and jumps away, so the normal player/frame
+/// continuation must not execute.
 /// </summary>
 public static class PlatformPlayerActionDispatcher
 {
@@ -65,7 +70,7 @@ public static class PlatformPlayerActionDispatcher
         var family = PlatformActionState.Family(frameStartAction4E);
 
         if (family == (byte)PlatformActionFamily.DamageOrHazard)
-            return Unsupported(stage, state, frameStartAction4E, PlatformPlayerActionRoute.UnsupportedDamage80);
+            return StepDamage80(stage, state, frameStartAction4E);
 
         if (family == (byte)PlatformActionFamily.Crouch)
             return StepCrouch(
@@ -138,6 +143,7 @@ public static class PlatformPlayerActionDispatcher
             null,
             null,
             null,
+            null,
             ordinary.AttackAttempt);
     }
 
@@ -166,7 +172,6 @@ public static class PlatformPlayerActionDispatcher
             state.Special76,
             state.HorizontalAmount43);
 
-        // $AAE4: JSR $B829 first, then JSR $BBCA.
         var crouch = PlatformCrouchDrop.StepCrouched(crouchState, input, probes);
         var afterCrouch = crouch.State;
 
@@ -206,6 +211,7 @@ public static class PlatformPlayerActionDispatcher
             crouch,
             null,
             null,
+            null,
             attack);
     }
 
@@ -219,7 +225,6 @@ public static class PlatformPlayerActionDispatcher
             state.PlayerY,
             state.Horizontal.ScrollX);
 
-        // $AAE4: JSR $C5CC then return. No B/attack or grounded/airborne path.
         var special = PlatformSpecial40Motion.Step(
             new PlatformSpecial40State(state.PlayerY, state.ActionState4D));
 
@@ -238,6 +243,7 @@ public static class PlatformPlayerActionDispatcher
             null,
             null,
             special,
+            null,
             null,
             null);
     }
@@ -268,7 +274,6 @@ public static class PlatformPlayerActionDispatcher
             state.Special76,
             state.HorizontalAmount43);
 
-        // $AAE4: JSR $B87D first, then JSR $BBCA.
         var fall = PlatformCrouchDrop.StepFall(
             stage,
             fallState,
@@ -314,19 +319,28 @@ public static class PlatformPlayerActionDispatcher
             null,
             null,
             fall,
+            null,
             attack);
     }
 
-    private static PlatformPlayerActionDispatchResult Unsupported(
+    private static PlatformPlayerActionDispatchResult StepDamage80(
         PlatformStageMap stage,
         PlatformPlayerActionState state,
-        byte frameStartAction4E,
-        PlatformPlayerActionRoute route)
+        byte frameStartAction4E)
     {
         var probes = stage.SamplePlayer(
             state.Horizontal.PlayerX,
             state.PlayerY,
             state.Horizontal.ScrollX);
+
+        var transition = PlatformDamage80Transition.Step(frameStartAction4E, state.Special76);
+        var route = transition.Outcome == PlatformDamage80Outcome.ReloadPlatform
+            ? PlatformPlayerActionRoute.Damage80Reload
+            : PlatformPlayerActionRoute.Damage80Waiting;
+
+        // $80 never reaches BBCA or movement. On the reload path, $AAE4 never
+        // returns to the caller; the state here is the last player-domain state
+        // before the external resource snapshot/mode reset sequence takes over.
         return new PlatformPlayerActionDispatchResult(
             state,
             frameStartAction4E,
@@ -336,6 +350,7 @@ public static class PlatformPlayerActionDispatcher
             null,
             null,
             null,
+            transition,
             null);
     }
 }
