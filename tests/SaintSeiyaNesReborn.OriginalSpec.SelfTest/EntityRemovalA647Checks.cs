@@ -233,17 +233,17 @@ internal static class EntityRemovalA647Checks
         new(
             PlatformSaintIndex.Seiya,
             new PlatformHorizontalState(0x50, 0, 0, 0x40),
-            PlayerY: 0x50,
-            JumpPhase49: 0,
-            VerticalTimer4A: 0,
-            VerticalAccumulator4B: 0,
-            VerticalThreshold4C: 0,
-            GroundDescriptor4D: 0,
-            Action4E: 0,
-            ActionTimer4F: 0,
-            Special76: 0,
-            Aux77: 0,
-            AttackState: PlatformAttackState.Empty);
+            0x50,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            PlatformAttackState.Empty);
 
     private static PlatformStageMap OpenStage() =>
         new(0, [new PlatformStagePage(0, new byte[PlatformStagePage.DescriptorCount])]);
