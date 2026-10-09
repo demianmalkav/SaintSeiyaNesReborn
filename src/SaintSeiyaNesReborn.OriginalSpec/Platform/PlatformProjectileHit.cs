@@ -10,6 +10,7 @@ public readonly record struct PlatformHitboxParameters(
 {
     public static PlatformHitboxParameters Common => new(8, 8, 5, 5);
     public static PlatformHitboxParameters Reduced => new(4, 4, 2, 2);
+    public static PlatformHitboxParameters Auxiliary => new(4, 4, 3, 3);
     public static PlatformHitboxParameters Tall => new(16, 8, 14, 4);
     public static PlatformHitboxParameters Square => new(8, 8, 6, 6);
 }
