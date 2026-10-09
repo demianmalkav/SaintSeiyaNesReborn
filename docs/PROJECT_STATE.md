@@ -6,146 +6,138 @@ Technical subsystem documents remain authoritative for their own evidence and se
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / persistent platform frame + late-object composition`
+- Phase: `ORIGINAL SPEC / primary action-space closure`
 - State: `READY_FOR_NEXT`
-- Last verified checkpoint: PR `#86` — `$9B93` multisprite branches composed into one persistent top-level runtime/dispatcher.
-- Merge commit: `00334008a4230761ef772fa67faf9c54df8cf189`
-- Verification gate on exact final PR head `1008557fbbb4eb22fa0e1d4ab1547b339a773e3f`:
-  - `ORIGINAL SPEC tests` run `#239`: `SUCCESS`
-  - `Original Spec` run `#424`: `SUCCESS`
-- Prerequisite correction: PR `#85` fixed substate `$0D` bootstrap from direct `$9C0F -> $A0E4` ROM flow; both workflows were green (`#237/#420`) before merge.
+- Last verified checkpoint: PR `#90` — complete persistent normal platform late-object frame merged to `main`.
+- Merge commit: `a1d5ac06b3507be62b0bca0ea1b2207440d0f9ac`
+- Exact final PR head: `328861152e930e4c35069eca896f2fc30631a213`
+- Verification gate on that exact head:
+  - `ORIGINAL SPEC tests` run `#249`: `SUCCESS`
+  - `Original Spec` run `#438`: `SUCCESS`
+  - build, OriginalSpec self-test and password compatibility fixture: `SUCCESS`
+- Structural prerequisite: PR `#88` extracted the already-closed primary A -> B body as a reusable after-player primitive without changing semantics.
+- Superseded attempt: PR `#89` was closed without merge after CI exposed contract/test compilation issues; those issues were corrected on the same implementation line before the exact #90 head passed all verification.
 - Workflow hardening checkpoint: PR `#74` remains authoritative for continuation/anti-loop semantics.
 
 ## DONE
 
 Closed unless contradictory evidence appears:
 
-### Persistent primary scheduler
+### Complete persistent normal late-object frame
 
-- generic `$B6D0` producer, exit split, scheduled `$8927` producer, player pipeline, hybrid primary A -> B, late attack objects and `$3C` persistence are executable;
-- primary routes are explicit for common families, `$08/$09/$0C`, `$0D/$0E`, and direct type `$0F`;
-- exact `$A647` removal/visual occupancy lifecycle is composed.
-
-### `$9B93` bootstrap correction
-
-Direct ROM flow proved that engine substate `$0D` does not use ordinary selector-profile initialization after the timed gate.
-
-`$9C0F -> $A0E4` instead:
-
-- creates only part0 as `Y=$20`, sprite `$8C`;
-- selects `(flags=$02,X=$EF)` or `(flags=$42,X=$11)` from `$48&8`;
-- clears logical action;
-- loads dedicated raw profile `$1E,$05,$05,$01` from `$9B8F-$9B92`;
-- does not write `$03A9`.
-
-Bootstrap now exposes whether `$03A9` was actually written so persistent composition preserves it on early-return paths.
-
-### Persistent `$9B93` top-level runtime
-
-Every step begins at the bootstrap/active gate. New initialization returns at `$9CAB` and does not run an active branch in the same call.
-
-For existing active visuals, direct dispatcher precedence is closed as:
+The continuing normal platform main-thread path is now composed as one persistent state boundary:
 
 ```text
-if $02 == $0D:
-    dedicated $A12A route
-else if logical family == $D0/$E0:
-    $A06E death/drop
-else if part0 flag $08 clear:
-    normal $9D05 route
-else if part0 flag $04 set:
-    $9ED1 flag08/bit04 route
-else:
-    $9F79 flag08/clear04 route
-```
-
-Persistent state carries:
-
-- full visual/logical runtime state;
-- mode `$81`;
-- cooldown `$03FA`;
-- global `$03A9`;
-- branch-specific attack state, `$76/$7F/$80`, and Seventh Sense outputs.
-
-Fixtures cover no same-frame active update after bootstrap, cooldown/selector-zero preservation, `$0D` precedence, `$D0/$E0` precedence, all three flag routes, and real projectile carry through the normal branch.
-
-### Primary type `$0F`
-
-Direct `$A495 -> $A74C` route, movement/removal, `8/8/6/6` interaction, no `$AA70/+$04`, per-update `$D0-$DF`, late `$70`, and `$A647` persistence remain closed from PR `#83`.
-
-Do **not** reopen these boundaries merely to re-check them. Reopen only for failing fixtures, contradictory ROM evidence, or a newly promoted side effect crossing the boundary.
-
-## EVIDENCE
-
-Primary artifacts:
-
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformPersistentPrimaryEntityFrame.cs`
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformHybridEntityCombatSlice.cs`
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformMultisprite9B93Bootstrap.cs`
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformMultisprite9B93Runtime.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/Multisprite9B93BootstrapChecks.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/Multisprite9B93RuntimeChecks.cs`
-- `docs/reverse-engineering/MULTISPRITE_9B93_BOOTSTRAP.md`
-- `docs/reverse-engineering/MULTISPRITE_9B93_RUNTIME.md`
-- merged PRs `#83`, `#85`, `#86` for the latest promoted boundaries.
-
-Direct canonical-ROM anchors include `$9B93-$9CAB`, `$9CBB-$9CD3`, `$9D05+`, `$9ED1+`, `$9F79+`, `$A06E+`, `$A0E4-$A129`, and `$A12A-$A22B`.
-
-## OPEN
-
-1. The persistent main-thread frame still omits the complete late-object order between the player/post-latch phase and primary A/B:
-
-```text
-$9B93 multisprite
+$B6D0 generic primary producer
+ -> platform exit gate
+ -> $8927 scheduled producer
+ -> pre-player resources / player / post-player latch
+ -> $9B93 multisprite
  -> $96B4 auxiliary spawn
  -> $9761 auxiliary A
  -> $9761 auxiliary B
  -> $A442 primary A
  -> $A442 primary B
  -> $A22C attack-object update
+ -> one $3C increment
 ```
 
-2. `PlatformHybridEntityCombatSlice` currently owns pre-player/player/post-latch **and** primary A/B **and** `$A22C`, so the primary A -> B body must be extracted as a reusable after-player primitive before inserting earlier object classes without duplicating player or late attack phases.
-3. Types `$0A/$0B` are promoted only for `$10/$50`; static evidence strongly suggests this is their complete reachable action closure, but that reachability claim still needs an explicit evidence note before declaring all primary type/action state space globally closed.
-4. Full renderer-owned animation/tile/Y/attribute/X state remains outside logical runtimes except where exact lifecycle writes have been promoted.
-5. Higher-level native destination/state-machine behavior after semantic `$3D/$70` exit remains above this entity-frame layer.
+One physical mutable stream is preserved across late object classes for:
+
+- player attack objects;
+- `$76` contact latch;
+- `$7F/$80` Life/Cosmo drain state;
+- Seventh Sense.
+
+Persistent state now carries the promoted primary entity pair, `$9B93` state and auxiliary-hazard state directly into the next frame.
+
+Fixtures prove:
+
+- a projectile consumed by `$9B93` is invisible to auxiliary and primary classes later that frame;
+- a projectile consumed by auxiliary A is invisible to primary A/B;
+- auxiliary contact seeds `$76/$7F/$80` and suppresses later primary overwrite;
+- freshly spawned auxiliary hazards update in the same frame;
+- `$A22C` executes exactly once after all promoted late object classes;
+- normal `$3C` advances exactly once;
+- exceptional player-loop exits preserve completed producer mutations while skipping `$9B93`, auxiliaries, primary A/B, `$A22C` and the normal `$3C` advance;
+- accepted platform exits retain the already-confirmed earlier producer/exit split.
+
+### Primary-family runtime coverage already promoted
+
+- common types `$00-$07`;
+- scheduled/direct special types `$08/$09/$0C`;
+- `$0D/$0E`;
+- direct `$0F`;
+- `$0A/$0B` executable behavior on `$10/$50`, including their special projectile response and `+$03` post-hit impulse.
+
+The remaining `$0A/$0B` question is not an unimplemented observed route; it is whether `$10/$50` form the complete **reachable** action-family set for normally produced instances.
+
+Do **not** reopen the persistent late-object order merely to re-check sequencing. Reopen only for a failing fixture, contradictory ROM evidence, or a newly promoted side effect crossing its boundary.
+
+## EVIDENCE
+
+Primary artifacts for the latest checkpoint:
+
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformPersistentLateObjectFrame.cs`
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformHybridEntityCombatSlice.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PersistentLateObjectFrameChecks.cs`
+- `docs/reverse-engineering/PERSISTENT_LATE_OBJECT_FRAME.md`
+- merged PR `#90`
+
+Relevant `$0A/$0B` artifacts already promoted:
+
+- `docs/reverse-engineering/ENTITY_TYPES_0A_0B.md`
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformCommonEdgeSpawner.cs`
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformCommonEntityPreparation.cs`
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformCommonEntityFall50.cs`
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformCommonEntityLanding.cs`
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformCommonEntityActiveDispatcher.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/EntityTypes0A0BChecks.cs`
+
+Current confirmed transition evidence already establishes:
+
+```text
+$B6D0 spawn -> $10
+$10 ordinary -> remain $10 OR start $50 OR remove
+$50 -> remain $50 OR land to $10 OR remove
+projectile response -> action unchanged, +$03 impulse only
+post-hit $A845 -> +$03/X mutation only
+```
+
+The next task must audit the remaining entity-action writers before promoting that chain from strong static evidence to explicit reachable-state closure.
+
+## OPEN
+
+1. `$0A/$0B` are defensively admitted by the active dispatcher only on `$10/$50`; the repository still lacks one explicit writer-audit statement proving no normal producer/interaction path can generate `$30/$40/$70/$D0/$E0` for those types.
+2. Full renderer-owned animation/tile/Y/attribute/X state remains outside logical runtimes except where exact lifecycle writes have been promoted.
+3. Higher-level native destination/state-machine behavior after semantic `$3D/$70` platform exits remains above the persistent entity-frame layer.
+4. NES-specific snapshot/PPU/stack/reload plumbing remains intentionally outside the clean logical frame boundary.
 
 ## NEXT
 
-**Compose the complete promoted late-object order into one persistent main-thread frame.**
+**Close reachable action-family state for primary types `$0A/$0B`.**
 
 Completion criterion:
 
-> A continuing platform frame can run the existing producer/exit/player phases, then `$9B93`, auxiliary A/B, primary A/B, one `$A22C` attack update, and one `$3C` increment with one shared attack/contact/Seventh-Sense state, while all persistent object states feed directly into the next frame.
+> Starting from every confirmed normal producer of `$0A/$0B`, every promoted action-state writer reachable during their lifecycle is accounted for, and the reachable action-family set is either proven to be exactly `{ $10, $50 }` or expanded only where direct evidence requires it.
 
 Required sequence:
 
-1. extract the already-closed primary slot A -> B body from `PlatformHybridEntityCombatSlice` into a reusable after-player pair primitive; refactor the existing hybrid slice to delegate to it with no semantic change;
-2. define a richer persistent frame state containing current primary state plus persistent `$9B93` and `PlatformAuxiliaryHazardSpawnerState`;
-3. preserve producer/exit ordering from `PlatformPersistentPrimaryEntityFrame`;
-4. on the continuing path execute pre-player/player/post-latch once;
-5. thread attack/contact/Seventh Sense through:
-   - `PlatformMultisprite9B93Runtime`;
-   - `PlatformAuxiliaryHazardInteractions.StepPair`;
-   - extracted primary A -> B primitive;
-   - `PlatformAttackFramePhases.UpdateObjectsAfterPlayer` exactly once;
-6. increment `$3C` exactly once only on the normal path;
-7. keep exceptional player early-exit semantics: producers persist, but `$9B93`, auxiliaries, primary slots, `$A22C`, and normal `$3C` advance are skipped;
-8. add discriminating order fixtures:
-   - projectile consumed by `$9B93` is invisible to auxiliary/primary classes;
-   - projectile consumed by auxiliary A is invisible to primary A/B;
-   - `$9B93` or auxiliary contact seeds `$76/$7F/$80` and suppresses later contact overwrite;
-   - newly spawned auxiliary hazards update in the same frame;
-   - `$A22C` runs once after all classes;
-9. run both verification workflows before checkpointing.
+1. audit the real producer(s) of `$0A/$0B` and record their initial action family;
+2. audit all action-state writers reached from `$10/$50`, including decision/proximity, landing, projectile interaction, player contact, post-hit `+$03`, removal and any type-aware shared helpers;
+3. explicitly distinguish action-byte writes from `+$03` motion/impulse writes;
+4. check whether the scheduled producer can ever create `$0A/$0B` or whether `$B6D0` is their only normal source;
+5. add only missing discriminating fixtures, preferably producer -> `$10` -> `$50` -> `$10` plus projectile/contact preservation, without duplicating existing coverage;
+6. update `ENTITY_TYPES_0A_0B.md` and dispatcher wording to state the evidence-backed closure while retaining defensive rejection of injected impossible states;
+7. run both verification workflows before checkpointing.
 
 ## BLOCKERS
 
-- None. All required late-object class primitives are now individually promoted.
+- None. The required producer, ordinary, fall, landing, projectile/contact and post-hit primitives are already promoted.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `persistent-complete-late-object-frame`
+- `last_next_signature`: `entity-0a0b-reachable-action-closure`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
