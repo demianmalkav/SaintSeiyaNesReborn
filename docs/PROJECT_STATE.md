@@ -2,25 +2,25 @@
 
 This file is the **single operational source of truth for `continúa`**.
 
-Technical subsystem documents remain authoritative for their own evidence and semantics. This file only answers: what checkpoint is currently accepted, what remains open, and what exact action must run next.
+Technical subsystem documents remain authoritative for their own evidence and semantics. This file answers only: what checkpoint is accepted, what remains open, and what exact action must run next.
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / persistent platform frame composition`
+- Phase: `ORIGINAL SPEC / persistent platform frame + entity-family promotion`
 - State: `READY_FOR_NEXT`
-- Last verified checkpoint: PR `#77` — persistent encounter/producer state bridged into the hybrid primary-entity frame and merged to `main`.
-- Merge commit: `0493905a74da7ea12dd445ae4d64414f6d71e17e`
-- Verification gate on exact PR head `9dfb81ad484e74191d9335c7f866a53b28ac071b`:
-  - `ORIGINAL SPEC tests` run `#219`: `SUCCESS`
-  - `Original Spec` run `#397`: `SUCCESS`
+- Last verified checkpoint: PR `#79` — exact platform-exit gate composed into the persistent main-thread frame and merged to `main`.
+- Merge commit: `d3b291f7fc2df330c073fa1209afd8b0b592c8f5`
+- Verification gate on exact final PR head `f8891c7912ce671452e721e8c785311ecbf30a58`:
+  - `ORIGINAL SPEC tests` run `#224`: `SUCCESS`
+  - `Original Spec` run `#404`: `SUCCESS`
 - Workflow hardening checkpoint: PR `#74` remains authoritative for continuation/anti-loop semantics.
 - Last material result:
-  - NMI encounter acceptance remains a distinct callable boundary;
-  - accepted/staged encounter state persists into later main-thread work;
-  - generic `$B6D0` and scheduled `$8927` producer outputs now reconcile directly into the richer hybrid slot representation;
-  - producer write-map evidence establishes that both producers reset logical `+$04`, skip `+$08`, and do not own the separate attached `$A908/$AA70` hazard record;
-  - the normal non-exit path composes producers -> player/resources -> hybrid slot A -> slot B -> late attack objects -> `$3C` advance;
-  - `$A647` retirement output can feed later producer reuse with no manual visual-state reconstruction.
+  - direct canonical-ROM inspection fixed the main-thread order as `$B6D0 -> $969D exit gate -> continuing-path $8000/$8927`;
+  - `PlatformLatchedCommonProducerPhase` now exposes that boundary as `StepCommon(...)` / `StepScheduled(...)` while retaining the old non-exit composition;
+  - `PlatformPersistentPrimaryEntityFrame.StepMainThread(...)` now returns explicit `Continued`, `State3DReload`, or `State70Special` outcomes;
+  - accepted exits preserve already-completed `$B6D0` mutations but suppress `$8927`, later player/entity processing and `$3C` advancement;
+  - the `$10` Shun rejection and `$11` special `$70` transition are regression-tested through the persistent frame;
+  - the continuing full path is semantically parity-checked against `StepMainThreadNonExit(...)`.
 
 ## DONE
 
@@ -28,111 +28,107 @@ The following boundaries are closed unless contradictory evidence appears.
 
 ### Hybrid A -> B scheduler
 
-`pre-player resources -> post-player latch -> slot A -> shared carry -> slot B -> late attack objects -> shared $3C increment`
-
-Within that boundary:
-
+- activity gate precedes semantic route selection;
 - common admitted slots use `PlatformCommonEntitySlotRuntime`;
 - `$08/$09/$0C` admitted slots use `PlatformSpecialEntityActive08090C`;
-- `PlatformCommonSlotActivityGate` executes before semantic route validation;
 - attack state, `$76/$7F/$80`, Seventh Sense and `$039A` carry A -> B in-order.
 
 ### Primary removal / occupancy lifecycle
 
-For currently promoted common and `$08/$09/$0C` removal paths:
+- confirmed removal paths compose exact `$A647` primary retirement;
+- tracked visual occupancy becomes `$FE`;
+- logical `+$00` clear obeys engine `$00 < $30`;
+- frame N retirement can feed frame N+1 gating and later producer reuse directly.
 
-- `$A647` retirement is evidence-backed from the canonical ROM;
-- tracked primary visual occupancy becomes `$FE`;
-- logical `+$00` clear obeys the original `$00 < $30` threshold;
-- frame N post-removal state can feed frame N+1 directly;
-- confirmed producer reuse of a freed slot is regression-tested.
+### Persistent producer -> hybrid state bridge
 
-### Persistent producer -> hybrid bridge
+- NMI acceptance remains separate from main-thread producers;
+- encounter latch / `$03B7`, richer slots, `$03B8`, `$03A2`, Seventh Sense, `$039A` and `$3C` persist together;
+- both promoted producers reset logical `+$04`, skip `+$08`, and do not own the attached `$A908/$AA70` hazard record;
+- producer output feeds the hybrid runtime without manual slot reconstruction.
 
-The normal active/non-exit path now owns one persistent state containing:
+### Main-thread exit split
 
-- encounter latch and staged `$03B7`;
-- richer hybrid slots A/B;
-- producer cooldown `$03B8` and scheduled-trigger latch `$03A2`;
-- Seventh Sense, `$039A` and `$3C`.
+Direct ROM order is now closed as:
+
+```text
+$C30A JSR $B6D0
+$C30F bank-1 select
+$C312 JSR $969D
+if continuing: $C319 JSR $8000
+bank-1 $800C JSR $8927
+```
 
 Closed invariants:
 
-- `StepNmi(...)` updates only the NMI-side encounter boundary and does not synthesize main-thread producer/entity work;
-- main-thread order preserves `$B6D0 -> $8927 -> later player/entity phases` on the already-confirmed non-exit path;
-- successful producer replacement resets `+$04` but preserves producer-unwritten `+$08` and the separately-owned attached hazard record;
-- producer mutations persist even if later player processing exits before the entity pipeline;
-- removal in one frame can feed producer reuse in a later frame without external slot translation.
+- `$B6D0` executes before the exit gate;
+- accepted `$3D/$70` exits preserve pre-gate mutations;
+- accepted exits do not execute `$8927`, player/entities or shared `$3C` advance;
+- rejected exits continue through the existing verified path;
+- `PlatformExitGate` remains the single source for coordinates, jump-phase, Shun and transition-kind predicates.
 
-Do **not** reopen these three boundaries merely to re-check them. Reopen only for a failing fixture, contradictory ROM evidence, or a newly promoted side effect crossing one of them.
+Do **not** reopen these boundaries merely to re-check them. Reopen only for a failing fixture, contradictory ROM evidence, or a newly promoted side effect crossing one of them.
 
 ## EVIDENCE
 
-Primary repository artifacts:
+Primary artifacts:
 
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformPersistentPrimaryEntityFrame.cs`
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformLatchedCommonProducerPhase.cs`
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformExitGate.cs`
 - `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformHybridEntityCombatSlice.cs`
 - `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformEntityRemovalA647.cs`
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformPersistentPrimaryEntityFrame.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/HybridEntityCombatSliceChecks.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/EntityRemovalA647Checks.cs`
 - `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PersistentPrimaryEntityFrameChecks.cs`
-- `docs/reverse-engineering/HYBRID_ENTITY_SLOT_SCHEDULER.md`
-- `docs/reverse-engineering/PRIMARY_ENTITY_REMOVAL_A647.md`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PersistentPrimaryEntityExitGateChecks.cs`
 - `docs/reverse-engineering/PERSISTENT_PRIMARY_ENTITY_FRAME.md`
-- merged PRs `#73`, `#74`, `#75`, `#76`, `#77`
+- `docs/reverse-engineering/PLATFORM_EXIT_GATES.md`
+- merged PRs `#73` through `#79` relevant to this composition chain.
 
-Direct canonical-ROM evidence additionally established the `$B6D0` / `$8927` spawn write maps used by the bridge; no ROM payload or extracted binary asset is committed.
-
-VERIFY note: the first PR #77 fixture run exposed a test-setup interaction with the shared `$03B8` cooldown when a `$86` encounter enabled slot B. The fixture was corrected to the intended one-slot `$06` case on the same branch. The exact final head then passed both verification workflows. No architectural rollback or repeated blind attempt was required.
+VERIFY note for PR #79: the first .NET run reached the new parity fixture and failed only because it compared the entire `Hybrid` record object, whose nested structure does not define the intended semantic equality. Persistent state and producer equality had already passed. The fixture was changed to compare observable hybrid invariants; the runtime was not changed. The exact final head then passed both workflows.
 
 ## OPEN
 
-1. The fixed-bank platform-exit gate is modeled independently but is not yet inserted into the persistent main-thread frame at its exact position between early `$B6D0` work and later `$8927` / player / entity work.
-2. Accepted exit transitions need a persistent result shape that exposes normal `$3D` reload versus special `$70` transition without pretending the subsequent NES engine reload is part of the native logical runtime.
-3. On an accepted exit, already-completed earlier producer mutations must persist while later scheduled producer/player/entity phases must not execute.
-4. Scheduled entity families `$0D/$0E` can be produced by `$8927` but are not yet promoted into the hybrid active runtime.
+1. `$8927` can produce scheduled types `$0D/$0E`, but `PlatformHybridEntityCombatSlice` currently promotes only `$08/$09/$0C` as scheduled-special active routes; `$0D/$0E` therefore remain an immediate runtime integration gap.
+2. Direct ROM dispatch shows `$0D/$0E` are **not** variants of the `$08/$09/$0C` predispatch: type checks at `$A489-$A48F` branch to `$A4BF -> $A55E`, bypassing `$A4A7-$A55B` (`+$04` / `$039A` predispatch logic).
+3. The action-family and interaction semantics reached from `$A55E` for `$0D/$0E` are not yet promoted as a closed runtime.
+4. Type `$0F` has its own jump to `$A74C` and remains separate future work.
 5. Full renderer-owned animation/tile/Y/attribute/X state remains outside this logical/occupancy runtime except for evidence-backed lifecycle writes already promoted.
+6. Higher-level native destination/state-machine behavior after semantic `$3D/$70` exit remains above this entity-frame layer.
 
 ## NEXT
 
-**Compose the exact platform-exit boundary into the persistent main-thread frame and replace the external `NonExit` precondition with an explicit normal/exit path split.**
+**Promote the scheduled `$0D/$0E` active runtime from their real `$A55E` entry path and integrate it into the hybrid scheduler without reusing the `$08/$09/$0C` predispatch.**
 
 Completion criterion:
 
-> One persistent main-thread frame API executes all confirmed work up to the exit gate in original order, evaluates `PlatformExitGate` at the evidence-backed boundary, and either (a) returns an explicit `$3D`/`$70` exit result while preserving earlier state and suppressing all later phases, or (b) continues through the already-verified scheduled-producer/player/hybrid path with behavior equivalent to `StepMainThreadNonExit(...)`.
+> A type `$0D` or `$0E` produced by `$8927` can enter the persistent/hybrid frame, execute its evidence-backed active action/interaction/removal path, carry shared combat/contact state correctly, and persist into the next frame without falling into the unsupported common dispatcher or the wrong `$08/$09/$0C` predispatch.
 
 Required sequence:
 
-1. inventory the exact call/order boundary surrounding `$B6D0`, bank-1 exit evaluation `$969D-$9713`, and scheduled producer `$8927`;
-2. reuse `PlatformExitGate` rather than duplicating coordinate/substate logic;
-3. split the current main-thread bridge so the early generic producer can run before the gate without also forcing `$8927` to run;
-4. define an explicit frame outcome distinguishing `Continued`, `State3DReload`, and `State70Special`;
-5. on accepted exit, preserve state mutations that occur before the gate and prove scheduled producer, player/entity processing and `$3C` advancement do not occur;
-6. on non-exit, prove parity with the existing `StepMainThreadNonExit(...)` path;
-7. add discriminating fixtures for:
-   - a normal `$00-$0B` `$D0/$40` exit;
-   - the `$10` Shun rejection;
-   - the `$11` special `$70` transition;
-   - early-producer mutation surviving an accepted exit;
-   - non-exit equivalence;
-8. document the engine-transition side-effect boundary rather than emulating stack/PPU/reload plumbing in the logical runtime;
-9. run both verification workflows before checkpointing.
+1. map the exact control flow for `$0D/$0E` from `$A48B/$A48F -> $A4BF -> $A55E` through action-family dispatch and the later interaction/removal boundary;
+2. identify which existing promoted common family primitives are genuinely shared and which type-specific branches require new code;
+3. prove that `$0D/$0E` bypass `$A4A7-$A55B` predispatch and therefore do not inherit `$08/$09/$0C` `+$04/$039A` behavior by assumption;
+4. create a dedicated semantic route/runtime for `$0D/$0E` rather than widening `PlatformSpecialEntityActive08090C`;
+5. integrate that route into `PlatformHybridEntityCombatSlice` behind the existing activity gate;
+6. add fixtures beginning from actual `$8927` spawn output for both `$0D` and `$0E`, including at least one interaction path and one removal/next-frame path;
+7. document unresolved type-specific renderer or auxiliary-object effects instead of inventing them;
+8. run both verification workflows before checkpointing.
 
 ## BLOCKERS
 
-- None at this checkpoint. `PlatformExitGate` and its ROM-backed coordinate/transition semantics are already modeled and documented.
+- None for the first reverse-engineering pass. The canonical ROM is available privately and the dispatcher entry split for `$0D/$0E` is already identified.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `persistent-frame-exit-gate-split`
+- `last_next_signature`: `scheduled-0d0e-active-route`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
 Rules:
 
-- A cycle counts as progress only if it produces at least one of: code, test, evidence map, discarded hypothesis, or explicit architectural decision backed by evidence.
-- If two consecutive cycles finish with the same blocker, same `NEXT`, and no new evidence, the third identical attempt is forbidden.
-- On anti-loop trigger: change technique, move to a different evidence source, or roll back to the last verified checkpoint.
+- A cycle counts as progress only if it produces code, a test/fixture, new evidence, an evidence map/table, a discarded hypothesis, or an explicit evidence-backed architectural decision.
+- If two consecutive cycles finish with the same blocker, same `NEXT`, and no new evidence, a third identical attempt is forbidden.
+- On anti-loop trigger: change technique/source or roll back to the last verified checkpoint.
 - Closed phases are not re-entered merely because uncertainty remains elsewhere.
 
 ## CONTINUE SEMANTICS
@@ -140,7 +136,7 @@ Rules:
 When the user says `continúa` with no narrower instruction:
 
 1. read this file first;
-2. verify that `Last verified checkpoint` still matches current `main` or reconcile newer merged work;
+2. verify that the latest checkpoint still matches current `main` or reconcile newer merged work;
 3. execute `NEXT` in FAST mode until a material result or real blocker;
 4. run the smallest relevant VERIFY gate;
 5. checkpoint only after verification;
