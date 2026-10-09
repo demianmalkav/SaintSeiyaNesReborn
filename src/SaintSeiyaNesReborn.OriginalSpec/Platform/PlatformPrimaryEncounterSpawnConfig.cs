@@ -16,7 +16,8 @@ public readonly record struct PlatformPrimaryEncounterSpawnConfig(
     ///
     /// Raw is preserved as Engine58 because bits 4-5 and 6-7 have runtime
     /// meaning beyond the decoded TypeId. Stats are converted back to the byte
-    /// representation written into logical offsets +$0C..+$0F.
+    /// representation written into logical offsets +$0C..+$0F:
+    /// HP, Cosmo-drain, Life-drain, Seventh-Sense reward.
     /// </summary>
     public static PlatformPrimaryEncounterSpawnConfig FromEncounter(
         PlatformPrimaryEncounter encounter)
@@ -32,8 +33,8 @@ public readonly record struct PlatformPrimaryEncounterSpawnConfig(
         var rewardBcd = PackedBcd.EncodeByte(stats.SeventhSenseReward);
         var profile = new PlatformSpecialSpawnProfile(
             HitPoints0C: (byte)stats.HitPoints,
-            LifeDrainTicks0D: stats.LifeDrainTicks,
-            CosmoDrainTicks0E: stats.CosmoDrainTicks,
+            CosmoDrainTicks0D: stats.CosmoDrainTicks,
+            LifeDrainTicks0E: stats.LifeDrainTicks,
             SeventhSenseRewardBcd0F: rewardBcd);
 
         return new PlatformPrimaryEncounterSpawnConfig(
