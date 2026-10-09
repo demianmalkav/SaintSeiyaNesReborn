@@ -13,6 +13,13 @@ public readonly record struct PlatformPersistentPrimaryEntityFrameState(
     byte GlobalCounter039A,
     byte FrameCounter3C);
 
+public enum PlatformPersistentPrimaryEntityMainThreadOutcome
+{
+    Continued,
+    State3DReload,
+    State70Special,
+}
+
 public sealed record PlatformPersistentPrimaryEntityNmiResult(
     PlatformPersistentPrimaryEntityFrameState State,
     PlatformNmiPrimaryEncounterRefreshResult NmiRefresh);
@@ -22,22 +29,34 @@ public sealed record PlatformPersistentPrimaryEntityMainThreadResult(
     PlatformLatchedCommonProducerPhaseResult Producer,
     PlatformHybridEntityCombatSliceResult Hybrid);
 
+public sealed record PlatformPersistentPrimaryEntityFullMainThreadResult(
+    PlatformPersistentPrimaryEntityFrameState State,
+    PlatformPersistentPrimaryEntityMainThreadOutcome Outcome,
+    PlatformExitTransitionKind? ExitTransition,
+    PlatformLatchedCommonProducerEarlyResult EarlyProducer,
+    PlatformLatchedCommonProducerPhaseResult? Producer,
+    PlatformHybridEntityCombatSliceResult? Hybrid)
+{
+    public bool Exited => ExitTransition.HasValue;
+}
+
 /// <summary>
 /// Persistent clean-room bridge from the already-promoted encounter/producer
 /// state into the already-promoted hybrid A->B primary-entity scheduler.
 ///
-/// NMI refresh remains a separate callable boundary. The non-exit main-thread
-/// method composes only the confirmed active-path order:
+/// NMI refresh remains a separate callable boundary. The full main-thread path
+/// now preserves the confirmed ordering around the platform exit gate:
 ///
 ///   generic producer $B6D0
-///   scheduled producer $8927
+///   platform exit gate $969D-$9713
+///   scheduled producer $8927 (continuing path only)
 ///   pre-player resources / player $AAE4
 ///   hybrid entity slot A -> slot B
 ///   late attack objects / shared $3C increment
 ///
-/// It does not model the platform-exit diversion that lies between $B6D0 and
-/// later bank-1/player work; callers must use StepMainThreadNonExit only after
-/// the active frame is known to continue past that diversion.
+/// An accepted exit is surfaced as a semantic $3D-reload or $70-special result.
+/// NES-specific snapshot/PPU/stack/reload plumbing remains outside this logical
+/// runtime boundary.
 /// </summary>
 public static class PlatformPersistentPrimaryEntityFrame
 {
@@ -68,15 +87,59 @@ public static class PlatformPersistentPrimaryEntityFrame
     }
 
     /// <summary>
-    /// Execute the confirmed producer -> player/entity path for a platform frame
-    /// that has already passed the earlier platform-exit diversion.
+    /// Execute the confirmed main-thread primary-entity path including the
+    /// platform exit diversion between $B6D0 and bank-1 $8000/$8927.
     ///
-    /// Producer mutations are reconciled back into the richer hybrid slot state
-    /// without reconstructing it from scratch. Both promoted primary producers
-    /// explicitly write logical +$04 = 0 when they spawn/replace a record, while
-    /// both skip logical +$08. The attached $A908/$AA70 hazard record is external
-    /// to the primary producer writes. Consequently successful producer spawn
-    /// resets SpecialControl04 only; ParentOffset08 and AttachedHazard persist.
+    /// Early generic-producer mutations persist even when the exit gate accepts.
+    /// On that branch the scheduled producer, player/entity pipeline and shared
+    /// frame-counter advance are not executed.
+    /// </summary>
+    public static PlatformPersistentPrimaryEntityFullMainThreadResult StepMainThread(
+        PlatformStageMap stage,
+        byte cameraLow44,
+        byte cameraHigh45,
+        int scrollX,
+        PlatformPlayerActionState playerState,
+        PlatformInput input,
+        PlatformFrameResources resources,
+        PlatformContactPhaseState contactState,
+        PlatformPersistentPrimaryEntityFrameState state,
+        IReadOnlyList<PlatformSpecialSpawnEntry> scheduledEntries,
+        PlatformHitboxParameters commonHitboxA,
+        PlatformHitboxParameters commonHitboxB,
+        byte entropy48,
+        byte cameraDelta43,
+        byte engineSubstate02,
+        byte engineState00,
+        byte alternateParent08_03AB,
+        byte engineSubstate01 = 0,
+        byte dynamicFloorY039B = 0) =>
+        StepMainThreadCore(
+            stage,
+            cameraLow44,
+            cameraHigh45,
+            scrollX,
+            playerState,
+            input,
+            resources,
+            contactState,
+            state,
+            scheduledEntries,
+            commonHitboxA,
+            commonHitboxB,
+            entropy48,
+            cameraDelta43,
+            engineSubstate02,
+            engineState00,
+            alternateParent08_03AB,
+            evaluateExitGate: true,
+            engineSubstate01,
+            dynamicFloorY039B);
+
+    /// <summary>
+    /// Compatibility entry point for callers that have independently established
+    /// the frame as non-exit. It uses the same split producer/core implementation
+    /// as StepMainThread(...) but deliberately skips exit-gate evaluation.
     /// </summary>
     public static PlatformPersistentPrimaryEntityMainThreadResult StepMainThreadNonExit(
         PlatformStageMap stage,
@@ -99,34 +162,140 @@ public static class PlatformPersistentPrimaryEntityFrame
         byte engineSubstate01 = 0,
         byte dynamicFloorY039B = 0)
     {
-        var bridge = ToEncounterBridgeState(state);
-        var producerBoundary = PlatformPrimaryEncounterRefreshAndSpawn.StepMainThread(
+        var full = StepMainThreadCore(
             stage,
             cameraLow44,
             cameraHigh45,
             scrollX,
+            playerState,
+            input,
+            resources,
+            contactState,
+            state,
+            scheduledEntries,
+            commonHitboxA,
+            commonHitboxB,
+            entropy48,
+            cameraDelta43,
+            engineSubstate02,
+            engineState00,
+            alternateParent08_03AB,
+            evaluateExitGate: false,
+            engineSubstate01,
+            dynamicFloorY039B);
+
+        if (full.Producer is null || full.Hybrid is null)
+            throw new InvalidOperationException("Non-exit compatibility path unexpectedly terminated before scheduled/player/entity phases.");
+
+        return new(full.State, full.Producer, full.Hybrid);
+    }
+
+    private static PlatformPersistentPrimaryEntityFullMainThreadResult StepMainThreadCore(
+        PlatformStageMap stage,
+        byte cameraLow44,
+        byte cameraHigh45,
+        int scrollX,
+        PlatformPlayerActionState playerState,
+        PlatformInput input,
+        PlatformFrameResources resources,
+        PlatformContactPhaseState contactState,
+        PlatformPersistentPrimaryEntityFrameState state,
+        IReadOnlyList<PlatformSpecialSpawnEntry> scheduledEntries,
+        PlatformHitboxParameters commonHitboxA,
+        PlatformHitboxParameters commonHitboxB,
+        byte entropy48,
+        byte cameraDelta43,
+        byte engineSubstate02,
+        byte engineState00,
+        byte alternateParent08_03AB,
+        bool evaluateExitGate,
+        byte engineSubstate01,
+        byte dynamicFloorY039B)
+    {
+        var bridge = ToEncounterBridgeState(state);
+
+        // Fixed/main path calls bank-0 $B6D0 before the exit gate.
+        var early = PlatformLatchedCommonProducerPhase.StepCommon(
+            stage,
+            bridge.EncounterLatch,
+            bridge.StagedDescriptor03B7,
+            scrollX,
             playerState.Horizontal.PlayerX,
             cameraDelta43,
             entropy48,
-            bridge,
+            bridge.SpawnState);
+
+        var commonSpawnedA = early.CommonEdge?.SlotA.Spawned == true;
+        var commonSpawnedB = early.CommonEdge?.SlotB?.Spawned == true;
+        var afterCommonSlotA = ReconcileProducerSlot(
+            state.SlotA,
+            early.State.EntityA,
+            early.State.VisualSpriteA,
+            commonSpawnedA);
+        var afterCommonSlotB = ReconcileProducerSlot(
+            state.SlotB,
+            early.State.EntityB,
+            early.State.VisualSpriteB,
+            commonSpawnedB);
+
+        var afterCommonState = state with
+        {
+            EncounterLatch = early.ActiveEncounter,
+            StagedDescriptor03B7 = early.StagedDescriptor03B7,
+            SlotA = afterCommonSlotA,
+            SlotB = afterCommonSlotB,
+            Cooldown03B8 = early.State.Cooldown03B8,
+            LastTriggerLow03A2 = early.State.LastTriggerLow03A2,
+        };
+
+        if (evaluateExitGate)
+        {
+            var exit = PlatformExitGate.Evaluate(
+                engineSubstate02,
+                playerState.Saint,
+                playerState.Horizontal.PlayerX,
+                playerState.PlayerY,
+                playerState.JumpPhase49);
+
+            if (exit is PlatformExitTransitionKind transition)
+            {
+                var outcome = transition switch
+                {
+                    PlatformExitTransitionKind.State3DReload => PlatformPersistentPrimaryEntityMainThreadOutcome.State3DReload,
+                    PlatformExitTransitionKind.State70Special => PlatformPersistentPrimaryEntityMainThreadOutcome.State70Special,
+                    _ => throw new ArgumentOutOfRangeException(nameof(transition), transition, null),
+                };
+
+                return new(
+                    afterCommonState,
+                    outcome,
+                    transition,
+                    early,
+                    Producer: null,
+                    Hybrid: null);
+            }
+        }
+
+        // Continuing path now enters bank-1 $8000, whose $8927 call runs the
+        // scheduled producer before later player/entity processing.
+        var producer = PlatformLatchedCommonProducerPhase.StepScheduled(
+            early,
+            cameraLow44,
+            cameraHigh45,
             scheduledEntries);
 
-        var producer = producerBoundary.MainThreadProducer;
-        var spawnedCommonA = producer.CommonEdge?.SlotA.Spawned == true;
-        var spawnedCommonB = producer.CommonEdge?.SlotB?.Spawned == true;
-        var spawnedScheduledA = producer.ScheduledSpecial?.SlotA.Spawned == true;
-        var spawnedScheduledB = producer.ScheduledSpecial?.SlotB.Spawned == true;
-
+        var scheduledSpawnedA = producer.ScheduledSpecial?.SlotA.Spawned == true;
+        var scheduledSpawnedB = producer.ScheduledSpecial?.SlotB.Spawned == true;
         var producerSlotA = ReconcileProducerSlot(
-            state.SlotA,
+            afterCommonSlotA,
             producer.State.EntityA,
             producer.State.VisualSpriteA,
-            spawnedCommonA || spawnedScheduledA);
+            scheduledSpawnedA);
         var producerSlotB = ReconcileProducerSlot(
-            state.SlotB,
+            afterCommonSlotB,
             producer.State.EntityB,
             producer.State.VisualSpriteB,
-            spawnedCommonB || spawnedScheduledB);
+            scheduledSpawnedB);
 
         var hybrid = PlatformHybridEntityCombatSlice.StepNonFatal(
             stage,
@@ -155,10 +324,8 @@ public static class PlatformPersistentPrimaryEntityFrame
         var nextSlotA = hybrid.SlotA?.State ?? producerSlotA;
         var nextSlotB = hybrid.SlotB?.State ?? producerSlotB;
 
-        var next = state with
+        var next = afterCommonState with
         {
-            EncounterLatch = producerBoundary.State.EncounterLatch,
-            StagedDescriptor03B7 = producerBoundary.State.StagedDescriptor03B7,
             SlotA = nextSlotA,
             SlotB = nextSlotB,
             Cooldown03B8 = producer.State.Cooldown03B8,
@@ -168,7 +335,13 @@ public static class PlatformPersistentPrimaryEntityFrame
             FrameCounter3C = hybrid.FrameCounterAfter3C,
         };
 
-        return new(next, producer, hybrid);
+        return new(
+            next,
+            PlatformPersistentPrimaryEntityMainThreadOutcome.Continued,
+            ExitTransition: null,
+            early,
+            producer,
+            hybrid);
     }
 
     private static PlatformPrimaryEncounterRefreshAndSpawnState ToEncounterBridgeState(
