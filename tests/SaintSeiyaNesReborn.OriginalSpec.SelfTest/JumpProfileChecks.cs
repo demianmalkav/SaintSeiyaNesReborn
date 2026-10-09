@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using SaintSeiyaNesReborn.OriginalSpec;
 using SaintSeiyaNesReborn.OriginalSpec.Platform;
 
 internal static class JumpProfileChecks
@@ -45,7 +46,6 @@ internal static class JumpProfileChecks
         Require(hyogaDirectional.PeakRisePixels == 34, "Hyoga directional peak");
         Require(hyogaDirectional.ApexFrame == 20, "Hyoga directional apex");
 
-        // Shared original tables by internal Saint index.
         Require(SequenceEqual(
             PlatformJumpProfile.Get(PlatformJumpKind.High, PlatformSaintIndex.Shun).RisePerFrame,
             PlatformJumpProfile.Get(PlatformJumpKind.High, PlatformSaintIndex.Ikki).RisePerFrame),
