@@ -24,7 +24,7 @@ public sealed record PlatformTwoCommonEntityCombatSliceResult(
 /// Ordered clean-room slice for the two common movable-entity records processed
 /// by $A442. Slot A ($03BA-$03C9) runs before slot B ($03CA-$03D9).
 ///
-/// Closed active families $10/$30/$40/$50 are dispatched independently per
+/// Closed active families $10/$30/$40/$50/$D0 are dispatched independently per
 /// entity, while attack objects, shared $76/$7F/$80 state and Seventh Sense are
 /// threaded from A into B.
 /// </summary>
@@ -254,10 +254,10 @@ public static class PlatformTwoCommonEntityCombatSlice
         }
 
         var family = entity.Motion.ActionState & 0xF0;
-        if (family is not (0x10 or 0x30 or 0x40 or 0x50))
+        if (family is not (0x10 or 0x30 or 0x40 or 0x50 or 0xD0))
         {
             throw new InvalidOperationException(
-                $"{name} action ${entity.Motion.ActionState:X2} is outside the closed active families $10/$30/$40/$50.");
+                $"{name} action ${entity.Motion.ActionState:X2} is outside the closed active families $10/$30/$40/$50/$D0.");
         }
     }
 }
