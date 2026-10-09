@@ -10,10 +10,7 @@ public readonly record struct PlatformCommonEntityHitReaction40Result(
 /// Exact type-$00-$07 hit-reaction path at bank 3 $A79E -> $A845.
 ///
 /// The action family advances $40..$4F one state per update and returns to $10.
-/// Record offset +$03 independently carries a short signed knockback counter:
-/// low nibble zero means no motion; otherwise the byte is decremented first,
-/// then remaining value >=$40 moves +4 X, otherwise -4 X.
-///
+/// Record offset +$03 is then consumed by the shared $A845 knockback helper.
 /// This route bypasses the ordinary $9915/$98BA interaction calls and does not
 /// apply camera delta $43.
 /// </summary>
@@ -34,28 +31,11 @@ public static class PlatformCommonEntityHitReaction40
             ActionState = completed ? (byte)0x10 : incrementedAction,
         };
 
-        var motion = state.StatePhase;
-        if ((motion & 0x0F) == 0)
-        {
-            return new PlatformCommonEntityHitReaction40Result(
-                state,
-                completed,
-                KnockbackAdvanced: false,
-                HorizontalDeltaApplied: 0);
-        }
-
-        motion = unchecked((byte)(motion - 1));
-        var delta = motion >= 0x40 ? 4 : -4;
-        state = state with
-        {
-            StatePhase = motion,
-            X = unchecked((byte)(state.X + delta)),
-        };
-
+        var knockback = PlatformEntityMotion3Knockback.Step(state);
         return new PlatformCommonEntityHitReaction40Result(
-            state,
+            knockback.State,
             completed,
-            KnockbackAdvanced: true,
-            HorizontalDeltaApplied: delta);
+            knockback.Advanced,
+            knockback.HorizontalDeltaApplied);
     }
 }
