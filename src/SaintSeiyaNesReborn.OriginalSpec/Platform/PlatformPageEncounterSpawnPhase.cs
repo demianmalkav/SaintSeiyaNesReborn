@@ -29,19 +29,20 @@ public sealed record PlatformPageEncounterSpawnPhaseResult(
 /// Semantic composition of the page-indexed primary encounter stream with the
 /// two confirmed producers for the shared $03BA/$03CA common-entity records.
 ///
-/// Bank 1 uses $45 as the current page index when reading the per-substate
-/// encounter descriptor. This clean-room phase mirrors that selection, then
-/// routes the accepted page encounter to either the generic bank-0 $B6D0
-/// producer or the bank-1 $8925 scheduled-special producer.
-///
-/// It intentionally does not model the earlier "safe to accept a changed
-/// descriptor into $58" latch yet. Callers should invoke this with the encounter
-/// configuration that is semantically active for the frame. Here the stage page
-/// is used as the source of that configuration so level data and producers are
-/// connected without duplicate type/tier/stat parameters.
+/// The legacy Step(...) entry point derives the producer configuration directly
+/// from the selected stage page and is retained for isolated producer tests.
+/// Frame-accurate composition must instead use StepAccepted(...), passing the
+/// configuration currently accepted in engine byte $58. That distinction is
+/// required because bank-1 $996C can stage a new page descriptor in $03B7 while
+/// deliberately keeping the previous $58/profile active until both common slots
+/// are safe.
 /// </summary>
 public static class PlatformPageEncounterSpawnPhase
 {
+    /// <summary>
+    /// Page-driven convenience entry point used by isolated producer fixtures.
+    /// It assumes the selected page encounter has already become active $58.
+    /// </summary>
     public static PlatformPageEncounterSpawnPhaseResult Step(
         PlatformStageMap stage,
         byte cameraLow44,
@@ -55,35 +56,87 @@ public static class PlatformPageEncounterSpawnPhase
         IReadOnlyList<PlatformSpecialSpawnEntry> scheduledEntries)
     {
         if (cameraHigh45 >= stage.Pages.Count)
-        {
-            return new(
-                PlatformPageEncounterSpawnRoute.None,
-                state,
-                null,
-                null,
-                null,
-                null,
-                PageOutOfRange: true,
-                EmptyEncounter: false);
-        }
+            return NoPage(state);
 
         var page = stage.Pages[cameraHigh45];
         var encounter = page.PrimaryEncounter;
         if (encounter.Raw == 0 || encounter.Stats is null)
-        {
-            return new(
-                PlatformPageEncounterSpawnRoute.None,
-                state,
-                page,
-                null,
-                null,
-                null,
-                PageOutOfRange: false,
-                EmptyEncounter: true);
-        }
+            return NoActiveEncounter(state, page);
 
         var config = PlatformPrimaryEncounterSpawnConfig.FromStagePage(page);
+        return StepWithConfig(
+            stage,
+            page,
+            config,
+            cameraLow44,
+            cameraHigh45,
+            scrollX,
+            playerX,
+            cameraDelta43,
+            entropy48,
+            spawnGate03B7,
+            state,
+            scheduledEntries);
+    }
 
+    /// <summary>
+    /// Frame-accurate producer entry point. The selected page is retained only
+    /// as spatial/context metadata; spawning is driven exclusively by the active
+    /// encounter configuration that corresponds to accepted engine $58.
+    ///
+    /// Passing null means active $58 is zero. This is intentionally independent
+    /// from the current page descriptor, which may already contain the next
+    /// staged encounter while acceptance is deferred.
+    /// </summary>
+    public static PlatformPageEncounterSpawnPhaseResult StepAccepted(
+        PlatformStageMap stage,
+        PlatformPrimaryEncounterSpawnConfig? activeEncounterConfig,
+        byte cameraLow44,
+        byte cameraHigh45,
+        int scrollX,
+        byte playerX,
+        byte cameraDelta43,
+        byte entropy48,
+        byte spawnGate03B7,
+        PlatformPageEncounterSpawnState state,
+        IReadOnlyList<PlatformSpecialSpawnEntry> scheduledEntries)
+    {
+        if (cameraHigh45 >= stage.Pages.Count)
+            return NoPage(state);
+
+        var page = stage.Pages[cameraHigh45];
+        if (activeEncounterConfig is not PlatformPrimaryEncounterSpawnConfig config)
+            return NoActiveEncounter(state, page);
+
+        return StepWithConfig(
+            stage,
+            page,
+            config,
+            cameraLow44,
+            cameraHigh45,
+            scrollX,
+            playerX,
+            cameraDelta43,
+            entropy48,
+            spawnGate03B7,
+            state,
+            scheduledEntries);
+    }
+
+    private static PlatformPageEncounterSpawnPhaseResult StepWithConfig(
+        PlatformStageMap stage,
+        PlatformStagePage page,
+        PlatformPrimaryEncounterSpawnConfig config,
+        byte cameraLow44,
+        byte cameraHigh45,
+        int scrollX,
+        byte playerX,
+        byte cameraDelta43,
+        byte entropy48,
+        byte spawnGate03B7,
+        PlatformPageEncounterSpawnState state,
+        IReadOnlyList<PlatformSpecialSpawnEntry> scheduledEntries)
+    {
         if (PlatformScheduledSpecialEntitySpawner.IsSupportedType(config.Engine58))
         {
             var scheduled = config.TryScheduledSpecialSpawn(
@@ -148,4 +201,29 @@ public static class PlatformPageEncounterSpawnPhase
             PageOutOfRange: false,
             EmptyEncounter: false);
     }
+
+    private static PlatformPageEncounterSpawnPhaseResult NoPage(
+        PlatformPageEncounterSpawnState state) =>
+        new(
+            PlatformPageEncounterSpawnRoute.None,
+            state,
+            null,
+            null,
+            null,
+            null,
+            PageOutOfRange: true,
+            EmptyEncounter: false);
+
+    private static PlatformPageEncounterSpawnPhaseResult NoActiveEncounter(
+        PlatformPageEncounterSpawnState state,
+        PlatformStagePage page) =>
+        new(
+            PlatformPageEncounterSpawnRoute.None,
+            state,
+            page,
+            null,
+            null,
+            null,
+            PageOutOfRange: false,
+            EmptyEncounter: true);
 }
