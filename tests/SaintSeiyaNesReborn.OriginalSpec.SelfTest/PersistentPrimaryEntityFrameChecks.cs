@@ -133,13 +133,15 @@ internal static class PersistentPrimaryEntityFrameChecks
 
     private static void CheckRemovalFeedsLaterProducerReuseWithoutManualRepair()
     {
-        var stage = Stage(Page(0, raw: 0x86, hp: 15));
+        // Use a one-slot encounter ($06, bit 7 clear) so slot B cannot seed the
+        // shared $03B8 cooldown while slot A is still occupied in frame 1.
+        var stage = Stage(Page(0, raw: 0x06, hp: 15));
         var active = PlatformHybridEntitySlotState.Common(
             Entity(type: 0x06, action: 0x40, x: 0x00, y: 0x50),
             visualSpritePlus1: 0x31);
         var state = PersistentState(
-            active: Config(raw: 0x86, hp: 15),
-            staged03B7: 0x86,
+            active: Config(raw: 0x06, hp: 15),
+            staged03B7: 0x06,
             slotA: active,
             slotB: FreeSlot(),
             cooldown: 0,
