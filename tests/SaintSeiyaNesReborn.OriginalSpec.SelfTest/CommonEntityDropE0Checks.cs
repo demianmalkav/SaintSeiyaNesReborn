@@ -70,6 +70,8 @@ internal static class CommonEntityDropE0Checks
             "type01 projectile overlap enters special drop reaction");
         Require(frameN.SlotA.Entity.Motion.ActionState == 0xE0,
             "drop hit stores $E0 for next frame");
+        Require(frameN.SlotA.Entity.Motion.X == 0x51,
+            "ordinary movement happens before the hit and is retained by E0");
         Require(frameN.SlotA.Entity.Motion.Y == 0x56,
             "hit reaction applies immediate +6 Y before next-frame E0 fall");
 
@@ -95,8 +97,8 @@ internal static class CommonEntityDropE0Checks
             "E0 bypasses $9915/$98BA while falling");
         Require(frameN1.SlotA.Interaction is null,
             "still-live Seiya projectile cannot hit E0 entity on the drop path");
-        Require(frameN1.SlotA.Entity.Motion.X == 0x4F && frameN1.SlotA.Entity.Motion.Y == 0x59,
-            "next E0 frame applies camera -1 and +3 fall");
+        Require(frameN1.SlotA.Entity.Motion.X == 0x50 && frameN1.SlotA.Entity.Motion.Y == 0x59,
+            "next E0 frame applies camera -1 to retained X and +3 fall");
     }
 
     private static PlatformCommonEntityRuntimeState RuntimeEntity(
