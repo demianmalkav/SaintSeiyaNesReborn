@@ -6,116 +6,132 @@ Technical subsystem documents remain authoritative for evidence and semantics. T
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / reload destination selection`
+- Phase: `ORIGINAL SPEC / normal reload destination selection`
 - State: `READY_FOR_NEXT`
-- Last verified checkpoint: PR `#96` — NMI-driven narrative states `$80-$89` and final `$3D/$E100` handoff.
-- Merge commit: `7a63447a9d3204ec13e11260192d6448a5a61262`
-- Exact final PR head: `46d49e3bb732d9d6862120303b91b645a33b8983`
+- Last verified checkpoint: PR `#98` — bounded narrative `$04=$8F` branch through `$E100` to stable engine state `$00`, substate `$00`.
+- Merge commit: `97b0a495ce707e339b5b96f3ce36ea878f7f4a33`
+- Exact final PR head: `af77331bd34c3d0f513e6fa65b2efa9f6ad93775`
 - Verification gate on that exact head:
-  - `ORIGINAL SPEC tests` run `#261`: `SUCCESS`
-  - `Original Spec` run `#451`: `SUCCESS`
+  - `ORIGINAL SPEC tests` run `#265`: `SUCCESS`
+  - `Original Spec` run `#455`: `SUCCESS`
   - build, OriginalSpec self-test and password compatibility fixture: `SUCCESS`
-- Previous checkpoints: PR `#94` closed the immediate `$3D`/special `$70->$80` post-exit boundary; PR `#92` closed primary-family reachability; PR `#90` closed the persistent normal platform frame.
+- Previous checkpoints: PR `#96` closed narrative `$80-$89`; PR `#94` closed the immediate `$3D`/special `$70->$80` post-exit boundary; PR `#92` closed primary-family reachability; PR `#90` closed the persistent normal platform frame.
 - Workflow hardening checkpoint: PR `#74` remains authoritative for continuation/anti-loop semantics.
 
 ## DONE
 
-### Immediate post-platform exit
+### Special platform/narrative chain
 
-Normal exit is closed through `$3D/$E100`; special substate `$11` is closed through the split NMI/main sequence:
-
-```text
-$70 -> $71 -> $72 -> $73 -> $74 -> $75 -> $80
-```
-
-### NMI narrative chain `$80-$89`
-
-PR #96 closes the continuation:
+Closed sequence:
 
 ```text
-$80 -> $81 -> $82 -> $83 -> $84 -> $85 -> $86 -> $87 -> $88 -> $89
+special platform exit
+ -> $70 -> $71 -> $72 -> $73 -> $74 -> $75
+ -> $80 -> $81 -> $82 -> $83 -> $84 -> $85 -> $86 -> $87 -> $88 -> $89
+ -> $04=$8F, $00/$01=$3D
+ -> $E100
 ```
 
-Confirmed semantics:
+### Narrative `$04=$8F` reload destination
 
-- main thread contributes the global `$00->$01` mirror but no dedicated `$80-$89` transition;
-- NMI routes the `$80` high-nibble family through bank-1 `$8C19`;
-- `$57` is the pre-script countdown; the `$57->1` setup seeds `$26=1` before `$8D28` can cross the text gate;
-- state `$73` uses script `$8F9C`;
-- `$80-$88` map to scripts `$8FC4,$8FEF,$901A,$9047,$9070,$9081,$90A3,$90CA,$90F1`;
-- script `$FF` terminator at `$8DDB` increments both `$00/$01` and seeds `$57/$26/$27=$80`;
-- state `$89` selects no tenth script; after the same timing gate it writes `$04=$8F`, `$00/$01=$3D` and jumps to `$E100`.
+PR #98 proves that the narrative return is not a generic multibranch reload case.
+
+Closed invariants:
+
+```text
+state $72 clears $03
+$73-$89 do not write $03
+$89 enters $E100 with $04=$8F, $00/$01=$3D, $03=$00
+$E505[$03=$00] -> $0533=$00
+```
+
+A static PRG writer audit found the established lifecycle writer of `$06AB` at `$E165`, storing `$FF`; the closed `$70-$89` sequence does not write that field. Therefore the returning narrative path necessarily follows:
+
+```text
+$E13C: $06AB != 0 -> $E257
+$E263: $04 == $8F -> $E20E
+```
+
+This bypasses the broad `$0670/$067D` generic destination branch.
+
+At `$E20E`, A still contains `$8F`, so `$068F=$8F` is selected for shared initialization. `$E214` can normalize `$050E=$0F` to `$0D` because `$0533=$00`; that side effect does not change destination state.
+
+The common commit closes as:
+
+```text
+$E22A A=$00
+$E241/$E243 -> $01/$00=$00
+$E245-$E24B -> $03=$E505[$0533=$00]=$00
+$E24F -> $05=$01
+$E254 -> $C180
+```
+
+Thus the next stable logical handoff is:
+
+```text
+engine state    $00
+engine mirror   $00
+engine substate $00
+```
 
 Artifacts:
 
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformNarrative80To89StateMachine.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/Narrative80To89Checks.cs`
-- `docs/reverse-engineering/PLATFORM_NARRATIVE_STATES_80_89.md`
-- merged PR `#96`
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformNarrative8FReload.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/Narrative8FReloadChecks.cs`
+- `docs/reverse-engineering/PLATFORM_RELOAD_MODE_8F.md`
+- merged PR `#98`
 
-Do not reopen `$70-$89` progression unless a fixture fails or contradictory ROM evidence appears.
+Do not reopen the `$8F` branch unless a fixture fails or contradictory ROM evidence appears.
 
 ## EVIDENCE
 
-Initial `$E100` audit now shows an explicit branch connected to the just-closed narrative chain:
+The normal platform exit remains distinct from the narrative return:
 
 ```text
-$E100  clear $0527
-$E105  LDA $04
-$E107  CMP #$8F
-$E109  BEQ $E10E
+normal accepted platform exit
+ -> clear $04
+ -> snapshot Saints
+ -> $00/$01=$3D
+ -> $E100
 ```
 
-Thus the `$89` output `$04=$8F` is a first-class reload selector, not incidental state.
+For this normal path, the same established lifecycle value `$06AB=$FF` means `$E100` reaches `$E257`, but `$04=$00` does **not** take either exceptional `$FF` or `$8F` branch. Control continues into the generic destination logic beginning at `$E26A`, where `$0670` and later persistent progression fields can matter.
 
-Later in the same routine, when the `$06AB` branch reaches `$E257`, `$04=$8F` is checked again:
-
-```text
-$E25A  LDA $04
-$E25C  CMP #$FF
-...
-$E263  CMP #$8F
-$E265  BNE ...
-$E267  JMP $E20E
-```
-
-The common reload commit path at `$E22C-$E254` eventually writes the selected next engine state into both `$00/$01`, derives `$03` through the `$E505` table, sets `$05=1`, resets the stack and returns to the main loop at `$C180`.
-
-This selector has not yet been reduced into a deterministic clean-room result for the `$04=$8F` case.
+This generic warm-reload path has not yet been reduced to the set of outputs reachable specifically from normal platform exits.
 
 ## OPEN
 
-1. Exact `$E100` logical output for the special narrative return selector `$04=$8F` is not yet promoted.
-2. `$E100` is a broad reload path and also handles generic platform/stage transitions; those other selectors should not be conflated with the `$8F` case.
-3. The roles of persistent fields such as `$06AB`, `$0670`, `$067D`, `$050E/$0533` in choosing the stable output state need to be mapped only as far as required by the `$8F` path.
-4. Generic normal `$3D` destination selection remains a later boundary after the `$8F` case is closed.
-5. Renderer/audio/stack internals remain outside logical parity unless they change destination state.
+1. Normal platform exits enter `$E100` with `$04=$00`; their reachable stable destination states are not yet promoted.
+2. The generic warm branch at `$E26A+` reads `$0670` and can later inspect additional persistent progression fields. Their meanings and reachable combinations need to be traced only for normal platform-exit inputs.
+3. Cold/generic `$06AB=0` initialization remains outside the next boundary unless normal platform exits can actually reach it; current lifecycle evidence says they cannot.
+4. `$04=$FF` reload behavior is a separate selector and should not be conflated with normal `$04=$00` exits.
+5. Renderer/audio/stack/banked initialization remains outside logical parity unless it changes destination selection.
 
 ## NEXT
 
-**Close the `$04=$8F` branch through `$E100` to its next stable engine state.**
+**Close the warm normal-platform `$04=$00` branch through `$E100` to its reachable stable engine-state outputs.**
 
 Completion criterion:
 
-> Starting from the exact state produced by `$89` (`$04=$8F`, `$00/$01=$3D`), identify the persistent selector inputs that materially affect `$E100`, derive every reachable logical output of the `$8F` branch through the common commit at `$E22C-$E254`, and promote that handoff without modeling unrelated reload cases.
+> Starting from a confirmed normal `State3DReload` platform exit (`$04=$00`, `$00/$01=$3D`) in the established lifecycle (`$06AB=$FF`), enumerate only the persistent selector combinations that are actually reachable from platform play, derive every resulting value committed at `$E22C-$E254`, and promote the normal-exit handoff without modeling unrelated `$04=$FF/$8F` or cold `$06AB=0` cases.
 
 Required sequence:
 
-1. trace the two `$04=$8F` checks at `$E105` and `$E263` and the conditions that determine whether `$E257` is reached;
-2. map only the `$8F`-relevant selector fields (`$06AB`, `$0670`, `$067D`, `$050E/$0533`, and any directly required dependencies);
-3. identify the value pushed into the common `$E22C` commit path and therefore written to `$00/$01`;
-4. identify the corresponding `$03` value selected through `$0533 -> $E505`;
-5. implement a semantic `$8F` reload result with explicit branches where the ROM genuinely has more than one reachable output;
-6. add discriminating fixtures for each reachable `$8F` outcome;
-7. document scope gaps and run both verification workflows.
+1. trace `$E257->$E26A+` for `$04=$00` and identify every field that can affect the value eventually pushed into the common commit;
+2. map `$0670` writes/meaning along promoted platform gameplay and determine its reachable values at accepted exits;
+3. follow only additional selectors reachable from those `$0670` cases (`$06B8`, `$050E`, `$0533`, `$067D`, `$0673/$06CC`, or others if direct evidence requires them);
+4. derive the destination `$00/$01` and final `$03` for each reachable normal-exit case;
+5. keep cold `$06AB=0`, `$04=$FF`, renderer and bank-loading internals outside scope unless they alter those outputs;
+6. add discriminating fixtures for each genuinely reachable normal-exit outcome;
+7. document the selector map and run both verification workflows.
 
 ## BLOCKERS
 
-- None. The canonical ROM and fixed-bank `$E100` path are available.
+- None. Canonical ROM and the complete fixed-bank `$E100` path are available.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `e100-mode04-8f-destination`
+- `last_next_signature`: `e100-normal-platform-warm-destination`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
