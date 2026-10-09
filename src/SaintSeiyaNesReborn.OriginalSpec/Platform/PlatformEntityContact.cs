@@ -21,17 +21,20 @@ public readonly record struct PlatformEntityContactResult(
 }
 
 /// <summary>
-/// Exact ordinary entity-to-player contact gate at bank 3 $98BA-$9914.
+/// Exact entity-to-player contact gate at bank 3 $98BA-$9914.
 ///
-/// This routine is called from the common entity path with parameters prepared
-/// by $9915: $79=$10, $7A=$08, $7B=$0E, $7C=$04. The reduction below keeps the
-/// resulting 8-bit comparison arithmetic literal instead of replacing it with a
-/// generic modern rectangle intersection.
+/// The routine is parameterized through scratch bytes $79-$7C. Common movable
+/// entities prepare $10/$08/$0E/$04; auxiliary $9761 slots prepare
+/// $04/$04/$03/$03. Keeping the parameters explicit avoids turning two original
+/// collision geometries into one modern rectangle approximation.
 /// </summary>
 public static class PlatformEntityContact
 {
     public const byte ContactLatchSeed = 0x20;
     public const byte ContactSoundId = 0x26;
+
+    public static PlatformHitboxParameters OrdinaryContactParameters =>
+        new(0x10, 0x08, 0x0E, 0x04);
 
     public static PlatformEntityContactResult EvaluateOrdinary(
         byte frameStartAction4E,
@@ -41,7 +44,28 @@ public static class PlatformEntityContact
         byte entityY,
         byte currentHazardLatch76,
         byte entityLifeDrainTicks,
-        byte entityCosmoDrainTicks)
+        byte entityCosmoDrainTicks) =>
+        Evaluate(
+            frameStartAction4E,
+            playerX,
+            playerY,
+            entityX,
+            entityY,
+            currentHazardLatch76,
+            entityLifeDrainTicks,
+            entityCosmoDrainTicks,
+            OrdinaryContactParameters);
+
+    public static PlatformEntityContactResult Evaluate(
+        byte frameStartAction4E,
+        byte playerX,
+        byte playerY,
+        byte entityX,
+        byte entityY,
+        byte currentHazardLatch76,
+        byte entityLifeDrainTicks,
+        byte entityCosmoDrainTicks,
+        PlatformHitboxParameters box)
     {
         if (PlatformActionState.Family(frameStartAction4E) == (byte)PlatformActionFamily.Special40)
             return NoContact(PlatformEntityContactOutcome.FrameStartSpecial40Immune, currentHazardLatch76);
@@ -49,25 +73,25 @@ public static class PlatformEntityContact
         if (playerY >= 0x90)
             return NoContact(PlatformEntityContactOutcome.PlayerBelowActiveRegion, currentHazardLatch76);
 
-        // $98C8-$98E0 with $79=$10 and $7B=$0E:
-        // temp = byte(entityY + 16)
-        // lower = byte(temp - 14 - 30) = byte(entityY - 28)
-        // upper = byte(temp + 14)      = byte(entityY + 30)
-        // accept only lower < playerY <= upper (unsigned byte compares).
-        var verticalTemp = unchecked((byte)(entityY + 0x10));
-        var verticalLower = unchecked((byte)(verticalTemp - 0x0E - 0x1E));
-        var verticalUpper = unchecked((byte)(verticalTemp + 0x0E));
+        // $98C8-$98E0:
+        // temp = byte(entityY + $79)
+        // lower = byte(temp - $7B - $1E)
+        // upper = byte(temp + $7B)
+        // accept only lower < playerY <= upper.
+        var verticalTemp = unchecked((byte)(entityY + box.VerticalOrigin79));
+        var verticalLower = unchecked((byte)(verticalTemp - box.VerticalExtent7B - 0x1E));
+        var verticalUpper = unchecked((byte)(verticalTemp + box.VerticalExtent7B));
         if (verticalLower >= playerY || verticalUpper < playerY)
             return NoContact(PlatformEntityContactOutcome.OutsideVerticalWindow, currentHazardLatch76);
 
-        // $98E2-$98FA with $7A=$08 and $7C=$04:
-        // temp = byte(entityX + 8)
-        // lower = byte(temp - 4 - 12) = byte(entityX - 8)
-        // upper = byte(temp + 4)      = byte(entityX + 12)
+        // $98E2-$98FA:
+        // temp = byte(entityX + $7A)
+        // lower = byte(temp - $7C - $0C)
+        // upper = byte(temp + $7C)
         // accept only lower < playerX <= upper.
-        var horizontalTemp = unchecked((byte)(entityX + 0x08));
-        var horizontalLower = unchecked((byte)(horizontalTemp - 0x04 - 0x0C));
-        var horizontalUpper = unchecked((byte)(horizontalTemp + 0x04));
+        var horizontalTemp = unchecked((byte)(entityX + box.HorizontalOrigin7A));
+        var horizontalLower = unchecked((byte)(horizontalTemp - box.HorizontalExtent7C - 0x0C));
+        var horizontalUpper = unchecked((byte)(horizontalTemp + box.HorizontalExtent7C));
         if (horizontalLower >= playerX || horizontalUpper < playerX)
             return NoContact(PlatformEntityContactOutcome.OutsideHorizontalWindow, currentHazardLatch76);
 
