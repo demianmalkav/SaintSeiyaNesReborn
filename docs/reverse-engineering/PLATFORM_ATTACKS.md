@@ -2,74 +2,136 @@
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: static reconstruction. Object allocation, generic projectile motion, Shun-like extend/retract behavior and Cosmo-range tables are directly established by code. Character identity labels are only promoted where a mechanic/stat combination is unique enough to cross-identify safely.
+Status: attack input/latch, busy cadence, slot allocation, origin, range, generic `$64/$65` projectile update and Shun `$54/$55` extend/retract update are statically reconstructed and represented in clean-room executable code.
 
-## Attack entry
+## Attack entry — bank 3 `$BBCA+`
 
-Bank 3 `$BBCA+` is the platform B-button attack path.
+`$3D & $40` is the live B input.
 
-- `$3D & $40` is B.
-- `$4C` is a B-button latch: one press creates at most one attack until B is released.
-- `$4B` is an attack busy/cooldown counter. Bank 1 `$926C` advances non-zero values and wraps at 8.
-- a successful attack sets `$4B = 1`.
-- attack origin Y comes from `$BCC2`: `player_y + 7`, plus another 8 pixels while the frame-start action snapshot `$4E` is crouch family `$20`.
-- facing is copied from `$42`.
-- initial X is approximately `player_x + $12` when facing right or `player_x - 9` when facing left.
+Two global bytes gate creation:
 
-This gives REBORN a clean semantic separation: input latch, cooldown, projectile allocation, origin, facing and per-Saint behavior are independent concepts even though the NES implementation stores them compactly.
+- `$4C` — B-button latch;
+- `$4B` — attack busy/cooldown counter.
 
-## Projectile/object slots
+### B latch ordering
 
-The attack code allocates objects from three 8-byte records rooted at:
+The exact ordering is important:
 
-- `$0730`
-- `$0738`
-- `$0740`
+1. if B is not held, `$4C=0` and return;
+2. if B is held and `$4C!=0`, return;
+3. otherwise set `$4C=1` **immediately**;
+4. only then test `$4B`, slot availability and player Y.
 
-The byte at offset `+1` acts as a type/active marker; `$FE` is used as an inactive marker in this subsystem.
+Consequences:
 
-Allocation policy depends on `$03` (engine Saint index):
+- pressing B while the busy counter is nonzero consumes the press;
+- pressing B when all permitted slots are occupied consumes the press;
+- pressing B at an invalid low-screen Y also consumes the press;
+- in all those cases B must be released before another attempt.
 
-- indices `0,1,2`: primary slot `$0730` only;
-- index `4`: can use `$0738`, then fall back to `$0730`;
-- index `3`: can use `$0740`, then `$0738`, then `$0730`.
+This is an input-latch rule, not merely a projectile cooldown.
 
-Thus index 3 can sustain three concurrent ordinary attack objects and index 4 two. This is a concrete implementation of character-specific attack cadence/capacity rather than just cosmetic animation.
+### Busy counter `$4B`
 
-## Generic projectile
+A successful creation sets:
 
-For every Saint except engine index 1, creation writes projectile type `$64`.
+`$4B = 1`.
 
-Updater `$A250+` recognizes `$64/$65` as a moving projectile family. In the generic path:
+Bank 1 `$926C` advances a nonzero value once per relevant update:
 
-- the projectile moves by 3 pixels per update along facing;
-- a per-object lifetime/range counter is decremented;
-- when the counter expires or the projectile leaves the valid horizontal region, the object is retired with `$FE/$F0` markers.
+`1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 0`.
 
-The animation tile/type toggles with frame parity for several projectile families.
+Zero remains zero.
 
-## Engine index 1 — extend/retract two-part attack
+Thus the original uses a compact seven-step busy cycle while the B latch separately prevents autorepeat from a held button.
 
-Engine index 1 is structurally unique.
+## Slot selection
 
-Creation at `$BC40+` writes type `$54` instead of `$64`, initializes `$0391 = 5`, and uses two object records. Bank 3 `$A311+` then performs a two-phase motion:
+Attack objects use three 8-byte records:
 
-1. **extension** — while range counter `$038E` is non-zero, decrement it and add 5 to `$0391` each update;
-2. **retraction** — after the outward counter reaches zero, subtract 5 from `$0391` each update;
-3. both object positions are rebuilt symmetrically around the player using that extension distance;
-4. when the extension distance becomes negative, both attack objects are retired.
+- slot 0: `$0730-$0737`, lifetime/range `$038E`;
+- slot 1: `$0738-$073F`, lifetime/range `$038F`;
+- slot 2: `$0740-$0747`, lifetime/range `$0390`.
 
-The two visible attack parts therefore move away from the player and subsequently return toward the player. This is not generic projectile behavior.
+Record offset `+1` is the type/active marker; `$FE` is inactive.
 
-That mechanic uniquely matches **Shun's chain attack**, and external gameplay documentation independently describes Shun's Cosmo attack as returning. Engine Saint index **1 is therefore identified as Shun with high confidence**.
+Allocation order by internal platform Saint index `$03`:
 
-## Cosmo-dependent range/lifetime table
+| index | Saint | allocation order |
+|---:|---|---|
+| 0 | Seiya | slot 0 |
+| 1 | Shun | slot 0 |
+| 2 | Hyoga | slot 0 |
+| 3 | Shiryu | slot 2 -> slot 1 -> slot 0 |
+| 4 | Ikki | slot 1 -> slot 0 |
 
-For indices 0–3, `$BC73+` reads the hundreds digit of the current Saint's Cosmo, groups it into five brackets, combines the bracket with Saint index, and indexes the 20-byte table at `$BCAE`.
+Therefore the original engine already gives Shiryu capacity for three ordinary concurrent attack objects and Ikki capacity for two. This is a gameplay distinction, not just an OAM implementation accident.
 
-Rows are Cosmo-hundreds brackets; columns are engine indices 0..3:
+If no permitted slot has type `$FE`, creation stops before sound playback.
 
-| Cosmo hundreds | idx 0 | idx 1 | idx 2 | idx 3 |
+## Sound and height rejection
+
+After a slot has been selected, the game requests an attack sound:
+
+- ordinary Saints: `$24`;
+- Shun/index 1: `$34`.
+
+Only **after sound playback** does `$BC30` reject creation when:
+
+`player_y >= $90`.
+
+A height-rejected attack therefore:
+
+- has already consumed B latch `$4C`;
+- can play its attack sound;
+- does not set busy `$4B`;
+- does not initialize the selected object.
+
+## Successful creation
+
+A valid attack sets `$4B=1` and initializes the chosen record.
+
+### Origin Y — `$BCC2`
+
+Base origin:
+
+`player_y + 7`.
+
+If frame-start action snapshot `$4E` is **exactly** `$20`:
+
+`player_y + 15`.
+
+This is an exact equality test, not a generic `$2x` family test.
+
+### Origin X and facing
+
+Facing is copied from `$42`.
+
+- facing bit `$40` set/right: `player_x + $12`;
+- facing bit clear/left: `player_x - 9` (`+$F7` in 8-bit arithmetic).
+
+### Object type
+
+- Shun/index 1: `$54` and `$0391=5`;
+- all other Saints: `$64`.
+
+### Grounded movement-state reset
+
+After creation, if frame-start action `$4E` is in family `$10-$1F` **and** jump phase `$49==0`, current action `$4D` is reset to zero.
+
+This lets an ordinary grounded-moving attack return the player toward neutral without applying the same reset while airborne.
+
+## Cosmo-dependent lifetime/range
+
+For Saints 0–3 in ordinary platform substates, `$BC73+` reads the high packed-BCD Cosmo byte (`$64 + 2*index`), extracts the hundreds digit, groups it in pairs, and indexes `$BCAE`.
+
+Equivalent clean-room rule:
+
+`bracket = floor((Cosmo / 100) / 2)`.
+
+Table:
+
+| Cosmo hundreds | Seiya 0 | Shun 1 | Hyoga 2 | Shiryu 3 |
 |---|---:|---:|---:|---:|
 | 0–1 | 3 | 1 | 4 | 6 |
 | 2–3 | 6 | 3 | 10 | 10 |
@@ -77,40 +139,133 @@ Rows are Cosmo-hundreds brackets; columns are engine indices 0..3:
 | 6–7 | 24 | 12 | 22 | 18 |
 | 8–9 | 48 | 16 | 28 | 22 |
 
-Engine index 4 bypasses the table and uses fixed value `60`.
+Two paths bypass the table and use fixed value `60`:
 
-The exact real-world distance represented by one lifetime unit depends on projectile type/update cadence, but the relative design is already explicit.
+- Ikki/index 4;
+- engine substate `$01 >= $30`.
 
-## Character-index reconstruction
+The second condition was missing from an earlier provisional description and is now explicitly preserved.
 
-Current identity evidence:
+## Generic projectile `$64/$65` — `$A250+`
 
-| Engine index | Identity | Evidence status |
-|---:|---|---|
-| 0 | Seiya | strong cross-validation: uniquely largest high jump (103 px) and strongest Cosmo range growth (up to 48), matching documented Seiya traits |
-| 1 | Shun | high confidence: unique extend/retract two-part attack mechanically identifies the chain; also has higher jump profile |
-| 2 | Hyoga | strong inference by remaining trait profile: enhanced projectile range without multi-slot rapid-fire allocation |
-| 3 | Shiryu | strong inference: three simultaneous ordinary projectile slots implement the strongest rapid-fire capacity |
-| 4 | Ikki | high confidence: unique new-game 499 Life / 499 Cosmo record plus two-slot attack capacity and fixed long range 60 |
+For non-Shun Saints, attack slots are sent through the common object updater. Type `$64/$65` is recognized by masking bit 0.
 
-The index-2 / index-3 distinction should remain `INFERRED` until one more ROM-internal identity anchor (portrait/name/character-specific graphics or technique data) is tied to the same indices.
+### Correction: movement is 5 px/update
 
-## Why this matters for REBORN
+The exact branch is:
 
-The original already gives the Bronze Saints different *mechanical identities*:
+`$A266: LDX #$05`.
 
-- projectile range responds differently to Cosmo;
-- concurrent attack capacity differs;
-- Shun has a genuinely different two-part returning weapon model;
-- attack origin changes while crouched;
-- projectile motion is stateful and directional.
+Therefore the generic attack projectile moves **5 pixels per update**, not 3. The earlier 3-pixel note was incorrect; `3` belongs to other object families handled by the same updater.
 
-A modern implementation should preserve those semantic differences while replacing OAM-slot scarcity and coarse 3/5-pixel increments with richer hitboxes, animation and effects.
+### Update ordering
 
-## Next targets
+For `$64/$65`:
 
-1. tie indices 2/3 conclusively to Hyoga/Shiryu using ROM-internal graphics/text/technique evidence;
-2. identify hitbox dimensions and enemy-hit resolution for `$64/$54` families;
-3. map projectile damage and Cosmo consumption, if any, in platform mode;
-4. determine whether concurrent slots alter cooldown or only permit another B press after the global 8-count busy interval;
-5. produce parity tests for projectile creation, movement, retraction and retirement.
+1. decrement the slot's lifetime/range byte;
+2. if the new value is zero, retire immediately — no movement that update;
+3. set visible type to `$64 + ($3C & 1)`, toggling `$64/$65` with frame parity;
+4. move X by 5 according to facing;
+5. write an auxiliary X 8 px behind/ahead of the moved coordinate;
+6. if moved X enters `$F8-$FF`, retire.
+
+Thus a starting range of 3 produces two 5-pixel movement updates before retirement on the third update, barring edge removal.
+
+Facing semantics:
+
+- facing clear/left: `X -= 5`, auxiliary `X + 8`;
+- facing `$40`/right: `X += 5`, auxiliary `X - 8`.
+
+Generic retirement writes:
+
+- Y/offset 0 = `$F0`;
+- type/offset 1 = `$FE`;
+- offset 4 = `$F0`;
+- offset 5 = `$FE`.
+
+## Shun chain `$54/$55` — `$A311+`
+
+Shun does not update attack slots through the generic `$64` path. If slot 0 is type `$54`, `$A311` maintains a two-part extend/retract chain.
+
+Creation initializes:
+
+- slot 0 type `$54`;
+- slot 0 range counter `$038E` from the Cosmo table;
+- extension `$0391 = 5`.
+
+### Extension
+
+While `$038E != 0`:
+
+1. decrement `$038E`;
+2. add 5 to `$0391`;
+3. rebuild both chain segment positions around the **current** player position.
+
+Note that when range changes `1 -> 0`, that same update still performs one final `extension += 5`. Retraction starts on the following update.
+
+### Retraction
+
+Once `$038E == 0`:
+
+`$0391 -= 5` per update.
+
+Value zero remains active for one rebuilt frame. On the next subtraction, the 8-bit result has the sign bit set and both chain segments are retired.
+
+Shun retirement writes Y `$F0` and type `$FE` to slots 0 and 1.
+
+### Dynamic two-part positions
+
+`$BCC2` is called every chain update, so both segments track the player's current attack-origin Y rather than keeping creation Y.
+
+Slot 1 becomes type `$55` and copies slot 0 facing.
+
+For right facing:
+
+- near segment (slot 1): `player_x + $10 + extension`;
+- far segment (slot 0): `near + 8`.
+
+For left facing:
+
+- near segment: `player_x - 8 - extension`;
+- far segment: `near - 8`.
+
+If the **far** segment enters `$F8-$FF`, the engine forces `$038E=0`, causing retraction to begin on the next update.
+
+This is a genuinely different weapon model, not a reskinned generic projectile, and is a ROM-internal mechanical anchor for Shun/index 1.
+
+## Character mechanical identity
+
+With the character-index map now independently reconstructed, the attack subsystem can be named directly:
+
+- Seiya: one generic slot, range grows most strongly with Cosmo;
+- Shun: one initiating slot plus synthesized returning two-part chain;
+- Hyoga: one generic slot with comparatively long range table;
+- Shiryu: three-slot allocation chain;
+- Ikki: two-slot allocation and fixed range 60.
+
+These differences should survive REBORN even after NES slot limits and coarse sprite movement are replaced by modern animation/hitboxes.
+
+## Clean-room executable implementation
+
+`PlatformAttackSystem` models:
+
+- B latch and rejection ordering;
+- busy cadence;
+- per-Saint slot selection;
+- sound timing versus height rejection;
+- attack origins;
+- Cosmo range table and fixed-60 bypasses;
+- generic `$64/$65` update at 5 px;
+- retirement markers;
+- Shun extension/retraction and dynamic two-segment reconstruction;
+- grounded moving-family reset after attack.
+
+No ROM data blob is embedded; only reconstructed semantic constants/tables needed for parity are represented.
+
+## Remaining targets
+
+1. compose attack processing into the frame-level platform session at the exact `$AAE4 -> $BBCA -> later $A22C` ordering;
+2. isolate projectile/enemy hitbox tests and hit consumption;
+3. connect `PlatformDamage` to the exact object-hit branch;
+4. identify whether any special platform modes consume Cosmo differently when firing;
+5. preserve the original compatibility behavior while designing richer REBORN attack animation, collision shapes and effects.
