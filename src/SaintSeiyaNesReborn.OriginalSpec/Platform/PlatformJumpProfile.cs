@@ -40,7 +40,7 @@ public sealed class PlatformJumpProfile
             if (cumulative > peak)
             {
                 peak = cumulative;
-                apexFrame = i + 1; // human-facing frame number
+                apexFrame = i + 1;
             }
         }
 
@@ -58,7 +58,7 @@ public sealed class PlatformJumpProfile
 
     public int CumulativeRiseAfterFrames(int frameCount)
     {
-        if (frameCount is < 0 || frameCount > int.MaxValue)
+        if (frameCount < 0)
             throw new ArgumentOutOfRangeException(nameof(frameCount));
 
         var count = Math.Min(frameCount, _risePerFrame.Length);
