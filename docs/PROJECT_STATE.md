@@ -2,37 +2,47 @@
 
 This file is the **single operational source of truth for `continúa` / `next`**.
 
-Technical subsystem documents remain authoritative for evidence and semantics. This file records the accepted checkpoint, open boundaries and one executable `NEXT`.
+Technical subsystem documents remain authoritative for detailed evidence and semantics. This file records the accepted checkpoint, open boundaries and one executable `NEXT`.
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / engine state $50 modal subsystem`
+- Phase: `ORIGINAL SPEC / global engine-state reachability closure`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#117` — reachable scene/battle engine-state graph `$30-$4F`, including entry from `$50`, exact reachable-state partition, Start handoff and terminal return to `$50`.
-- Merge commit: `1ec9af023f4f579452613ff3eddeac45570ddbbf`
-- Exact final PR head: `3cc0265e7916fae1b3fbc25b71a08972baa34f33`
+- Last verified technical checkpoint: PR `#119` — exact global engine state `$50` front-end/title modal shell, executable CHR-to-RAM overlays, password bridge, and semantic correction of `$30-$4D` as the front-end attract/presentation loop.
+- Merge commit: `8e63d2467a878eaef24e94d07b3240e7f16b9e37`
+- Exact final PR head: `a93e175db2098b658606b0cdde69bc9a94e78554`
 - Verification gate on that exact head:
-  - `ORIGINAL SPEC tests` run `#304`: `SUCCESS`
-  - `Original Spec` run `#497`: `SUCCESS`
-  - build, OriginalSpec self-test and password compatibility fixture: `SUCCESS`
-- PR `#115` closed engine family `$91-$99`.
+  - `ORIGINAL SPEC tests` run `#308`: `SUCCESS`
+  - `Original Spec` run `#502`: `SUCCESS`
+  - build: `SUCCESS`, 0 errors
+  - OriginalSpec self-test: `SUCCESS`
+  - password compatibility fixture: `SUCCESS`
+- PR `#117` remains structurally authoritative for the `$30-$4D` transition graph, but its broad `scene/battle` semantic label is superseded by PR #119: that graph is the front-end attract/presentation loop.
+- PR `#115` closed `$91-$99`.
 - PR `#113` closed fatal resource state `$60` and reload `$04=$FF`.
-- PR `#111` closed engine family `$11-$14`.
-- PR `#109` closed the fixed-bank global `$00/$01` bootstrap/main/NMI dispatcher map.
-- PR `#107` closed special-normal platform exits `$02=$0C-$10`.
-- PR `#104` closed principal normal warm-reload destinations.
-- PR `#102` closed the interactive `$F025 <-> $A275` warm-reload selector.
-- PRs `#94/#96/#98` remain authoritative for `$70-$89` narrative and `$04=$8F` reload.
+- PR `#111` closed `$11-$14`.
+- PR `#109` closed the top-level fixed-bank bootstrap/main/NMI dispatcher partition.
+- PRs `#94/#96/#98/#102/#104/#107` remain authoritative for platform exits, narrative reloads, selector and normal reload destinations.
 
 ## DONE
 
-### Platform / reload foundations
+### Global machine families already closed
 
-Platform state `$20`, exit family `$02=$00-$11`, warm-reload selector, stable normal reload destinations `$00/$10/$90`, narrative `$70-$89`, narrative reload `$8F`, and fatal reload `$FF` are closed at the semantic level required by ORIGINAL SPEC.
+The following reachable engine-state regions now have promoted semantic models and fixtures:
 
-### Global dispatcher — PR #109
+```text
+$00 bootstrap -> platform $20
+$10 bootstrap -> $11-$14
+$20 platform/gameplay
+$30,$31-$38,$40-$4D front-end attract/presentation loop
+$50 front-end/title modal shell
+$60 fatal platform resource failure
+$70-$89 promoted narrative/post-exit paths
+$90 bootstrap -> $91-$99
+$3D reload bridge
+```
 
-The fixed-bank bootstrap/main/NMI partition is closed. Key promoted bootstrap successors are:
+Known bootstrap/reload successors remain:
 
 ```text
 reload $00 -> $20
@@ -40,188 +50,171 @@ reload $10 -> $11
 reload $90 -> $91
 ```
 
-### Engine family `$11-$14` — PR #111
+### Front-end/title modal shell `$50` — PR #119
 
-Closed end-to-end. `$11` either returns to normal `$3D` reload or generates/displays password text through `$12->$13->$14`; `$14` is absorbing under normal main/NMI execution.
+Cold reset and completed attract playback enter paired global `$50` at `$0200=$00`.
 
-### Resource failure state `$60` — PR #113
-
-Fatal Life/Cosmo drain from platform `$20` converges on the sole reachable state `$60`, advances failure timer `$4D=$D0..DF`, exits through `$04=$FF`, marks the defeated Saint in `$0673`, and composes with promoted reload logic to stable `$00/$90` or the already-known Saga selector.
-
-### Engine family `$91-$99` — PR #115
-
-Closed from reload `$90` through text, countdown/input and NMI presentation states to absorbing `$99`.
-
-### Scene/battle graph `$30-$4F` — PR #117
-
-The global outer scaffold surrounding battle/presentation is now closed.
-
-#### Entry
-
-Canonical scene resume is produced by exact state `$50` main mode:
+Reachable modal set is exactly:
 
 ```text
-$DA5C  LDY #$30
-$DA5E  LDA $0200
-$DA61  CMP #$06
-$DA63  BEQ $DA9D
-...
-$DA9D  STY $00
-$DA9F  STY $01
-$DAA1  JMP $C1D0
+$0200 = $00-$09
 ```
 
-`$C1D0->$D5DA` immediately increments live `$00` from `$30` to `$31`; `$C220` synchronizes `$01` before the ordinary dispatcher runs. Therefore `$30` is reachable only as a bootstrap transient and paired `$31/$31` is the first dispatch-ready scene state.
-
-#### Reachable state set
+Normal front-end progression:
 
 ```text
-$30,
-$31-$38,
-$40-$4D
+$50:$00 -> $01 -> $02 -> $03 -> $04 -> $05
 ```
 
-Canonical unreachable values inside the structural dispatcher range:
+Newly pressed Start redirects intro substates `$00-$04` to ready step `$05` through bank-0 `$8857`.
+
+Ready step `$05` rewrites `$0202` every observing NMI from newly pressed directional edges:
 
 ```text
-$39-$3F
-$4E-$4F
+Up/default -> $0202=0
+Down       -> $0202=1
 ```
 
-#### Main/NMI graph
+`$0202` is therefore a one-sample branch selector, not a persistent cursor.
+
+The complete control split is:
 
 ```text
-$50 resume ($0200=$06)
- -> transient $30
- -> $31
- -> $32
- -> $33
- -> $34
- -> NMI -> $35
- -> $36
- -> $37
- -> $38
- -> direct write $40
- -> $41 -> $42 -> $43 -> $44 -> $45 -> $46
- -> $47 -> $48 -> $49 -> $4A -> $4B -> $4C -> $4D
- -> $50
+$05 --scripted front-end event--> $06
+$06 --$0201=1/commit-----------> paired global $30
+                                     |
+                                     v
+                              $31 ... $4D
+                                     |
+                                     +----> $50:$00
+
+$05 --Start--> $07
+                |
+                +-- $0202=0 --> paired global $10
+                |
+                +-- $0202=1 --> password entry $09
+                                     |
+                                invalid -> $09
+                                valid   -> $08
+                                           |
+                                           +--> restored paired global $10
 ```
 
-Exact promoted gates:
+Start during `$30-$4D` writes paired `$50` and enters `$0200=$05`, returning directly to the ready front-end state.
 
-- `$31->$32`: post-decrement `$3F==0` at `$C6B0`;
-- `$32->$33`: first scene-object field 1 zero after its step at `$C6DD`;
-- `$33->$34`: second scene-object field 1 zero after its step at `$C70D`;
-- `$34->$35`: first observing NMI via `$D2C7->$D73B->$D78B`;
-- `$35->$36`: observed `$03BB==$65` at `$C8B7`;
-- `$36->$37`: post-decrement `$3F==$44` at `$C940`, seeding `$57=$10`;
-- `$37->$38`: `$57==0` and entering the frame with `$03CC >= $88` at `$C984`;
-- `$38->$40`: incremented `$3F >= $60`; `$C9A9` writes `$40` directly, proving `$39-$3F` are skipped;
-- `$40-$4C`: bank-1 `$8C19` text streams; terminal `$FF` reaches `$8DDB` and increments **both** `$00/$01`;
-- `$4D->$50`: after shared `$57/$26` delay, `$8D41` writes paired `$50`, proving `$4E/$4F` are not reached.
+### Semantic correction of PR #117
 
-Every `$3x/$4x` main frame checks Start first. Controller bit `$10` preempts local state logic and writes paired `$00/$01=$50` at `$C34F`.
+PR #117's transition evidence remains confirmed:
+
+```text
+$30 -> $31 -> $32 -> $33 -> $34 -> $35 -> $36 -> $37 -> $38
+ -> $40 -> $41 -> ... -> $4D -> $50
+```
+
+Reachable set remains exactly:
+
+```text
+$30, $31-$38, $40-$4D
+```
+
+and `$39-$3F/$4E-$4F` remain without canonical producers.
+
+PR #119 proves this is the **front-end attract/presentation loop**, not the ordinary boss-battle scaffold. `ENGINE_STATE_50_FRONTEND.md` supersedes only the old semantic label, not the verified writers/thresholds.
+
+### Executable CHR-to-RAM overlays — PR #119
+
+Bank-0 `$8000/$8013` expose a previously hidden original-engine mechanism:
+
+1. select MMC1 4 KiB CHR bank `$1F` (31);
+2. read CHR pattern bytes through `$2006/$2007`;
+3. copy `$03C0` bytes into CPU RAM `$0440-$07FF`;
+4. `JMP $0440` and execute the copied 6502 code;
+5. overlay `RTS` returns to the original fixed-bank caller.
+
+Two confirmed sources:
+
+```text
+PPU $1000-$13BF -> front-end initialization overlay
+PPU $1400-$17BF -> password-entry overlay
+```
+
+The password overlay explicitly writes `$0200=$09`, closing the previously missing producer of the password editor state.
+
+This means CHR ROM is not graphics-only storage in the original; at least one bank also stores executable overlays.
 
 Artifacts:
 
-- `src/SaintSeiyaNesReborn.OriginalSpec/SceneBattleEngineStateGraph.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/SceneBattleEngineStateGraphChecks.cs`
-- `docs/reverse-engineering/SCENE_BATTLE_ENGINE_STATE_30_4F.md`
-- PR `#117`
+- `src/SaintSeiyaNesReborn.OriginalSpec/FrontEndState50Machine.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/FrontEndState50MachineChecks.cs`
+- `docs/reverse-engineering/ENGINE_STATE_50_FRONTEND.md`
+- PR `#119`
 
-Do not reopen `$30-$4F` absent contradictory ROM evidence or fixture failure.
+Do not reopen `$50` or the `$30-$4D` structural graph absent contradictory ROM evidence or fixture failure.
 
-## EVIDENCE
+## EVIDENCE FOR NEXT
 
-### Why exact state `$50` is selected next
+### Why global reachability closure is selected now
 
-PR #117 proved `$50` is a genuine modal hinge rather than a broad unresolved `$50-$5F` numeric family.
+The major functional top-level families are now understood. The remaining uncertainty in the **global engine state machine itself** is no longer a large known subsystem; it is the set of numeric ranges recognized by the dispatcher for which reachability was never proved or disproved.
 
-Confirmed producers into exact `$50` include:
-
-```text
-$3x/$4x Start escape
- -> $C34F writes $00/$01=$50
- -> A=$05
- -> JMP $DA15
-
-$4D terminal NMI
- -> bank1 $8D41 writes $00/$01=$50
- -> fixed NMI notices live $50
- -> $D2E6 JSR $C154
- -> $D2E9 JMP $C14B
- -> $C14B writes paired $50 and enters $DA13
-```
-
-Global bootstrap/reset paths can also enter `$C14B`, so the modal subsystem is not scene-exclusive.
-
-Main modal engine:
+PR #109 deliberately left these structural ranges as unknown where no producer had yet been established, including examples such as:
 
 ```text
-$DA13/$DA15 seeds $0200
-$DA33 reads $0201
- -> inline dispatch selects $DA3D or $DA5C
+$01-$0F outside proved bootstrap/use contexts
+$15-$1F
+$21-$2F
+$51-$5F
+unused members of other high-nibble families
+$9A+ and other common-tail values
 ```
 
-NMI modal engine:
+Several ranges have since been partially or completely eliminated by later checkpoints:
 
-```text
-$D282 sees mirror $01=$50 before all live-state dispatch
- -> JMP $DABC
-$DABC dispatches on $0200 through a finite inline table
-```
+- `$39-$3F` and `$4E-$4F`: no canonical producer after PR #117/#119;
+- `$61-$6F`: no reachable producer from the fatal resource graph; only `$60` is used there;
+- `$50-$5F`: exact `$50` is now closed, while `$51-$5F` still require an explicit global reachability verdict rather than assumption.
 
-The NMI `$0200` table visibly contains only a small finite set of handlers:
+A fresh raw writer audit against the canonical ROM found the expected executable immediate writers already owned by promoted families (`$12/$20/$3D/$40/$50/$60/$70/$80/$10`). Apparent extra `INC/DEC $00` hits at bank-5 `$9FF9` and bank-6 `$A489` resolve as inline-table/data false positives, demonstrating why the next pass must be **executable-control-flow based**, not byte-pattern based.
 
-```text
-$00-$03 -> $DAEB
-$04     -> $DB04
-$05     -> $DB27
-$06-$07 -> $DB7C
-$08     -> $DB84
-$09     -> $DB8C
-```
+The newly discovered CHR-backed RAM overlays also change the audit rule: a complete producer census must include code loaded from CHR into RAM, not only the eight PRG banks.
 
-Known exits from the main modal path:
-
-- `$0200=$06` -> paired `$30` -> scene bootstrap `$31`;
-- `$0200=$08` -> paired `$10` -> already-promoted `$11-$14` bootstrap path;
-- another `$DA90+` fallback with `$0202==0` also selects `$10`.
-
-This is a bounded, directly reachable subsystem whose closure will explain the modal/menu bridge between scene/battle, password/low-family flows and global startup behavior.
+Closing this census will let us say that the top-level engine state machine is fully enumerated before moving into renderer/RNG/audio/boss-context completeness.
 
 ## OPEN
 
-1. Identify every executable producer entering exact state `$50`, distinguishing scene Start, `$4D` completion and global/bootstrap entry.
-2. Map `$DA13-$DAA4` main semantics around `$0200/$0201/$0202`, including both inline `$8960` dispatch branches.
-3. Map NMI `$DABC` dispatch states `$0200=$00-$09` and prove which values are actually reachable in each entry mode.
-4. Determine exact transitions that mutate `$0200`, `$0201` and `$0202`; avoid interpreting renderer/input helpers unless they gate modal progression.
-5. Prove all stable exits: `$50->$30`, `$50->$10`, and any additional real exit if present.
-6. Classify whether `$50` is pause/menu, boot/menu, or a shared modal shell only after the control graph is proven; labels must follow evidence.
-7. Implement one executable modal state machine plus discriminating fixtures and documentation.
-8. Renderer, audio, RNG and deeper boss mechanics remain outside this checkpoint unless they directly gate `$0200/$0201/$0202` progression.
+1. Enumerate every executable writer to global `$00/$01` across fixed PRG, switchable PRG, and confirmed CHR-backed RAM overlays.
+2. Reconcile every writer with the already-promoted families and reject inline data/table false positives.
+3. For each remaining dispatcher-recognized numeric state/range, classify it as:
+   - `REACHABLE`;
+   - `BOOTSTRAP/TRANSIENT`;
+   - `STRUCTURAL BUT UNREACHABLE`;
+   - or `OPEN` only if an executable producer remains genuinely unresolved.
+4. Explicitly close residual ranges such as `$15-$1F`, `$21-$2F`, `$51-$5F`, and high common-tail values rather than inferring deadness from absence in gameplay traces.
+5. Determine whether any executable CHR overlay beyond the two state-$50 overlays writes `$00/$01` or creates a previously invisible global state.
+6. Produce one global reachability artifact/fixture set that composes all promoted families without duplicating their internal semantics.
+7. Only after the global state namespace is closed, select the next ORIGINAL SPEC subsystem using the integral-assimilation criterion: boss-context completeness, renderer/CHR, RNG, audio, or text runtime/localization.
 
 ## NEXT
 
-**Close exact engine state `$50` as a modal subsystem: map its `$0200/$0201/$0202` main/NMI state machine from every confirmed entry to every confirmed exit.**
+**Close the global engine-state reachability census: prove every remaining `$00/$01` state value recognized by the dispatcher reachable, transient, or unreachable, including executable CHR/RAM overlays.**
 
 Completion criterion:
 
-> Produce an evidence-backed state graph for exact global engine state `$50`, including entry mode, all reachable `$0200` substates, `$0201/$0202` control roles, main/NMI ownership, and all exits back to already-promoted engine families, without reverse-engineering unrelated rendering/audio internals.
+> Starting from the verified dispatcher map and all promoted state-family checkpoints, enumerate every executable producer/advancer of global `$00/$01`, include PRG and executable CHR-to-RAM code, reject data/inline-table false positives, and leave no dispatcher-recognized numeric range with ambiguous reachability unless a concrete unresolved executable writer is documented.
 
 Required sequence:
 
-1. enumerate `$50` producers and normalize their initial `$0200/$0201/$0202` conditions;
-2. trace main `$DA13-$DAA4`, including the `$0201` inline dispatcher at `$DA33`;
-3. trace NMI `$DABC` inline `$0200` dispatcher and every handler that mutates modal control state;
-4. build a finite transition table for reachable modal substates;
-5. prove exits `$30/$10` and check for any additional real global-state writer;
-6. implement the smallest executable `$50` modal model + fixtures;
-7. document and run both verification workflows.
+1. build an exhaustive candidate writer index for `STA/STX/STY/INC/DEC $00/$01` plus indirect/overlay equivalents;
+2. prove executable reachability of each candidate from known roots and mark data/inline tables false;
+3. map each real writer into the existing promoted family graph;
+4. classify all residual state values/ranges, with explicit fixtures for representative dead gaps;
+5. scan confirmed executable CHR/RAM overlays for global-state writers and inventory any additional overlay entrypoints found;
+6. implement a compact `EngineStateReachability` artifact + discriminating fixtures;
+7. document the final top-level state namespace and run both verification workflows.
 
 ## BLOCKERS
 
-- None. Canonical ROM, fixed dispatcher, scene/battle graph, low-family/password graph and all relevant fixed-bank anchors are available.
+- None. Canonical ROM, global dispatcher map, promoted family models, exact state `$50`, and CHR-overlay mechanism are available.
 
 ## RECOVERY CONTRACT
 
@@ -231,15 +224,16 @@ Recovery order:
 
 1. read this file from `main`;
 2. reconcile `CURRENT` with newer merged Git history if any exists;
-3. inspect `SCENE_BATTLE_ENGINE_STATE_30_4F.md` and `ENGINE_STATE_DISPATCHER.md`;
-4. inspect only fixed/bank routines required by exact state `$50` (`$C14B`, `$DA13-$DB9C`, and helpers only where they gate modal control);
-5. use `docs/REVERSE_ENGINEERING_STATUS.md` as navigation only;
-6. use `docs/WORK_PROTOCOL.md` for execution rules;
-7. use the private Drive manifest only to locate private assets; Drive never owns a separate `NEXT`.
+3. inspect `ENGINE_STATE_DISPATCHER.md` and `ENGINE_STATE_50_FRONTEND.md`;
+4. use existing family-specific documents only to classify already-owned writers, not to reopen their internals;
+5. scan canonical ROM/overlays only for global-state reachability evidence required by this boundary;
+6. use `docs/REVERSE_ENGINEERING_STATUS.md` as navigation only;
+7. use `docs/WORK_PROTOCOL.md` for execution rules;
+8. use Drive only to locate private ROM/evidence; Drive never owns a separate `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `engine-state-50-modal-subsystem`
+- `last_next_signature`: `global-engine-state-reachability-census`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
