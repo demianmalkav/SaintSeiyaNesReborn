@@ -13,7 +13,8 @@ public readonly record struct PlatformNormalWarmReloadInput(
     byte ReloadField050E,
     byte StoryPhase06CE,
     byte Flags0673,
-    byte Flags06CC);
+    byte Flags06CC,
+    byte ProgressionCode06CD);
 
 public readonly record struct PlatformNormalWarmReloadResult(
     PlatformNormalWarmReloadDisposition Disposition,
@@ -90,7 +91,6 @@ public static class PlatformNormalWarmReloadDestination
 
         var stage050E = StageForProgression(input.Progression067D);
         return Commit(
-            input,
             engineState: 0x00,
             terminal0670: 0x02,
             progression067D: input.Progression067D,
@@ -99,7 +99,7 @@ public static class PlatformNormalWarmReloadDestination
             storyPhase06CE: 0x00,
             flags0673: input.Flags0673,
             flags06CC: input.Flags06CC,
-            progressionCode06CD: ProgressionCodeFor(input.Progression067D),
+            progressionCode06CD: input.ProgressionCode06CD,
             selector068F: null);
     }
 
@@ -109,8 +109,8 @@ public static class PlatformNormalWarmReloadDestination
         RequireStoryPhaseZero(input);
 
         // $E417 forces $0673=$3F, then $E187 stores $068F=$DD and commits A=$90.
+        // No $06CD writer is crossed on this branch.
         return Commit(
-            input,
             engineState: 0x90,
             terminal0670: 0xDD,
             progression067D: input.Progression067D,
@@ -119,7 +119,7 @@ public static class PlatformNormalWarmReloadDestination
             storyPhase06CE: 0x00,
             flags0673: 0x3F,
             flags06CC: input.Flags06CC,
-            progressionCode06CD: ProgressionCodeFor(input.Progression067D),
+            progressionCode06CD: input.ProgressionCode06CD,
             selector068F: 0xDD);
     }
 
@@ -138,7 +138,7 @@ public static class PlatformNormalWarmReloadDestination
 
             // Canonical $FFDE=$00 keeps $E9=0 in $EEA1. $E2DD sees $0670=$FF,
             // falls through its stage-specific checks, and reaches $E327 where
-            // the interactive selector is seeded again.
+            // the interactive selector is seeded again. $06CD is not rewritten.
             return new PlatformNormalWarmReloadResult(
                 Disposition: PlatformNormalWarmReloadDisposition.ReenterInteractiveSelector,
                 EngineState00: null,
@@ -151,7 +151,7 @@ public static class PlatformNormalWarmReloadDestination
                 StoryPhase06CE: input.StoryPhase06CE,
                 Flags0673: input.Flags0673,
                 Flags06CC: input.Flags06CC,
-                ProgressionCode06CD: ProgressionCodeFor(input.Progression067D),
+                ProgressionCode06CD: input.ProgressionCode06CD,
                 Selector068F: null);
         }
 
@@ -160,7 +160,6 @@ public static class PlatformNormalWarmReloadDestination
         if (((input.Flags0673 | input.Flags06CC) & 0x0F) == 0x0F)
         {
             return Commit(
-                input,
                 engineState: 0x90,
                 terminal0670: 0xFF,
                 progression067D: input.Progression067D,
@@ -169,7 +168,7 @@ public static class PlatformNormalWarmReloadDestination
                 storyPhase06CE: 0x00,
                 flags0673: input.Flags0673,
                 flags06CC: input.Flags06CC,
-                progressionCode06CD: ProgressionCodeFor(input.Progression067D),
+                progressionCode06CD: input.ProgressionCode06CD,
                 selector068F: 0xDD);
         }
 
@@ -183,7 +182,6 @@ public static class PlatformNormalWarmReloadDestination
             stage050E = 0x0D;
 
         return Commit(
-            input,
             engineState: 0x00,
             terminal0670: 0xFF,
             progression067D: input.Progression067D,
@@ -192,7 +190,7 @@ public static class PlatformNormalWarmReloadDestination
             storyPhase06CE: 0x00,
             flags0673: input.Flags0673,
             flags06CC: updated06CC,
-            progressionCode06CD: ProgressionCodeFor(input.Progression067D),
+            progressionCode06CD: input.ProgressionCode06CD,
             selector068F: 0x00);
     }
 
@@ -250,7 +248,6 @@ public static class PlatformNormalWarmReloadDestination
         var terminal0670 = terminalTransition ? (byte)0x05 : (byte)0x01;
 
         return Commit(
-            input,
             engineState: engineState,
             terminal0670: terminal0670,
             progression067D: progression,
@@ -264,7 +261,6 @@ public static class PlatformNormalWarmReloadDestination
     }
 
     private static PlatformNormalWarmReloadResult Commit(
-        PlatformNormalWarmReloadInput original,
         byte engineState,
         byte terminal0670,
         byte progression067D,
