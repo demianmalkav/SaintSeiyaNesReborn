@@ -4,228 +4,312 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / stage $02 Gemini + first-Camus detour`
+- Phase: `ORIGINAL SPEC / stage $03 Cancer + platform $0C detour`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#141` — complete canonical stage `$00` Mu / pre-battle repair context.
-- Merge commit: `33ac4e3b3ec249b37424f4def9344e96a525654f`
-- Exact final PR head: `fe4d5f92cb90aff67a43618c17b5b56a92e9b2de`
+- Last verified technical checkpoint: PR `#143` — complete canonical stage `$02` Gemini / first-Camus composite.
+- Merge commit: `8f41ea2afd54e00f72066f07ee493936e92412c9`
+- Exact final PR head: `38d3f1abb919f8dc380e06218d6dbe1d4c6cbdea`
 - Verification on that exact head:
-  - `ORIGINAL SPEC tests` #353: `SUCCESS`
-  - `Original Spec` #554: `SUCCESS`
+  - `ORIGINAL SPEC tests` #359: `SUCCESS`
+  - `Original Spec` #562: `SUCCESS`
   - build/self-test/password compatibility: `SUCCESS`
-- Coverage matrix PR #139 remains the frozen `$050E=$00-$0B` denominator.
-- Dedicated battle/event contexts now closed: Mu `$00`, Taurus `$01`, Leo `$04`, Virgo `$05`, Aquarius `$08`, Pisces `$09`, Saga `$0A`; final-special bridge `$0C` is separately closed.
-- Remaining material stage-context gaps: `$02/$03/$06/$07`. Stage `$0B` remains structural/transient with no canonical stable battle.
+- Coverage matrix PR #139 remains the frozen `$050E=$00-$0B` denominator; PR #143 promotes stage `$02` to `DedicatedContextClosed`.
+- Dedicated battle/event contexts now closed: Mu `$00`, Taurus `$01`, Gemini/first-Camus `$02`, Leo `$04`, Virgo `$05`, Aquarius `$08`, Pisces `$09`, Saga `$0A`; final-special bridge `$0C` is separately closed.
+- Remaining material stage-context gaps: `$03/$06/$07`. Stage `$0B` remains structural/transient with no canonical stable battle.
 
 ## DONE
 
-### Stage `$00` Mu / pre-battle repair — PR #141
+### Stage `$02` Gemini / first-Camus composite — PR #143
 
-Canonical seed and roster are now executable rather than inferred:
+Stage `$02` is now closed as a composed lifecycle rather than an isolated boss handler set.
 
-```text
-global $AD4A-$AD54 clear -> $06BB=0
-new-game $A100+          -> $0673=$30 / initial Seiya
-common reset $A973+      -> $066F=0 / $0670=0, preserves $06BB
-story progress $067D=00  -> $F016[00]=$00
-```
-
-`$0673=$30` permits Seiya/Hyoga/Shun/Shiryu and masks Ikki. Stage init `$97F7` is `RTS`.
-
-Fixed command ownership proves stage `$00` is not an ordinary Gold battle:
-
-```text
-Resource Allocation  $F041 -> $F238
-Attack               $F057 -> $F238
-Talk                 $F0B1 -> $9C95 -> $9CB7
-Escape               $F0D3 -> $F238
-```
-
-Blocked owner `$F238` owns a real local latch/counter:
-
-```text
-$06BB=0   -> first blocked presentation -> INC $06BB
-$06BB!=0  -> extra selector $48         -> INC $06BB
-all       -> shared selector $39 -> command loop
-```
-
-The canonical Talk machine is:
-
-```text
-first Talk ($066F=0)
-  common selectors $32/$33
-  Saint table $9D24 = 35 35 36 34
-  $066F = 1
-
-second/repeated Talk ($066F!=0)
-  common selectors $37/$38
-  Saint table $9D28 = 3B 3B 11 3B
-  $0670 = $01
-```
-
-Active Saint changes presentation text only. The first-Talk helper `$AEDA` is presentation-only for this context.
-
-Release `$01` composes through fixed `$E399/$E3B3` to the exact existing Taurus boundary:
-
-```text
-$067D: 00 -> 01
-$050E = 01
-$06CD = 00
-$0673 = 30       ; before next battle-entry Saint bit commit
-active Saint preserved (0..3)
-```
-
-No canonical stage-`$00` command reaches Bronze technique/damage, post-Bronze `$A361`, Gold selection/dodge/damage or post-Gold `$A381`.
-
-Artifacts:
-
-- `src/SaintSeiyaNesReborn.OriginalSpec/MuStage00Context.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/MuStage00ContextChecks.cs`
-- `docs/reverse-engineering/BOSS_CONTEXT_STAGE_00_MU.md`
-- promoted `BattleStageContextCoverage` / coverage fixtures
-- updated `BATTLE_STAGE_CONTEXT_COVERAGE.md`
-- updated `BATTLE_EVENT_DISPATCH.md`
-- PR #141
-
-Do not reopen stage `$00` without contradictory ROM evidence or a failing fixture.
-
-## EVIDENCE FOR NEXT
-
-### Stage `$02` is a composite Gemini / first-Camus context
-
-Canonical story entry is:
+Canonical seed:
 
 ```text
 $067D = $02
 $050E = $02
+$E50B[$02] = $00
+$06CD = $00
+$0673 = $30
+reachable Saints = Seiya / Hyoga / Shun / Shiryu
+Ikki excluded
 ```
 
-The coverage audit already fixes its dispatcher owners:
+Initializer `$981F`:
 
 ```text
-init          $981F
-Talk          $9D81
-post-Bronze   $A444
-post-Gold     $A4CC
-Gold slots    0,1
+temporary presentation $050E=$11
+#$03 -> $F31E -> +300 Seventh Sense
+shared $9C3D -> $0670=$03 / $068E=1 / restore $050E=$02
 ```
 
-#### Initialization `$981F`
-
-The stage-specific initializer performs presentation setup, temporarily loads presentation index `$11`, grants `#$03` through fixed `$F31E` (**+300 Seventh Sense**), then joins shared `$9C3D`:
+Talk `$9D81`:
 
 ```text
-$0670 = $03
-$068E = 1
-$050E restored to $02
+every Talk -> $DC++ -> forced Gold response
+first Talk -> also $066F:0->1
+repeated Talk -> preserves nonzero $066F
 ```
 
-This is an intro handoff, not a victory terminal.
-
-#### Talk `$9D81`
-
-Every Talk increments transient `$DC`, so its caller forces a Gold response. On the first Talk only:
+The first Bronze action is intercepted by `$A444` while `$067C=0` **before** generic opponent classification:
 
 ```text
-$066F: 0 -> 1
-```
-
-and an additional presentation branch is emitted. Repeated Talk leaves `$066F` nonzero but still raises `$DC`.
-
-#### Mandatory first post-Bronze detour `$A444`
-
-Before ordinary opponent classification, `$A444` checks `$067C`.
-
-With canonical initial `$067C=0`:
-
-```text
-$02   = $0E
+$02 = $0E
 $0670 = $02
 ```
 
-and control leaves battle for the already-closed special-normal platform substate `$0E`.
+Therefore phase zero cannot directly win even if hypothetical Bronze damage would otherwise produce `$EB=$FF`.
 
-Existing `PLATFORM_SPECIAL_NORMAL_EXITS.md` proves the accepted `$0E` exit gate:
-
-```text
-X >= $B4
-Y == $80
-jump phase == 0
-normal $3D / $E100 reload
-```
-
-The special resume at fixed `$ED57+` increments:
+The already-closed special-normal platform `$0E` pipeline is reused:
 
 ```text
-$067C: 0 -> 1
+accepted gate: X >= $B4 / Y == $80 / jump phase 0
+normal $3D/$E100 reload
+release $02 special resume -> $067C:0->1
+no $A973 reset
 ```
 
-without calling ordinary reset `$A973`.
+Because `$A973` is skipped, pre-detour `$066F` survives ordinary resume.
 
-For an ordinary active Saint, selector re-entry retains stage `$02`. For active Hyoga (`$0533=1`) the same already-closed owner instead writes:
+Resume split:
 
 ```text
-$050E = $08
-$06B8 = $0A
-$0690 = $FF
-$067D remains $02
+Seiya/Shun/Shiryu
+  -> $050E remains $02
+  -> $067C=1
+  -> ordinary stage-2 continuation
+
+Hyoga
+  -> $050E=$08
+  -> $06B8=$0A
+  -> $0690=$FF
+  -> $067D remains $02
+  -> compose existing redirected first-Camus Aquarius context
 ```
 
-This is the redirected **first Camus** branch already represented by `AquariusStage08Context.EnterRedirectedFirstCamus`; it must be composed, not re-reversed.
+Once `$067C!=0`, ordinary `$A444` owns:
 
-#### Stage-2 ordinary post-action branch
+```text
+$EB=$FF -> release $01 victory
+$EB=$01 -> low-opponent feedback
+$EB=$00 + hit -> continue
+$EB=$00 + no hit -> miss feedback
+```
 
-Once `$067C!=0`, `$A444` uses the generic opponent classifier and owns stage-local feedback/victory. Opponent defeat emits release `$01`; low/miss/hit branches remain nonterminal.
+Post-Gold `$A4CC`:
 
-Post-Gold `$A4CC` consumes the already-computed player condition:
+```text
+$EA=$00 -> healthy feedback
+$EA=$01 -> low feedback
+$EA=$FF -> release $FF defeat
+```
 
-- `$EA=$00`: healthy-player presentation and continue;
-- `$EA=$01`: low-player feedback and continue;
-- `$EA=$FF`: release `$FF` defeat.
+Gold selection remains generic parity slots `0/1`.
 
-Generic parity selector exposes only Gold slots `0/1`.
+Generic stage-2 `$FF` does not advance story. On the next normal re-entry fixed `$ED57` calls `$A973`, clearing `$067C/$066F/$0670/$068E/$06B8`; therefore defeat **rearms the mandatory `$0E` detour**.
 
-The stage `$02` checkpoint must therefore close the **composed lifecycle**, including the platform `$0E` phase transition and the Hyoga redirect, rather than modeling `$A444` in isolation.
+Both canonical success families converge on Cancer:
+
+```text
+ordinary stage-2 victory release $01
+  -> $067D:02->03
+  -> $050E=$03
+  -> $06CD=$02
+  -> $0673=$32
+  -> active Saint preserved (Seiya/Shun/Shiryu)
+
+Hyoga redirected first Camus
+  -> scripted release $FE after three-Talk Bronze route OR actual Hyoga defeat
+  -> existing $FE owner forces Seiya
+  -> $067D:02->03
+  -> $050E=$03
+  -> $06CD=$02
+  -> $0673=$32
+```
+
+Artifacts:
+
+- `src/SaintSeiyaNesReborn.OriginalSpec/GeminiStage02Context.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/GeminiStage02ContextChecks.cs`
+- `docs/reverse-engineering/BOSS_CONTEXT_STAGE_02_GEMINI_FIRST_CAMUS.md`
+- promoted `BattleStageContextCoverage` / coverage fixtures
+- updated `BATTLE_STAGE_CONTEXT_COVERAGE.md`
+- updated `BATTLE_EVENT_DISPATCH.md`
+- PR #143
+
+Do not reopen stage `$02`, platform `$0E`, or redirected first Camus without contradictory ROM evidence or a failing fixture.
+
+## EVIDENCE FOR NEXT
+
+### Stage `$03` Cancer / Death Mask is the first remaining material gap
+
+Canonical story entry after stage `$02` completion is:
+
+```text
+$067D = $03
+$050E = $03
+$E50B[$03] = $02
+$06CD = $02
+$0673 = $32
+```
+
+Fixed Saint-selection semantics therefore permit exactly:
+
+```text
+Seiya  bit $01 -> reachable
+Hyoga  bit $02 -> blocked
+Shun   bit $04 -> reachable
+Shiryu bit $08 -> reachable
+Ikki   bit $10 -> blocked
+```
+
+The stage-indexed owners are already fixed by the coverage audit:
+
+```text
+init          $9851
+Talk          $9D96
+post-Bronze   $A50F
+post-Gold     $A560
+Gold slots    0,1
+```
+
+#### Initialization `$9851`
+
+Static ROM flow proves:
+
+```text
+temporary presentation index $0E through $F2ED
+scripted presentations
+#$04 -> $F31E -> +400 Seventh Sense
+JMP $9C3D
+```
+
+Shared `$9C3D` supplies the same intro-handoff shape used elsewhere:
+
+```text
+$0670=$03
+$068E=1
+restore real $050E=$03
+```
+
+#### Talk `$9D96`: phase-zero platform detour
+
+Talk first checks `$067C`.
+
+With canonical `$067C=0` it executes the long scripted branch and then:
+
+```text
+$02 = $0C
+$0670 = $02
+PLA
+PLA
+RTS
+```
+
+The double-`PLA` is a caller unwind: the phase-zero Talk leaves the ordinary Talk command path immediately after creating the platform transition.
+
+The already-closed `PlatformSpecialNormalExitPipeline` owns substate `$0C`:
+
+```text
+provenance = stage-3 Talk
+progress $067D=$03
+reload field $050E=$03
+inherited release $02
+accepted gate: X >= $88 / Y == $20 / jump phase 0
+```
+
+Accepted `$3D/$E100` reload reaches fixed `$ED57/$ED8F`, increments:
+
+```text
+$067C:0->1
+```
+
+and, because release is `$02`, skips common reset `$A973`. Unlike stage `$02`, there is no Hyoga character redirect here; the selected reachable Saint returns to stage `$03`.
+
+With `$067C!=0`, Talk `$9D96` instead emits the phase-1 dialogue (`$58/$57`) and increments transient `$DC`, so the caller forces a Gold response.
+
+#### Post-Bronze `$A50F`
+
+The handler immediately uses the existing opponent classifier `$ACD6`.
+
+```text
+$EB=$FF -> stage victory presentation -> release $01
+$EB=$01 -> INC $064A -> low-opponent feedback
+$EB=$00 + hit -> continue
+$EB=$00 + no hit -> miss feedback
+```
+
+The `$064A` increment is stage-local and occurs on each `$EB=$01` execution; do not silently turn it into a one-shot latch unless additional evidence proves a bounded caller state.
+
+#### Post-Gold `$A560`
+
+After existing player classifier `$AD4D`:
+
+```text
+$EA=$FF -> release $FF defeat
+$EA=$01 and $064D==0 -> first-low presentation -> INC $064D -> return
+otherwise -> common healthy/repeat feedback -> return
+```
+
+Thus `$064D` is a one-time first-low latch for the special low-player presentation.
+
+Generic parity Gold selection exposes only slots `0/1`.
+
+#### Retry and successor contracts
+
+A generic `$FF` defeat leaves story progress at `$03`; on subsequent normal stage re-entry `$ED57` calls `$A973`, which clears `$067C`. Therefore retry returns to phase zero and the **first later Talk can create platform `$0C` again**. Cancer's detour is Talk-triggered, not a mandatory first-Bronze detour.
+
+Ordinary victory release `$01` joins fixed `$E399/$E3B3`:
+
+```text
+$067D:03->04
+$F016[$04]=$04
+$E50B[$04]=$02
+$050E=$04
+$06CD=$02
+$0673=$32
+```
+
+The reachable Cancer roster excludes Ikki, so ordinary release `$01` preserves the active Seiya/Shun/Shiryu into the exact Leo `$04` boundary. Leo internals are already closed by PR #125 and must not be reopened.
 
 ## OPEN
 
-1. Prove the exact canonical stage-`$02` story/roster seed, active-Saint reachability and fields carried into `$981F`.
-2. Model `$981F` initialization: temporary presentation `$11`, +300 Seventh Sense, `$0670=$03`, `$068E=1`, and return to stage `$02`.
-3. Model Talk `$9D81`, including unconditional `$DC++`, first-use `$066F++`, and the caller-owned forced Gold response.
-4. Close `$A444` with the `$067C=0` mandatory post-Bronze detour to `$02=$0E / release $02`, before any opponent classification.
-5. Compose the already-closed `$0E` platform exit and fixed special resume `$067C:0->1` without duplicating platform mechanics.
-6. Split the resume correctly: ordinary Saint -> stage `$02`; Hyoga -> `$050E=$08/$06B8=$0A/$0690=$FF`, composed with the already-closed first-Camus phase in `AquariusStage08Context`.
-7. Close stage-2 `$067C!=0` post-Bronze feedback/victory `$01`, Gold slots `0/1`, and post-Gold healthy/low/defeat `$FF` branches using existing generic arithmetic.
-8. Prove defeat/retry ownership, especially whether `$FF` re-entry resets `$067C` and therefore makes the `$0E` detour repeat.
-9. Compose every canonical victory path to the exact progress `$067D=$03 / stage $03` Cancer boundary, including the redirected first-Camus completion where applicable.
-10. Implement a dedicated executable stage-`$02` context/compositor, discriminating fixtures and one focused context document. Stop at the already-identified Cancer boundary.
+1. Model the exact canonical Cancer entry seed and reachable roster from `$067D=$03/$050E=$03/$0673=$32`.
+2. Model init `$9851`: temporary `$0E` presentation, +400 Seventh Sense, `$0670=$03/$068E=1`, and command-loop handoff.
+3. Close Talk `$9D96` in both phases: phase-zero `$02=$0C/release $02` with caller unwind, and phase-one `$DC++` forced Gold response.
+4. Compose the already-closed platform `$0C` gate/reload and special resume `$067C:0->1`; do not duplicate platform mechanics.
+5. Prove what stage-local Talk/presentation state survives release `$02` special resume and what is reset only on generic retry.
+6. Close post-Bronze `$A50F`, including repeated `$064A++` low-opponent behavior, miss feedback and victory `$01`, using existing classifier/damage arithmetic.
+7. Close post-Gold `$A560`, including first-low `$064D` latch, repeat/healthy feedback and defeat `$FF`.
+8. Prove `$FF` retry semantics and phase-zero re-entry, including renewed eligibility for the Talk-created `$0C` detour.
+9. Compose victory `$01` to exact Leo boundary `$067D=$04/$050E=$04/$06CD=$02/$0673=$32`, preserving the reachable active Saint.
+10. Implement dedicated `CancerStage03Context`, discriminating fixtures and one focused context document; stop at Leo boundary.
 
 ## NEXT
 
-**Close canonical stage `$02` Gemini / first-Camus composite from story seed `$067D=$02/$050E=$02` through initializer `$981F`, Talk `$9D81`, the mandatory first post-Bronze `$067C=0 -> $02=$0E / release $02` platform detour, accepted `$0E` exit and `$067C:0->1` special resume, the ordinary-Saint stage-`$02` continuation versus Hyoga's redirected `$050E=$08/$06B8=$0A/$0690=$FF` first-Camus branch, and all reachable stage-2 victory/defeat terminals through the exact `$067D=$03/$050E=$03` Cancer successor.**
+**Close canonical stage `$03` Cancer / Death Mask from story seed `$067D=$03/$050E=$03/$06CD=$02/$0673=$32` through initializer `$9851`, both phases of Talk `$9D96`, the phase-zero Talk-created platform `$02=$0C / release $02` detour and accepted `$0C` special resume `$067C:0->1`, post-Bronze `$A50F`, post-Gold `$A560`, Gold slots `0/1`, generic `$FF` retry semantics, and ordinary victory `$01` to the exact already-closed Leo boundary `$067D=$04/$050E=$04/$06CD=$02/$0673=$32`.**
 
 Completion criterion:
 
-> Starting from the exact progress-`$02` entry, produce an executable composed model that proves the intro reward/handoff, Talk behavior, unavoidable first post-Bronze platform detour, phase increment on `$0E` exit, Hyoga-specific first-Camus redirection using the existing Aquarius model, ordinary stage-2 post-action/Gold behavior, retry semantics, and every canonical terminal through its fixed release owner. Generic damage/dodge/resource arithmetic and the already-closed platform/Aquarius internals must be reused rather than reimplemented.
+> Starting from the exact progress-`$03` roster/state, produce an executable composed Cancer model that proves the +400 intro handoff, phase-zero Talk platform transition and caller unwind, phase-one Talk counterattack trigger, `$064A`/`$064D` stage-local behavior, all ordinary post-Bronze/post-Gold terminals, retry phase reset, and exact release-`$01` handoff to Leo. Reuse generic battle arithmetic, fixed release/story ownership and the already-closed platform `$0C` pipeline; do not reopen Leo.
 
 ## BLOCKERS
 
-- None. Canonical ROM, stage-2 handlers, generic battle primitives, platform `$0E` pipeline, first-Camus Aquarius context and fixed release/story owners are all available.
+- None. Canonical ROM, stage-3 handlers, generic battle primitives, platform `$0C` pipeline, fixed release/story ownership and closed Leo successor are available.
 
 ## RECOVERY CONTRACT
 
 1. Read this file from `main` and reconcile it with newer merged Git history if present.
-2. Treat PR #141 / `BOSS_CONTEXT_STAGE_00_MU.md` and PR #139 / `BATTLE_STAGE_CONTEXT_COVERAGE.md` as frozen.
-3. Start stage `$02` from handlers `$981F/$9D81/$A444/$A4CC` and canonical progress `$067D=$02`.
-4. Reuse `PLATFORM_SPECIAL_NORMAL_EXITS.md` for substate `$0E`; do not re-reverse its gate/reload machinery.
-5. Reuse `AquariusStage08Context.EnterRedirectedFirstCamus` and the closed first-Camus phase for the Hyoga branch; do not duplicate stage `$08` logic.
-6. Reuse generic damage/resources/dodge/Gold parity slots and fixed release/story ownership.
-7. Keep stage `$03` Cancer as the successor boundary; do not begin Cancer internals in the same checkpoint.
-8. Drive remains private ROM/evidence storage only; it never owns an independent `NEXT`.
+2. Treat PR #143 / `BOSS_CONTEXT_STAGE_02_GEMINI_FIRST_CAMUS.md`, PR #141 / Mu and PR #139 / coverage matrix as frozen.
+3. Start stage `$03` only from `$9851/$9D96/$A50F/$A560` and canonical progress `$067D=$03`.
+4. Reuse `PlatformSpecialNormalExitPipeline` substate `$0C`; do not re-reverse the gate/reload machinery.
+5. Reuse generic damage/resources/dodge/Gold parity slots and fixed release/story ownership.
+6. Keep Leo `$04` as the terminal successor boundary; PR #125 already owns its internals.
+7. Drive remains private ROM/evidence storage only; it never owns an independent `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `stage-02-gemini-first-camus-detour`
+- `last_next_signature`: `stage-03-cancer-platform-0c-detour`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
