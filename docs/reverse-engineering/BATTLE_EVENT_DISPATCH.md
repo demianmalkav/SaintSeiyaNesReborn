@@ -2,7 +2,9 @@
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: four stage-indexed dispatcher families are confirmed statically. The major canonical late-game contexts through Saga `$0A` and final-special `$0C` are now promoted with reachability, not merely table membership.
+Status: the four stage-indexed dispatcher families are statically confirmed, the canonical `$050E=$00-$0B` namespace has now been coverage-audited end-to-end, and the major promoted contexts retain executable reachability fixtures.
+
+See `BATTLE_STAGE_CONTEXT_COVERAGE.md` for the complete numeric coverage matrix and the proof that `$00` is the first material uncovered context while `$0B` has no canonical stable battle entry.
 
 ## Stage-indexed architecture
 
@@ -29,10 +31,10 @@ Pointer table at `$97E1`:
 | 8 | `$9B14` |
 | 9 | `$9B5C` |
 | 10 | `$9B5D` |
-| 11 | `$A960` |
+| 11 | raw pointer `$A960`; no canonical stable battle entry |
 | 12 | table overrun -> raw `$8D00`; unreachable on canonical final-special entry |
 
-These routines establish stage-local counters, dialogue/setup state and transitions before/when entering an encounter.
+Stages `$00-$0A` establish stage-local counters, dialogue/setup state and transitions before/when entering an encounter. Stage `$0B` is different: canonical story table `$F016` never selects it as a stable battle stage, and pointer `$A960` lands inside the real instruction beginning at `$A95F` (`AD 6F 06`, `LDA $066F`). The two immediate `$0B` uses found in the relevant event code (`$9B31` and `$A16D`) call temporary presentation loader `$F2ED`; they do not enter the stage dispatcher as `$0B`.
 
 Saga stage `$0A` is itself phase-dispatched: `$9B5D` uses `$06CE` to select `$9B69/$9B9E/$9C2C`. Canonical initial story ingress does not call `$9B5D`; release `$FF` re-entry calls it later to create phase 1 (Ikki) and phase 2 (Seiya). Structural init phase 2 `$9C2C` is unreachable because final phase has no `$FF` terminal. See `BOSS_CONTEXT_STAGE_0A_SAGA.md`.
 
@@ -55,8 +57,10 @@ Pointer table at `$9C9B`:
 | 8 | `$9F00` |
 | 9 | `$9F99` |
 | 10 | `$9FF4` |
-| 11 | `$9FF4` |
+| 11 | `$9FF4` structural alias only; no canonical stable `$0B` battle |
 | 12 | `$A1AD` |
+
+Stage `$00` Talk `$9CB7` is now proven to be material: common battle reset seeds `$066F=0`; first Talk sets `$066F=1`; the later Talk branch writes release `$0670=$01`. Because fixed command owners block attack, resource allocation and escape when `$050E==0`, this Talk path is the canonical progression surface for the Mu/pre-battle repair context.
 
 Saga `$9FF4` dispatches `$06CE` to `$A000/$A0E0/$A115`. Phase 0 uses the scripted-miss history and `$06CF/$06D0`; phase 1 first Talk clears `$0690`; phase 2 first Talk opens the prerequisite state for the later support event. None of these Talk handlers raises transient `$DC`.
 
@@ -81,12 +85,14 @@ Pointer table at `$A367`:
 | 8 | `$A8FC` |
 | 9 | `$AA57` |
 | 10 | `$AB18` |
-| 11 | `$A3A1` |
-| 12 | `$A3A1` (structural only; unreachable from canonical `$0C` Attack) |
+| 11 | `$A3A1` structural only |
+| 12 | `$A3A1` structural only; unreachable from canonical `$0C` Attack |
 
 `$A3A1` is `RTS`.
 
-Saga `$AB18` phase-dispatches to `$AB24/$AB62/$AB6F`. Phase 0 can four-PLA unwind the first scripted miss; phases 0/1 consume player condition; only phase 2 consumes opponent condition and owns final victory `$01`.
+For stage `$00`, that `RTS` is not evidence of a generic battle: fixed command-1 handling diverts `$050E==0` to `$F238`, so the post-Bronze dispatcher is canonically unreachable there.
+
+Saga `$AB18` phase-dispatches to `$AB24/$AB62/$AB6F`. Phase 0 can four-`PLA` unwind the first scripted miss; phases 0/1 consume player condition; only phase 2 consumes opponent condition and owns final victory `$01`.
 
 For final-special stage `$0C`, fixed `$F925+` returns for stage indices `>= $0B`, so command-1 Attack never calls `$A361`.
 
@@ -109,34 +115,84 @@ Pointer table at `$A387`:
 | 8 | `$A9D3` |
 | 9 | `$AAF0` |
 | 10 | `$AC05` |
-| 11 | `$A3A1` |
-| 12 | `$A3A1` (structural only; unreachable at canonical `$0C`) |
+| 11 | `$A3A1` structural only |
+| 12 | `$A3A1` structural only; unreachable at canonical `$0C` |
+
+Stage `$00` cannot reach a Gold response because its attack path is blocked before Bronze attack processing. Stage `$0B` has no canonical stable battle entry.
 
 Saga `$AC05` phase-dispatches to `$AC11/$AC3E/$AC76`. Phases 0/1 convert either low or defeated player condition into release `$FF` re-entry. Final phase keeps low condition nonterminal and converts only true defeat into `$DD` after resetting `$06CE`.
 
 Final-special stage `$0C` never reaches Gold response: fixed `$F936+` returns for stage indices `>= $0B` before Gold technique selection, dodge, damage or `$A381`.
 
-## Stage identity
+## Canonical story-stage provenance
 
-Opponent initialization records and independently published boss stats match exactly for ordinary battle stages:
+Fixed `$F016` maps `$067D=$00-$0E` as:
 
-| Stage | Battle context |
+```text
+00->00  01->01  02->02  03->03  04->04
+05->05  06->0F  07->06  08->10  09->07
+0A->08  0B->09  0C->0C  0D->0A  0E->00
+```
+
+Therefore canonical ordinary `$00-$0B` battle entries occur at:
+
+```text
+stage 00 <- progress 00
+stage 01 <- progress 01
+stage 02 <- progress 02
+stage 03 <- progress 03
+stage 04 <- progress 04
+stage 05 <- progress 05
+stage 06 <- progress 07
+stage 07 <- progress 09
+stage 08 <- progress 0A
+stage 09 <- progress 0B
+stage 0A <- progress 0D
+stage 0B <- none
+```
+
+Progress `$0E` reuses numeric `$00` only inside the already-closed post-Saga platform tail; it does not re-enter Mu.
+
+## Gold-selector coverage
+
+Bank 6 `$9074-$9146` proves canonical reachable opponent technique slots:
+
+| Stage | Reachable `$0680` slots |
 |---:|---|
-| 0 | Mu / pre-battle repair context |
-| 1 | Taurus — Aldebaran |
-| 2 | Gemini / first Camus branch |
-| 3 | Cancer — Death Mask |
-| 4 | Leo — Aioria |
-| 5 | Virgo — Shaka |
-| 6 | Scorpio — Milo |
-| 7 | Capricorn — Shura |
-| 8 | Aquarius — Camus |
-| 9 | Pisces — Aphrodite |
-| 10 | Pope/Saga |
-| 11 | special/final context |
-| 12 | final-special rose-clearing bridge to Saga; not a boss battle |
+| `$00` | none; attack path blocked |
+| `$01` | `0,1` |
+| `$02` | `0,1` |
+| `$03` | `0,1` |
+| `$04` | `0,1` |
+| `$05` | `0,1,2` |
+| `$06` | `0,1` via dodge-history branch |
+| `$07` | `0,1` |
+| `$08` | `0,1,2` |
+| `$09` | `0,1,2` |
+| `$0A` | `0,1,2,3` across Saga phases |
+| `$0B` | none canonically |
 
-The numeric stage index remains ROM-canonical. Saga `$0A` is internally tied to the three-phase `$06CE` machine; stage `$0C` is tied to its fixed command flow and exact Pisces/Saga progression handoffs.
+Stages without a dedicated selector branch fall through `$913E` and use `$065F & 1`. Equal coefficient entries in the damage table do not make structural slots reachable.
+
+## Coverage classification
+
+| Stage | Battle context | Coverage status |
+|---:|---|---|
+| `$00` | Mu / pre-battle repair | **material context missing; first next boundary** |
+| `$01` | Taurus — Aldebaran | dedicated context closed |
+| `$02` | Gemini / first Camus branch | **material context missing** |
+| `$03` | Cancer — Death Mask | **material context missing** |
+| `$04` | Leo — Aioria | dedicated context closed |
+| `$05` | Virgo — Shaka | dedicated context closed |
+| `$06` | Scorpio — Milo | **material context missing** |
+| `$07` | Capricorn — Shura | **material context missing** |
+| `$08` | Aquarius — Camus | dedicated context closed |
+| `$09` | Pisces — Aphrodite | dedicated context closed |
+| `$0A` | Pope/Saga | dedicated context closed |
+| `$0B` | transient/structural presentation index | no canonical stable battle; no dedicated context required |
+| `$0C` | final-special rose bridge | separately closed non-boss exception |
+
+The uncovered `$02/$03/$06/$07` handlers all contain persistent counters, release ownership or stage-specific Talk/post-action branching; they are not generic-only placeholders. They remain queued behind `$00` in canonical progression order.
 
 ## Architectural consequence
 
@@ -155,7 +211,7 @@ A normal Gold Saint encounter composes at least:
 11. dialogue/reward/phase transitions;
 12. next turn or battle termination.
 
-Saga demonstrates a second layer of composition: each of those stage-local surfaces can itself dispatch a synchronized narrative phase byte (`$06CE`). Table presence alone still does not prove reachability: Saga init phase 2 is structurally present but unreachable, while final-special stage `$0C` bypasses ordinary boss surfaces altogether.
+Table presence alone does not prove reachability. Stage `$0B` is the clearest current example: it has structural entries in the tables, but no canonical stable story entry, and its raw init pointer is not an intended instruction boundary.
 
 ### Saga `$0A` phase summary
 
@@ -212,14 +268,8 @@ No generic opponent damage, post-Bronze, Gold response/dodge/damage or post-Gold
 - `$06CE-$06D0` — multi-phase story/battle state;
 - `$06BC` — current Bronze attack hit token.
 
-## Closed/promoted contexts
+## Promoted contexts and next gap
 
-1. Taurus/Aldebaran `$01`;
-2. Leo/Aioria `$04`;
-3. Virgo/Shaka `$05`;
-4. Aquarius/Camus `$08`;
-5. Pisces/Aphrodite `$09`;
-6. final-special bridge `$0C`;
-7. Saga final machine `$0A`.
+Dedicated executable contexts are closed for `$01/$04/$05/$08/$09/$0A`; final-special `$0C` is closed separately. Coverage audit `BattleStageContextCoverage` proves material gaps at `$00/$02/$03/$06/$07` and no canonical stable battle at `$0B`.
 
-Saga's exact post-victory boundary is story progress `$0E`, stage `$00`, release `$05`, engine bootstrap `$00->$20`; its final defeat boundary is `$DD` followed by bootstrap `$90->$91`. Further ownership belongs to the already-separated global engine/story subsystems, not to the Saga boss dispatcher.
+The next checkpoint is stage `$00`: close the Talk-only Mu/pre-battle repair machine from common reset through second-Talk release `$01` and fixed progression to Taurus, without invoking generic Gold arithmetic.
