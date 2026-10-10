@@ -39,7 +39,7 @@ Los niveles de evidencia `CONFIRMED / INFERRED / UNKNOWN / DISPROVEN` siguen apl
 | Plataforma: frame normal | HIGH | Orden persistente de frame, spawners, entidades primarias/auxiliares, hazards, interacción y timing ampliamente promovidos. | `PERSISTENT_LATE_OBJECT_FRAME.md`, `COMMON_EDGE_SPAWNER_B6D0.md`, `ENTITY_POST_INTERACTION_TIMING.md`, `ENTITY_TYPES_0A_0B.md` |
 | Plataforma: movimiento / colisión / combate local | HIGH | Movimiento, salto, ataques, probes, colisiones, daño y efectos principales ya no son frentes iniciales desconocidos. | `PLATFORM_PLAYER.md`, `PLATFORM_JUMP.md`, `PLATFORM_ATTACKS.md`, `COLLISION_PROBES.md`, `COLLISION_BEHAVIOR.md`, `PLATFORM_COMBAT.md` |
 | Plataforma: salida / reload / narrativa | HIGH | Familia normal `$02=$00-$10`, cadena especial `$11->$70-$89`, reload `$8F` y destinos normales `$00/$10/$90` cerrados semánticamente. | `PLATFORM_EXIT_GATES.md`, `PLATFORM_WARM_RELOAD_INTERACTIVE_STATE.md`, `PLATFORM_NORMAL_WARM_RELOAD_DESTINATIONS.md`, `PLATFORM_SPECIAL_NORMAL_EXITS.md`, `PLATFORM_NARRATIVE_STATES_80_89.md`, `PLATFORM_RELOAD_MODE_8F.md` |
-| Máquina global `$00/$01` | MEDIUM | Varias familias están cerradas localmente, pero falta el mapa superior main/NMI que las particione y exponga los estados aún no modelados. | `PROJECT_STATE.md` + máquinas locales de plataforma/reload |
+| Máquina global `$00/$01` | MEDIUM-HIGH | Bootstrap `$C180`, dispatcher main y companion NMI ya están particionados semánticamente; quedan familias alcanzables por cerrar, empezando por `$11-$14`. | `ENGINE_STATE_DISPATCHER.md`, `EngineStateDispatcherMap.cs`, `PROJECT_STATE.md` |
 | Combate de jefes | MEDIUM-HIGH | Recursos, daño, dodge, técnicas, AI y event dispatch tienen investigación promovida; todavía no se declara paridad global de todos los bosses/contextos. | `BOSS_BATTLE_RESOURCES.md`, `BOSS_BATTLE_DAMAGE.md`, `BOSS_DODGE.md`, `BATTLE_TECHNIQUES.md`, `BATTLE_EVENT_DISPATCH.md` |
 | Recursos Life/Cosmo/Seventh Sense | MEDIUM-HIGH | Semántica importante ya está integrada en modelos de plataforma/combate; quedan bordes globales y conversiones/contextos por cerrar. | `RESOURCE_ECONOMY.md` y documentos de plataforma/combate |
 | Texto / localización | MEDIUM | Corpus japonés y borrador español estructurado con IDs estables; falta integración final completa y revisión total. | `TEXT_ENGINE.md`, `docs/LOCALIZATION.md`, `docs/localization/GLOSSARY_ES.md`; corpus privado en Drive |
@@ -53,9 +53,9 @@ Los niveles de evidencia `CONFIRMED / INFERRED / UNKNOWN / DISPROVEN` siguen apl
 
 A la fecha de este checkpoint (`2026-10-09`), `PROJECT_STATE.md` sitúa el frente activo en:
 
-`ORIGINAL SPEC / global engine state dispatcher`
+`ORIGINAL SPEC / engine state family $11-$14`
 
-La familia de exits/reloads de plataforma ya está cerrada. El límite concreto ahora es construir el mapa superior de los dispatchers `$00/$01` de main/NMI, reconciliarlo con las familias locales ya promovidas y seleccionar **una sola familia de estado alcanzable que continúe sin modelar**.
+El dispatcher global ya está promovido. Los destinos reload `$00/$10/$90` ahora se entienden a nivel superior: `$00` rebootstrappea a `$20`, `$10` entra en `$11` y `$90` entra en `$91`. El siguiente límite concreto es cerrar la familia baja `$11-$14` hasta el primer estado externo a esa secuencia.
 
 Este párrafo es sólo una fotografía. Si queda desactualizado, **no debe corregirse el trabajo desde aquí**: se lee `PROJECT_STATE.md` y se actualiza este mapa después.
 
@@ -68,20 +68,22 @@ Este párrafo es sólo una fotografía. Si queda desactualizado, **no debe corre
 - reload narrativo `$04=$8F` hasta estado estable `$00/$00`;
 - selector warm-reload `$F025 <-> $A275`;
 - destinos warm-reload principales `$00/$10/$90`;
-- special-normal platform exits `$02=$0C-$10` y su composición con el reload existente.
+- special-normal platform exits `$02=$0C-$10` y su composición con el reload existente;
+- partición estructural del dispatcher global `$00/$01` main/NMI promovida por PR #109.
 
 La reapertura requiere fixture fallido, evidencia contradictoria o un efecto lateral nuevo demostrado que atraviese la frontera cerrada.
 
 ## Áreas todavía globalmente abiertas
 
-1. mapa superior completo de la máquina `$00/$01` main/NMI y clasificación de familias de estado;
-2. familias globales de estado que ese mapa demuestre alcanzables pero aún no promovidas;
-3. cobertura completa de renderer/metasprites/CHR por contexto;
-4. RNG y todos sus consumidores;
-5. cierre integral de todos los contextos de boss battle y progresión;
-6. audio y mapeo de pistas/bancos;
-7. integración final de localización española en el runtime/producto;
-8. capa REBORN moderna: presentación, expansión y contenido deliberadamente nuevo.
+1. semántica completa de la familia alcanzable `$11-$14`;
+2. familia alta `$91-$99` directamente sucesora del reload `$90`;
+3. familias globales `$30-$6F` que el mapa superior demuestra estructuralmente presentes pero aún no promovidas de extremo a extremo;
+4. cobertura completa de renderer/metasprites/CHR por contexto;
+5. RNG y todos sus consumidores;
+6. cierre integral de todos los contextos de boss battle y progresión;
+7. audio y mapeo de pistas/bancos;
+8. integración final de localización española en el runtime/producto;
+9. capa REBORN moderna: presentación, expansión y contenido deliberadamente nuevo.
 
 ## Evidencia externa secundaria
 
@@ -99,9 +101,10 @@ Toda semántica promovida debe cerrarse contra nuestra ROM japonesa canónica o 
 Una reanudación sin memoria previa debe seguir este orden:
 
 1. `docs/PROJECT_STATE.md` — checkpoint y único `NEXT`;
-2. documentos/código/tests citados por ese límite;
-3. `docs/WORK_PROTOCOL.md` — reglas de ejecución y verificación;
-4. este archivo — mapa global, sólo si hace falta contexto lateral;
-5. manifiesto privado de Drive — sólo para localizar ROM, corpus, traces, save states o builds no versionados.
+2. `docs/reverse-engineering/ENGINE_STATE_DISPATCHER.md` — mapa superior vigente;
+3. documentos/código/tests citados por el límite activo;
+4. `docs/WORK_PROTOCOL.md` — reglas de ejecución y verificación;
+5. este archivo — mapa global, sólo si hace falta contexto lateral;
+6. manifiesto privado de Drive — sólo para localizar ROM, corpus, traces, save states o builds no versionados.
 
 Nunca se reconstruye el `NEXT` desde una lista de `UNKNOWN` globales.
