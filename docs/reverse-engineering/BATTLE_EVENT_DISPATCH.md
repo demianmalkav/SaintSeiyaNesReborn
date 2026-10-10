@@ -2,7 +2,7 @@
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: four stage-indexed dispatcher families are confirmed statically. Individual handler semantics are being promoted stage by stage.
+Status: four stage-indexed dispatcher families are confirmed statically. Individual handler semantics are being promoted stage by stage, with stage `$0C` now explicitly classified as a special fixed-code exception rather than an ordinary boss context.
 
 ## Stage-indexed architecture
 
@@ -30,9 +30,11 @@ Pointer table at `$97E1`:
 | 9 | `$9B5C` |
 | 10 | `$9B5D` |
 | 11 | `$A960` |
-| 12 | special pointer/data context; still being classified |
+| 12 | table overrun -> raw `$8D00`; unreachable on canonical final-special entry |
 
-These routines establish stage-local counters, dialogue/setup state and transitions before/when entering the encounter.
+These routines establish stage-local counters, dialogue/setup state and transitions before/when entering an encounter.
+
+Stage `$0C` is a proven exception. Index 12 reads beyond the intended pointer table and would decode bytes `$97F9/$97FA` as `$8D00`, which is table/data context rather than a valid final-special initializer. Canonical stage-`$0C` entry never reaches `$97DB`: the mandatory-Saint table has `$F36F[$0C]=$FF`, which cannot match either reachable active Saint (Seiya `0` or Shun `2`), so the common entry path returns before initialization dispatch.
 
 ## 2. `$9C95` — Talk / interaction dispatcher
 
@@ -54,7 +56,9 @@ Pointer table at `$9C9B`:
 | 11 | `$9FF4` |
 | 12 | `$A1AD` |
 
-Stage 1 proves the role particularly clearly: its handler advances a conversation counter and, on the second conversation phase, increments the Gold-Saint attack weakening tier `$0681`.
+Stage 1 proves the ordinary role particularly clearly: its handler advances a conversation counter and, on the second conversation phase, increments the Gold-Saint attack weakening tier `$0681`.
+
+Stage `$0C` Talk `$A1AD` is now closed separately in `FINAL_SPECIAL_STAGE_0C.md`. It has no active-Saint branch: both exact Seiya/Shun entry variants display messages `$D3/$D5`; the first Talk calls `$A1FF` with `#$10`, grants +1000 Seventh Sense through fixed `$F31E`, increments `$066F`, and returns without `$DC` or a release. Repeated Talk has no further reward.
 
 ## 3. `$A361` — post-Bronze-action dispatcher
 
@@ -79,9 +83,11 @@ Pointer table at `$A367`:
 | 9 | `$AA57` |
 | 10 | `$AB18` |
 | 11 | `$A3A1` |
-| 12 | `$A3A1` |
+| 12 | `$A3A1` (structural only; unreachable from canonical `$0C` Attack) |
 
 `$A3A1` is `RTS`.
+
+For final-special stage `$0C`, fixed `$F925+` performs `CMP #$0B` and returns for stage indices `>= $0B`, so command-1 Attack never calls `$A361`. The stage-12 table entry is therefore not part of the reachable `$0C` graph.
 
 ## 4. `$A381` — post-Gold-response dispatcher
 
@@ -103,11 +109,13 @@ Pointer table at `$A387`:
 | 9 | `$AAF0` |
 | 10 | `$AC05` |
 | 11 | `$A3A1` |
-| 12 | `$A3A1` |
+| 12 | `$A3A1` (structural only; unreachable at canonical `$0C`) |
+
+Final-special stage `$0C` never reaches Gold response at all: fixed `$F936+` returns for stage indices `>= $0B` before Gold technique selection, dodge polling, damage or `$A381` can run.
 
 ## Stage identity
 
-Opponent initialization records and independently published boss stats match exactly, giving the following externally corroborated mapping:
+Opponent initialization records and independently published boss stats match exactly for ordinary battle stages, giving the following externally corroborated mapping:
 
 | Stage | Battle context |
 |---:|---|
@@ -122,13 +130,14 @@ Opponent initialization records and independently published boss stats match exa
 | 8 | Aquarius — Camus |
 | 9 | Pisces — Aphrodite |
 | 10 | Pope/Saga |
-| 11–12 | special/final contexts |
+| 11 | special/final context |
+| 12 | final-special rose-clearing bridge to Saga; not a boss battle |
 
-The numeric stage index remains ROM-canonical; names are secondary labels until text/portrait data is internally tied to those indices.
+The numeric stage index remains ROM-canonical. Stage `$0C` identity is now internally tied to its fixed command flow, `$A1AD` dialogue and exact Pisces/Saga progression handoffs.
 
 ## Architectural consequence
 
-A Gold Saint encounter is not one monolithic state machine. It composes at least:
+A normal Gold Saint encounter is not one monolithic state machine. It composes at least:
 
 1. stage initialization dispatcher;
 2. command selection;
@@ -145,6 +154,37 @@ A Gold Saint encounter is not one monolithic state machine. It composes at least
 
 This is the semantic architecture to preserve before REBORN expands presentation or mechanics.
 
+### Stage `$0C` exception
+
+The final-special stage deliberately exposes only a subset of that surface:
+
+```text
+Attack
+  -> technique selection (cancel disabled)
+  -> special bank-1 action
+  -> $FF9F / bank0 $B900 rose effect
+  -> temporary $050E=$12
+  -> restore $050E=$0C
+  -> release $01
+  -> $067D $0C->$0D
+  -> stage $0A Saga
+
+Talk
+  -> $A1AD shared dialogue
+  -> first-use +1000 Seventh Sense / $066F++
+  -> no release
+
+Escape
+  -> message $D4
+  -> no release
+
+Resource allocation
+  -> suppressed/redraw-only
+  -> no release
+```
+
+No generic opponent damage, post-Bronze handler, Gold response/dodge/damage or post-Gold handler is reachable in this context.
+
 ## Frequently used per-battle state
 
 - `$EA` — player coarse condition (`FF` defeated, `00` above threshold, `01` alive/below threshold);
@@ -157,13 +197,17 @@ This is the semantic architecture to preserve before REBORN expands presentation
 - `$06CE-$06D0` — multi-phase story/battle state used heavily in Gemini/Saga-related paths;
 - `$06BC` — current Bronze attack hit token.
 
-These locations are structurally reusable but some counter semantics remain stage-specific.
+These locations are structurally reusable but some counter semantics remain stage-specific. Stage `$0C` demonstrates why table membership alone is not sufficient evidence of subsystem reachability.
 
-## Next stage-by-stage work
+## Stage-by-stage closure order
 
-1. Taurus/Aldebaran as the simplest complete pattern;
-2. Leo/Aioria to combine scripted weakening and multi-attack opponent AI;
-3. Virgo/Shaka for Ikki substitution/special platform detour;
-4. Aquarius/Camus for technique unlocks and stage redirection;
-5. Pisces/Aphrodite for deterministic attack escalation;
-6. Saga for the three-phase final state machine.
+Closed/promoted contexts:
+
+1. Taurus/Aldebaran `$01`;
+2. Leo/Aioria `$04`;
+3. Virgo/Shaka `$05`;
+4. Aquarius/Camus `$08`;
+5. Pisces/Aphrodite `$09`;
+6. final-special bridge `$0C`.
+
+The next direct canonical boundary after `$0C` is Saga stage `$0A`, reached at story progress `$067D=$0D`. Saga still requires complete composition of its multi-phase final state machine.
