@@ -4,127 +4,144 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / final-special stage $0C`
+- Phase: `ORIGINAL SPEC / final boss stage $0A Saga`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#131` — complete stage `$050E=$09` Pisces/Aphrodite context, Shun progression, deterministic Gold escalation and exact `$FE` successor.
-- Merge commit: `002ecd86361ccc6acca028fbafda5e16df41b3a6`
-- Exact final PR head: `92d428cb30ced7f6c6a9f403571aafb4f8cd7378`
+- Last verified technical checkpoint: PR `#133` — complete final-special story stage `$067D/$050E=$0C`, including both Pisces-derived entry variants, command ownership, rose-clearing action and exact Saga handoff.
+- Merge commit: `140f7eadf62e3a05d66fbe5448aa542005ed4d76`
+- Exact final PR head: `d08f8a3a59c945409d113978d6bccce96bffa987`
 - Verification on that exact head:
-  - `ORIGINAL SPEC tests` #333: `SUCCESS`
-  - `Original Spec` #529: `SUCCESS`
+  - `ORIGINAL SPEC tests` #337: `SUCCESS`
+  - `Original Spec` #533: `SUCCESS`
   - build/self-test/password compatibility: `SUCCESS`
-- PR #129 closes Aquarius/Camus stage `$08`; PR #127 closes Virgo/Shaka `$05`; PR #125 closes Leo/Aioria `$04`; PR #123 closes Taurus/Aldebaran `$01`.
+- PR #131 closes Pisces/Aphrodite `$09`; PR #129 closes Aquarius/Camus `$08`; PR #127 closes Virgo/Shaka `$05`; PR #125 closes Leo/Aioria `$04`; PR #123 closes Taurus/Aldebaran `$01`.
 - PR #121 closes the complete global `$00/$01` namespace.
 
 ## DONE
 
-### Pisces/Aphrodite stage `$09` — PR #131
+### Final-special story stage `$0C` — PR #133
 
-Closed reachable stage-local/control paths:
+Closed reachable control surface:
 
 ```text
-initialization       $9B5C  (RTS / no local body)
-Talk                 $9F99
-post-Bronze action   $AA57
-post-Gold response   $AAF0
-Gold selector        bank6 $90D5-$90EA
+entry ownership       fixed story progression + common reset
+initialization         canonical path bypasses bank-5 init dispatcher
+Talk                   bank5 $A1AD
+Attack                 fixed $F08B+ + bank1 $ABF4+ + fixed $FF9F + bank0 $B900
+Escape                 fixed $F14A+
+resource allocation    suppressed at fixed $F041+
+story advance          release $01 -> fixed $E399/$E3B3+
 ```
 
 Promoted semantics:
 
-- canonical predecessor Aquarius advances `$067D: $0A->$0B`; the story-stage table maps `$0B -> $050E=$09`;
-- story descriptor `$E50B[$0B]=$0A` produces pre-entry `$0673=$3A`; the generic Saint-bit gate proves only Seiya and Shun are selectable in canonical Pisces;
-- stage-9 initialization pointer `$9B5C` is a bare `RTS`; no Aphrodite-specific init behavior is invented;
-- Talk uses total Gold dodge history `$0677+$0678`; below two attempts it is dialogue-only and does not force a Gold response;
-- at two or more attempts, first Shun Talk with `$066F==0` runs `$A1FF` with `#$10`, grants +1000 Seventh Sense through already-closed `$F31E`, increments `$066F` and does not force the immediate Gold response;
-- all other post-threshold Talk paths raise transient `$DC` and force the Gold response;
-- every Bronze action increments both `$064D` and dedicated Pisces action counter `$EF`;
-- because only Seiya/Shun are reachable, `$AA57`'s raw `$0533!=0` branch is exactly the Shun route;
-- Shun technique growth is equality-triggered: `$EF==2` increments `$0589/$0696` from 2->3 (Nebula Stream), `$EF==5` increments 3->4 (Nebula Storm); a Seiya action on either exact count misses that increment rather than deferring it;
-- technique growth executes before opponent-condition handling, so a same-action Aphrodite defeat still receives the Shun increment first;
-- `$EB=$01` first-low branch installs `$064D=$80`; this is both a one-time dialogue latch and an immediate jump to the highest reachable Aphrodite attack tier;
-- `$EB=$FF` grants +1200 Seventh Sense (`#$12 -> $F31E`) and releases `$FE`;
-- Gold attack selection is deterministic: `$064D 0..2 -> slot0`, `3..5 -> slot1`, `>=6 -> slot2`; structural slot3 is unreachable; reachable coefficients are `22/32`, `34/22`, `29/29` Cosmo/Life;
-- post-Gold `$EA=$01` is nonterminal feedback; `$EA=$FF` releases ordinary defeat `$FF`;
-- generic `$FE` ownership zeroes the active winner Life/Cosmo mirrors before fixed story progression;
-- Pisces `$FE` advances `$067D: $0B->$0C`; the story-stage table maps `$0C -> stage $0C`, not directly to Saga;
-- the special `$0C` handoff has two proven variants from the persisted `$0673` bitset: Shun-Pisces route selects Seiya with `$06CD=$0E/$0673=$3E`; Seiya-Pisces route selects Shun with `$06CD=$0B/$0673=$3B`.
+- Pisces `$FE` creates exactly two stage-`$0C` entries: Shun-Pisces victory -> active Seiya with `$06CD=$0E/$0673=$3E`; Seiya-Pisces victory -> active Shun with `$06CD=$0B/$0673=$3B`;
+- the apparent stage-12 init pointer is a table overrun decoding raw `$8D00`, but canonical `$0C` entry provably returns before `$97DB` because mandatory-Saint table `$F36F[$0C]=$FF` cannot match active Seiya/Shun;
+- `$A1AD` contains no active-Saint branch: both entries display `$D3/$D5`; first Talk with `$066F=0` calls `$A1FF` with `#$10`, grants +1000 Seventh Sense through fixed `$F31E`, increments `$066F`, and emits no `$DC` or release; repeated Talk has no further reward;
+- Escape is intercepted by message `$D4` and cannot advance;
+- the resource-allocation command is suppressed/redraw-only at stage `$0C` and never enters `$FB89`;
+- once Attack is chosen, final-special technique selection cannot be cancelled through the ordinary back path;
+- bank-1 action code sets `$0632=$02`, clears `$06BC`, still presents the selected Bronze technique, calls special `$FF9F`, and explicitly skips generic opponent damage;
+- `$FF9F -> bank0 $B900` temporarily writes `$050E=$12`, runs the rose-clearing effect until `$06C1=$40`, writes `$0632=$1A`, then restores `$050E=$0C`;
+- fixed stage gates make post-Bronze, Gold technique selection/dodge/damage and post-Gold dispatchers unreachable for canonical stage `$0C`;
+- the special Attack finishes by emitting release `$0670=$01`;
+- fixed release `$01` ownership advances `$067D: $0C->$0D`, then ordinary descriptor lookup gives `$06CD=$0E/$0673=$3E` and story-stage table `$F016[$0D]=$0A` selects Saga;
+- active Saint identity survives that handoff: the Saga boundary is reachable with active Seiya **or** active Shun.
 
 Artifacts:
 
-- `src/SaintSeiyaNesReborn.OriginalSpec/PiscesStage09Context.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PiscesStage09ContextChecks.cs`
-- `docs/reverse-engineering/BOSS_CONTEXT_STAGE_09_PISCES.md`
-- promoted Shun progression in `docs/reverse-engineering/BATTLE_TECHNIQUES.md`
-- PR #131
+- `src/SaintSeiyaNesReborn.OriginalSpec/FinalSpecialStage0CContext.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/FinalSpecialStage0CContextChecks.cs`
+- `docs/reverse-engineering/FINAL_SPECIAL_STAGE_0C.md`
+- corrected stage-`$0C` reachability in `docs/reverse-engineering/BATTLE_EVENT_DISPATCH.md`
+- PR #133
 
-Do not reopen Pisces without contradictory ROM evidence or a failing fixture.
+Do not reopen final-special stage `$0C` without contradictory ROM evidence or a failing fixture.
 
 ## EVIDENCE FOR NEXT
 
-### Why special/final stage `$0C` is next
+### Why Saga stage `$0A` is next
 
-Stage `$0C` is the proven canonical successor of Pisces, not an optional detour:
-
-```text
-Pisces victory release $FE
-$067D: $0B -> $0C
-story-stage table $F016[$0C] = $0C
-```
-
-Two exact entry variants are already proven by the Pisces closure:
+The final-special closure proves the direct canonical boundary:
 
 ```text
-Shun won Pisces  -> stage $0C with active Seiya, $06CD=$0E, $0673=$3E
-Seiya won Pisces -> stage $0C with active Shun,  $06CD=$0B, $0673=$3B
+rose-clear Attack -> release $01
+$067D: $0C -> $0D
+$E50B[$0D] = $0E
+$06CD = $0E
+$0673 = $3E
+$F016[$0D] = $0A
 ```
 
-Known static anchors requiring composition rather than inference:
+Two active-Saint ingress variants remain reachable at the same Saga boundary:
 
-- stage-indexed Talk dispatcher uses `$A1AD` for index `$0C`;
-- `$A1AD` has Seiya/Shun dialogue paths and a one-time `$066F==0` branch that loads `#$10`, calls `$A1FF` and increments `$066F`; by the already-closed resource helper this implies a +1000 Seventh Sense event, but its exact entry/command ownership still must be joined;
-- stage-indexed post-Bronze and post-Gold dispatchers both point stage `$0C` to shared `$A3A1` (`RTS`), so this is not a normal boss context and must not be forced into the Taurus/Leo/Virgo/Aquarius/Pisces template;
-- the stage-`$0C` initialization-dispatch slot is nonstandard and currently points into a context that was previously left unclassified; prove whether it is executable dispatch, data, or deliberately bypassed before modeling it;
-- fixed command/state handling contains explicit stage-`$0C` branches outside the normal boss dispatchers, including a path around `$F08B+` that performs presentation/action helpers and writes release `$0670=$01`;
-- another fixed stage-`$0C` branch around `$F14A+` emits message `$D4`, reinforcing that ownership is distributed through fixed special-state code rather than ordinary boss handlers;
-- the fixed story-stage table maps subsequent progress `$0D -> stage $0A` (Saga), so the next closure must prove the exact `$0C -> $0D` transition instead of assuming a direct jump.
+```text
+active Seiya -> $067D=$0D / $050E=$0A / $06CD=$0E / $0673=$3E
+active Shun  -> $067D=$0D / $050E=$0A / $06CD=$0E / $0673=$3E
+```
+
+Saga is explicitly a phase machine driven by `$06CE`, not one monolithic boss handler.
+
+Stage handlers and phase dispatch:
+
+```text
+initialization       $9B5D -> $06CE {0:$9B69, 1:$9B9E, 2:$9C2C}
+Talk                 $9FF4 -> $06CE {0:$A000, 1:$A0E0, 2:$A115}
+post-Bronze action   $AB18 -> $06CE {0:$AB24, 1:$AB62, 2:$AB6F}
+post-Gold response   $AC05 -> $06CE {0:$AC11, 1:$AC3E, 2:$AC76}
+Gold selector        bank6 $90EC+ -> $06CE {0:$9104, 1:$911D, 2:$9135}
+```
+
+Known ROM anchors already isolated:
+
+- init phase `$9B69` performs a record handoff, forces active Ikki (`$0533=4`), increments `$06CE`, clears `$06CF/$06D0/$066F`, and arms scripted Bronze block `$0690=$FF`;
+- init phase `$9B9E` contains the long scripted transition back toward Seiya, then increments `$06CE` again and clears `$06CF/$06D0/$066F/$064D/$0681`;
+- init phase `$9C2C` emits release `$DD`, writes `$0673=$3F` and resets `$06CE=0`;
+- phase-0 Talk `$A000` is driven by `$066F`, total dodge history helper `$A1EC`, `$06CF` and writes `$06D0`; phase-1 Talk `$A0E0` has a one-shot `$066F` branch using `$A1F4`; phase-2 Talk `$A115` is a larger scripted presentation/state path and increments `$066F`;
+- post-Bronze phases 0/1 consume the generic player-condition classifier and can set `$06D0=$FF`; phase 2 instead consumes opponent condition, uses `$064D` as a first-low latch and has a distinct terminal path;
+- post-Gold phases 0/1 have phase-specific defeat scripts; phase 2 distinguishes `$EA=$01` feedback from `$EA=$FF`, whose terminal path resets `$06CE` and releases `$DD`;
+- Saga Gold selection is also phase-specific: phase 0 chooses slot0 unless `$06D0==$FF`, then slot1; phase 1 uses `$06D0` plus `$0649` to choose among slot0/slot2 and falls into phase-2 slot3 when `$06D0==$FF`; phase 2 forces slot3;
+- stage-10 coefficient row is `35/23`, `30/30`, `60/60`, `60/60` (Cosmo/Life); actual phase reachability and names must be proven rather than inferred from the table;
+- fixed `$F497` writes Seiya technique count `$0587/$0696=3` and grants +1000 Seventh Sense when its late-event gate fires; `BATTLE_TECHNIQUES.md` associates this with the late Saga sequence, but its exact Saga phase/reachability still needs to be joined to the stage machine;
+- `$06CE/$06CF/$06D0`, `$066F`, `$064D`, `$0649`, `$0690`, `$0681`, `$06D4` and `$068F` are therefore the principal unresolved phase/progression state around the final boss.
 
 ## OPEN
 
-1. Classify stage `$0C` entry ownership and the nonstandard initialization-dispatch slot; prove which code actually executes on each Seiya/Shun entry variant.
-2. Close `$A1AD` Talk end-to-end, including active-Saint dialogue, `$066F`, `$A1FF`, the +1000 Seventh Sense event and whether/when Talk advances the special context.
-3. Trace all fixed stage-`$0C` command/state branches, especially `$F08B+` release `$01` and `$F14A+`, and identify their high-level command meanings from callers/state.
-4. Prove whether any battle arithmetic, dodge, post-Bronze or post-Gold machinery is actually reachable; do not infer it merely because `$050E` is a stage index.
-5. Resolve the complete release namespace reachable inside `$0C` and join each token to an already-closed owner or a newly isolated special owner.
-6. Prove the exact mutation that advances `$067D: $0C->$0D`, then join `$0D` to story stage `$0A` Saga through the fixed table.
-7. Implement an executable special-stage context plus discriminating fixtures and evidence documentation only after the reachable graph is classified.
-8. Stop only when both Pisces-derived entry variants have a proven route through `$0C` to the Saga boundary or to an explicitly identified terminal owner.
+1. Prove the exact canonical `$06CE` seed on both Seiya/Shun Saga ingress states, including any common reset or predecessor persistence that determines the first reachable init phase.
+2. Close all reachable `$9B5D` initialization branches and prove the exact active-Saint lifecycle, especially the forced Ikki phase and the transition back to Seiya.
+3. Close all three Talk handlers `$A000/$A0E0/$A115`, resolving `$066F/$06CF/$06D0`, dodge-history dependencies and every presentation/state mutation.
+4. Close all three post-Bronze handlers `$AB24/$AB62/$AB6F` and all three post-Gold handlers `$AC11/$AC3E/$AC76`, joining their `$EA/$EB` conditions to existing generic classifiers without duplicating damage arithmetic.
+5. Prove phase-specific Gold-slot reachability from `$9104/$911D/$9135`, including `$06D0/$0649`, and classify structural-but-unreachable slots/profiles per phase.
+6. Join fixed `$F497` Seiya Rolling Crash/+1000 event to its exact reachable Saga state, resolving `$068F/$06D4` ownership instead of keeping it as a detached late-game writer.
+7. Resolve every Saga release (`$FF`, `$DD`, `$01` and any other reachable token) through its fixed owner, including phase resets and any reload/re-entry cycles.
+8. Prove the final terminal/progression boundary after the last Saga phase rather than assuming the ending from narrative order.
+9. Implement one executable multi-phase Saga context, discriminating fixtures and evidence documentation only after the reachable graph is closed.
+10. Stop only when both proven ingress variants have known successors through every reachable `$06CE` phase and all terminal/nonterminal paths join already-closed owners or an explicitly isolated final boundary.
 
 ## NEXT
 
-**Close the complete special/final story stage `$0C` end-to-end, including its Seiya/Shun entry variants, `$A1AD` Talk/reward behavior, nonstandard command/initialization ownership, release paths and the exact transition into `$067D=$0D -> stage $0A` Saga.**
+**Close the complete stage `$0A` Saga final-boss machine end-to-end across all reachable `$06CE` phases, including active-Saint substitution/return, Talk and post-action state, phase-specific Gold selection, Seiya's late technique unlock, releases/re-entry cycles and the true final terminal boundary.**
 
 Completion criterion:
 
-> Starting from both proven Pisces `$FE` successor states at `$067D/$050E=$0C`, produce an evidence-backed executable graph for every reachable special-stage path, classify the nonstandard init slot and fixed stage-`$0C` branches, resolve `$066F`/Talk and release ownership, and prove the exact handoff to `$067D=$0D -> $050E=$0A` without importing ordinary boss semantics that are not reachable.
+> Starting from both proven `$067D=$0D -> $050E=$0A` ingress states (active Seiya and active Shun), produce an evidence-backed executable graph for every reachable `$06CE` phase through `$9B5D/$9FF4/$AB18/$AC05` and bank6 `$90EC+`, resolve `$06CF/$06D0/$066F/$064D/$0649/$0690/$0681` plus the `$F497` Seiya unlock gate, prove reachable `$0680` Gold slots per phase, and join every release/reload/terminal path to its fixed owner without reopening generic damage, dodge or resource arithmetic.
 
 ## BLOCKERS
 
-- None. Canonical ROM, both exact stage-`$0C` entry states, fixed progression tables and the relevant dispatcher/fixed-bank anchors are available.
+- None. Canonical ROM, both exact Saga ingress variants, the final-special predecessor, generic boss primitives, phase dispatchers and fixed release/progression owners are available.
 
 ## RECOVERY CONTRACT
 
 1. Read this file from `main`.
 2. Reconcile it with newer merged Git history if present.
-3. Read `BOSS_CONTEXT_STAGE_09_PISCES.md` only for the exact `$0C` predecessor states and release handoff.
-4. Inspect `$A1AD`, stage-`$0C` dispatcher entries and fixed stage-`$0C` branches around `$F08B+/$F14A+`; follow callers before assigning semantics.
-5. Reuse `RESOURCE_ECONOMY.md`, release/progression specs and global state-machine contracts instead of reopening them.
-6. Do not treat stage `$0C` as a boss battle unless reachability proves battle paths.
+3. Read `FINAL_SPECIAL_STAGE_0C.md` only for the exact Saga predecessor/handoff states.
+4. Inspect `$9B5D`, `$9FF4`, `$AB18`, `$AC05`, bank6 `$90EC+`, and fixed `$F497`; follow `$06CE` reachability before assigning phase semantics.
+5. Reuse `BATTLE_TECHNIQUES.md`, `BOSS_BATTLE_DAMAGE.md`, `BOSS_DODGE.md`, `BOSS_BATTLE_RESOURCES.md`, `RESOURCE_ECONOMY.md` and generic release ownership instead of reopening them.
+6. Treat the active Seiya/Shun ingress distinction as live until ROM evidence proves convergence; do not silently assume Seiya-only entry.
 7. Drive is private ROM/evidence storage only; it never owns a separate `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `final-special-stage-0c`
+- `last_next_signature`: `boss-context-stage-0a-saga-multiphase`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
