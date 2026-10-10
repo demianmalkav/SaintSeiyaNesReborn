@@ -2,7 +2,7 @@
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: technique-slot topology, initial counts, menu availability and the main progression unlock writes are statically confirmed. Names are attached where published Life/Cosmo factors exactly match the ROM coefficient pairs; final JP→ES wording still belongs to the localization pass.
+Status: technique-slot topology, initial counts, menu availability and the main progression unlock writes are statically confirmed. Names are attached where published Life/Cosmo factors exactly match the ROM coefficient pairs; final JP→ES wording remains owned by the localization pass.
 
 ## Canonical character order
 
@@ -78,16 +78,45 @@ Seiya starts with count 2. Fixed `$F497` writes `3` directly to `$0587`, and the
 
 Final count: 3.
 
-### Hyoga
+### Hyoga — Aquarius sequence closed
 
-Hyoga starts with count 2.
+Hyoga starts with count 2. The two increment writers are now tied to exact stage-8 events by `BOSS_CONTEXT_STAGE_08_AQUARIUS.md`.
 
-Two distinct event paths increment `$0588` and the active menu count `$0696`:
+#### Unlock 1: final Camus initialization
 
-- bank 5 `$9B53/$9B56`;
-- bank 5 `$9F47/$9F4A`.
+Bank 5 `$9B14` is the stage-8 initialization handler. Its `$067D==$02` branch restores Seiya and does not unlock anything. The other branch — canonically final Camus at `$067D=$0A` — ends with:
 
-This produces count 3 then count 4, matching the two later techniques associated with the Aquarius progression.
+```text
+$9B53 INC $0588
+$9B56 INC $0696
+```
+
+This changes Hyoga's persistent/active counts `2 -> 3`, exposing contiguous slot 2 / attack id 6: **Aurora Thunder Attack**. The handler then exits through shared release `$03`.
+
+#### Unlock 2: first post-dodge Hyoga Talk
+
+Stage-8 Talk `$9F00` first requires the ordinary/final phase `$06B8==0` and a nonzero total dodge history:
+
+```text
+$0677 + $0678 > 0
+```
+
+When `$066F==0`, the handler increments the Talk progression counter. It then tests the active Saint:
+
+```text
+$0533 == 1  ; Hyoga
+```
+
+Only Hyoga reaches `$A1F4`, which clears the scripted Bronze-hit block `$0690`, followed by:
+
+```text
+$9F47 INC $0588
+$9F4A INC $0696
+```
+
+With canonical prior count 3, this produces `3 -> 4`, exposing contiguous slot 3 / attack id 7: **Aurora Execution**.
+
+A non-Hyoga active Saint still advances `$066F` on this first post-dodge Talk but does not clear `$0690` and does not receive the Hyoga unlock.
 
 Final count: 4.
 
@@ -132,9 +161,13 @@ The password serializes `$0587-$058A` — technique counts for Seiya, Hyoga, Shu
 
 Tests live in `tests/test_battle_techniques_spec.py`.
 
+Stage-local Aquarius composition and transition fixtures live in:
+
+- `src/SaintSeiyaNesReborn.OriginalSpec/AquariusStage08Context.cs`;
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/AquariusStage08ContextChecks.cs`.
+
 ## Remaining work
 
-1. tie technique names to original Japanese text ids once the text engine is decoded;
-2. identify the exact two Hyoga unlock events internally by stage/event state;
-3. formalize progression events as state-machine transitions, not only direct RAM writes;
-4. trace opponent `$0680` selection and scripted technique forcing.
+1. complete final localization review for technique naming/wording in the JP→ES corpus;
+2. close remaining character-specific progression state machines such as Shun/Pisces and late Seiya/Saga;
+3. keep opponent `$0680` reachability stage-local rather than inferring unused structural slots from coefficient tables.
