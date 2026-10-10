@@ -15,124 +15,120 @@ ROM canónica: SHA-1 `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`, mapper 1/MMC1, 
 | Subsistema | Madurez | Estado resumido |
 |---|---|---|
 | ROM / boot / MMC1 / bancos | HIGH | Target, vectores, mapper y mapa PRG establecidos. |
-| Máquina global `$00/$01` | HIGH | PR #121 cerró el namespace completo: 59 valores producidos, 197 estructurales sin productor. |
-| Front-end/title `$50` | HIGH | Modal `$0200=$00-$09`, attract, start/password y CHR->RAM overlays cerrados. |
-| Attract `$30-$4D` | HIGH | Grafo cerrado; semántica corregida como presentación/front-end. |
-| Plataforma: frame / entidades / hazards | HIGH | Orden, spawners, entidades, hazards y timing ampliamente promovidos. |
-| Plataforma: movimiento / colisión / combate | HIGH | Movimiento, salto, ataques, colisión, damage/drain/failure modelados. |
-| Plataforma: exits / reload / narrativa | HIGH | `$02=$00-$11`, selector, destinos `$00/$10/$90`, `$70-$89`, reload `$8F/$FF` cerrados. |
-| Engine `$11-$14`, `$60`, `$91-$99` | HIGH | Familias cerradas con fixtures. |
-| Password | HIGH | Codec, output, entrada, validación y puente front-end unidos. |
-| Combate de jefes | MEDIUM-HIGH -> HIGH parcial por contexto | Primitivas fuertes y Taurus `$01` cerrado end-to-end en #123. Frente actual: Leo/Aioria `$04`. |
-| Taurus/Aldebaran stage `$01` | HIGH | Init, Talk, post-Bronze, post-Gold, retry/persistencia y releases terminales cerrados. |
-| Life/Cosmo/Seventh Sense | HIGH plataforma / MEDIUM-HIGH global | Recursos y clasificadores cerrados; siguen componiéndose en contexts boss. |
-| Texto / localización | MEDIUM | Corpus JP + borrador ES; falta integración runtime/revisión final. |
-| Renderer / metasprites / CHR | MEDIUM | CHR/plataforma parcial; no hay render spec global todavía. |
-| Executable CHR/RAM overlays | MEDIUM-HIGH | Dos overlays CHR31 confirmados y auditados para reachability global; censo gráfico/general pertenece a renderer. |
+| Máquina global `$00/$01` | HIGH | PR #121 cerró el namespace: 59 valores producidos, 197 estructurales sin productor. |
+| Front-end/title `$50` | HIGH | Modal, attract, start/password y overlays CHR->RAM cerrados. |
+| Plataforma: frame / movimiento / colisión / hazards / exits | HIGH | Sistemas principales y handoffs ampliamente promovidos. |
+| Password | HIGH | Codec, entrada/salida y puente front-end cerrados. |
+| Combate de jefes — primitivas | HIGH | Recursos, clasificadores, damage, técnicas, dodge y dispatch tables promovidos. |
+| Taurus/Aldebaran `$01` | HIGH | Contexto completo cerrado en PR #123. |
+| Leo/Aioria `$04` | HIGH | Contexto completo cerrado en PR #125, incluida invulnerabilidad `$0690`, `$F1/$ED/$0681` y slots Gold 0/1. |
+| Virgo/Shaka `$05` | ACTIVE | Próximo contexto: sustitución Ikki, releases especiales y slot Gold 2 forzado. |
+| Otros boss contexts | MEDIUM | Aquarius, Pisces, Saga y ramas especiales aún deben componerse end-to-end. |
+| Life/Cosmo/Seventh Sense | HIGH plataforma / MEDIUM-HIGH global | Primitivas cerradas; composición boss en progreso. |
+| Texto / localización | MEDIUM | Corpus JP + borrador ES; integración runtime/revisión final pendiente. |
+| Renderer / metasprites / CHR | MEDIUM | CHR/plataforma parcial; render spec global pendiente. |
+| Executable CHR/RAM overlays | MEDIUM-HIGH | Dos overlays CHR31 confirmados; censo visual/general pendiente con renderer. |
 | RNG | LOW-MEDIUM | Subsistema global abierto. |
 | Audio | LOW | Subsistema global abierto. |
 | REBORN moderno | EARLY | Congelado hasta cierre integral de ORIGINAL SPEC. |
 
-## Checkpoints globales recientes
+## Checkpoints técnicos recientes
 
-### PR #121 — namespace global
+### PR #121 — namespace global `$00/$01`
 
-`ENGINE_STATE_REACHABILITY.md` clasifica todos los valores `$00-$FF` y deja cerrada la máquina global.
+Todos los valores `$00-$FF` quedaron clasificados: 59 producidos y 197 sin productor canónico.
 
-```text
-PR #121
-merge ab6859986b8d62b05943b2a011e6257a5933f308
-head  ce56bb74663748edb71ff6fe15477575bd497114
-CI    #312 SUCCESS / #506 SUCCESS
-```
+### PR #123 — Taurus/Aldebaran `$01`
 
-### PR #123 — Taurus/Aldebaran stage `$01`
-
-Primer boss context completo promovido como composición end-to-end.
-
-Handlers:
+Primer boss context completo. Cerró Talk weakening, post-Bronze/post-Gold, retry/persistencia y releases terminales.
 
 ```text
-init        $97F8
-Talk        $9D2C
-post-Bronze $A3A2
-post-Gold   $A415
-```
-
-Resultados centrales:
-
-- Talk `$066F:0->1->2`; segundo Talk activa `$0681=1` una sola vez;
-- Talk #3+ fuerza contraataque Gold mediante `$DC` transitorio;
-- `$EB=$FF` -> victoria `$0670=$01`;
-- primera condición baja del boss latches `$DD=5`, feedback `$064E++`;
-- miss/no-hit posterior puede hacer `$064E++`;
-- `$EA=$FF` -> derrota `$0670=$FF`;
-- primera condición baja del jugador latches `$064D=1`;
-- `$0681` sobrevive derrota/retry pero se limpia al progresar tras victoria.
-
-```text
-PR #123
 merge 446b54395ce378119e59fcc12d7a7e8174fe5b3b
 head  ff0e0064a5a3d194bf623e51d9b785a91cefe742
 CI    #316 SUCCESS / #510 SUCCESS
 ```
 
-Artifact principal: `BOSS_CONTEXT_STAGE_01_TAURUS.md` + `TaurusStage01Context.cs` + fixtures.
+### PR #125 — Leo/Aioria `$04`
+
+Segundo boss context completo y primer contexto con invulnerabilidad stage-local + selección Gold materialmente distinta.
+
+Resultados centrales:
+
+- fixed stage-4 entry rearma `$0690=$FF`, que fuerza `$06BC=0` y bloquea daño Bronze;
+- intro `$989D` sólo se despacha con Seiya y `$068E=0`; escribe `$ED=1` y hace dos `INC $0681` incondicionales;
+- Talk 1 fuerza contraataque; Talk 2 es la rama única que puede limpiar `$0690` si `$F1==0`; Talk 3+ vuelve a forzar contraataques;
+- `$F1` persiste sobre retry ordinario y low-condition Aioria + non-Seiya vuelve a armar `$0690` y hace `$F1++`;
+- ambas ramas de victoria seleccionadas por `$ED` convergen en `$0670=$01`;
+- post-Gold conserva el evento one-shot `$064D` y derrota `$0670=$FF`;
+- selector stage4 produce sólo `$0680={0,1}` mediante `$065F&1`; slots 2/3 son inalcanzables para Leo;
+- perfiles alcanzables: `48/32` y `32/48`, compuestos con weakening/dodge/damage genéricos.
+
+```text
+merge b77d863ae8e26769f4f4235eb2ca1771bf03643e
+head  5744aa1d7673c0ff0777a85e71a2a56fa2370112
+CI    #320 SUCCESS / #516 SUCCESS
+```
+
+Artifacts: `BOSS_CONTEXT_STAGE_04_LEO.md`, `LeoStage04Context.cs` y fixtures.
 
 ## Frontera operativa actual — snapshot
 
 `PROJECT_STATE.md` sitúa el frente en:
 
 ```text
-ORIGINAL SPEC / boss context stage $04 Leo
+ORIGINAL SPEC / boss context stage $05 Virgo
 ```
 
-Leo/Aioria es el siguiente context elegido porque introduce semántica nueva que Taurus no cubre:
+Virgo/Shaka introduce una estructura distinta a Taurus/Leo:
 
 ```text
-init        $989D
-Talk        $9DD8
-post-Bronze $A5B3
-post-Gold   $A63E
+init        $9A28
+Talk        $9E1B
+post-Bronze $A661
+post-Gold   $A7B3
 ```
 
-La frontera debe resolver especialmente `$ED`, `$F1`, `$0690`, los dos writers de `$0681`, la forma distinta del Talk y la selección `$0680` de ataques Gold. Stage `$04` tiene coeficientes Gold alternantes `48/32` y `32/48`, por lo que el slot ya tiene consecuencia numérica y no puede abstraerse como en Taurus.
+La frontera debe cerrar la sustitución a Ikki y sus handoffs especiales. Evidencia preliminar:
+
+- `$9A28` usa active Saint `4` (Ikki), `$0683` y `$0673=$3F` para rutas que emiten `$0670=$DD/$FE`, y una ruta non-Ikki puede reemplazar el Saint activo por Ikki;
+- `$9E1B` separa non-Ikki de Ikki y, para Ikki, distingue `$067C==0` de `$067C!=0`; sólo algunas ramas levantan `$DC` y fuerzan respuesta Gold;
+- `$A661` tiene una máquina Ikki independiente con `$067C/$0683/$064D/$06E0/$06BC/$0690` y puede emitir `$0670=$02` junto con platform substate `$02=$0D`, además de `$FE`;
+- `$A7B3` tiene una regla especial: con Ikki y `$0683!=0`, player condition `$EA=$01` también puede terminar en defeat release `$FF`;
+- bank-6 `$9074+` fuerza `$0680=$02` cuando `stage==5 && activeSaint==Ikki`, por lo que slot2 forma parte del grafo real de Virgo.
 
 ## Checkpoints que no deben reabrirse sin evidencia nueva
 
-- máquina global `$00/$01` completa — #121;
-- Taurus stage `$01` completo — #123;
-- front-end/title `$50` y overlays — #119;
-- attract `$30-$4D` estructura — #117, con semántica corregida por #119;
-- `$11-$14` — #111;
-- fatal `$60` — #113;
-- `$91-$99` — #115;
+- global `$00/$01` — #121;
+- Taurus `$01` — #123;
+- Leo `$04` — #125;
+- front-end/title `$50` — #119;
+- attract `$30-$4D` — #117/#119;
+- `$11-$14`, `$60`, `$91-$99` — #111/#113/#115;
 - plataforma, exits, reloads y narrativa ya promovidos;
-- damage/resources/dodge/technique primitives de bosses ya documentadas.
+- boss damage/resources/dodge/techniques genéricos.
 
 ## Áreas globales abiertas
 
-1. contextos boss/progresión restantes, con Leo `$04` como frente activo;
-2. otros contexts prioritarios posteriores: Virgo, Aquarius, Pisces, Saga y ramas especiales;
-3. renderer/metasprites/CHR global;
-4. RNG y consumidores;
-5. audio / bank-track mapping;
-6. texto runtime + integración final española;
-7. campos persistentes/progresión todavía provisionales;
-8. revisión de cobertura final ORIGINAL SPEC;
-9. REBORN sólo después de ese cierre.
+1. Virgo/Shaka `$05` end-to-end, incluido Ikki y releases especiales;
+2. Aquarius/Camus, Pisces/Aphrodite, Saga y otros contexts no redundantes;
+3. revisión de stages omitidos si aportan branches no cubiertas por los templates promovidos;
+4. renderer/metasprites/CHR global;
+5. RNG y consumidores;
+6. audio / bank-track mapping;
+7. texto runtime + integración española final;
+8. campos persistentes/progresión todavía provisionales;
+9. auditoría final de cobertura ORIGINAL SPEC;
+10. REBORN después de ese cierre integral.
 
 ## Recuperación
 
 Leer en orden:
 
 1. `docs/PROJECT_STATE.md`;
-2. `BOSS_CONTEXT_STAGE_01_TAURUS.md` como plantilla de composición;
+2. `BOSS_CONTEXT_STAGE_01_TAURUS.md` y `BOSS_CONTEXT_STAGE_04_LEO.md`;
 3. `BATTLE_EVENT_DISPATCH.md`;
-4. `BOSS_BATTLE_RESOURCES.md`;
-5. `BOSS_BATTLE_DAMAGE.md`;
-6. `BOSS_DODGE.md`;
-7. `BATTLE_TECHNIQUES.md`;
-8. handlers Leo bank5 `$989D/$9DD8/$A5B3/$A63E`;
-9. `docs/WORK_PROTOCOL.md`;
-10. este documento sólo como mapa lateral.
+4. `BOSS_BATTLE_RESOURCES.md`, `BOSS_BATTLE_DAMAGE.md`, `BOSS_DODGE.md`, `BATTLE_TECHNIQUES.md`;
+5. Virgo bank5 `$9A28/$9E1B/$A661/$A7B3` y bank6 `$9074+`;
+6. platform/reload docs al reconciliar releases `$DD/$FE/$02`;
+7. `docs/WORK_PROTOCOL.md`;
+8. este documento sólo como mapa lateral.
