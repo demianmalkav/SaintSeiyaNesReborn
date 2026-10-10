@@ -2,17 +2,17 @@
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: the four stage-indexed dispatcher families are statically confirmed, the canonical `$050E=$00-$0B` namespace has been coverage-audited end-to-end, and stage `$00` Mu is now a closed dedicated special context. The first remaining material gap is `$02`.
+Status: the four stage-indexed dispatcher families are statically confirmed, the canonical `$050E=$00-$0B` namespace has been coverage-audited end-to-end, and dedicated executable contexts are now closed for `$00/$01/$02/$04/$05/$08/$09/$0A`. The first remaining material gap is `$03` Cancer / Death Mask.
 
-See `BATTLE_STAGE_CONTEXT_COVERAGE.md` for the complete numeric coverage matrix and `BOSS_CONTEXT_STAGE_00_MU.md` for the exact Talk-only Mu control graph.
+See `BATTLE_STAGE_CONTEXT_COVERAGE.md` for the numeric denominator, `BOSS_CONTEXT_STAGE_00_MU.md` for Mu, and `BOSS_CONTEXT_STAGE_02_GEMINI_FIRST_CAMUS.md` for the composed stage-2 lifecycle.
 
 ## Stage-indexed architecture
 
-PRG bank 5 repeatedly uses the same pattern:
+PRG bank 5 repeatedly uses:
 
 `LDA $050E -> JSR $E698 -> inline pointer table`
 
-`$E698` is the shared indirect dispatcher. Four important tables are isolated below.
+`$E698` is the shared indirect dispatcher.
 
 ## 1. `$97DB` — battle/stage initialization dispatcher
 
@@ -34,11 +34,11 @@ Pointer table at `$97E1`:
 | 11 | raw pointer `$A960`; no canonical stable battle entry |
 | 12 | table overrun -> raw `$8D00`; unreachable on canonical final-special entry |
 
-Stages `$00-$0A` establish or join stage-local state before/when entering an encounter. Mu `$00` has a no-op initializer (`$97F7 RTS`) but material command/Talk state elsewhere. Stage `$0B` is different: canonical story table `$F016` never selects it as a stable battle stage, and pointer `$A960` lands inside the real instruction beginning at `$A95F` (`AD 6F 06`, `LDA $066F`). The two immediate `$0B` uses found in relevant event code (`$9B31` and `$A16D`) call temporary presentation loader `$F2ED`; they do not enter battle dispatch as `$0B`.
+Stage `$00` has a no-op initializer but material command/Talk state. Stage `$02` initializer `$981F` is material: it temporarily loads presentation index `$11`, grants `#$03` through `$F31E` (+300 Seventh Sense), then shared `$9C3D` writes `$0670=$03/$068E=1` and restores stage `$02`.
 
-Saga stage `$0A` is phase-dispatched: `$9B5D` uses `$06CE` to select `$9B69/$9B9E/$9C2C`. Canonical initial story ingress does not call `$9B5D`; release `$FF` re-entry later creates phase 1 (Ikki) and phase 2 (Seiya). Structural init phase 2 `$9C2C` is unreachable because final phase has no `$FF` terminal. See `BOSS_CONTEXT_STAGE_0A_SAGA.md`.
+Stage `$0B` remains structural only: `$F016` never selects it as a stable battle stage, and pointer `$A960` lands inside the real instruction beginning at `$A95F` (`AD 6F 06`). Relevant immediate `$0B` uses call temporary loader `$F2ED`.
 
-Stage `$0C` is a separate proven exception. Index 12 reads beyond the intended pointer table and would decode bytes `$97F9/$97FA` as `$8D00`, which is data/table context rather than a valid final-special initializer. Canonical stage-`$0C` entry never reaches `$97DB`.
+Saga stage `$0A` remains phase-dispatched through `$06CE`. Stage `$0C` remains the separately closed exception whose canonical entry bypasses this initializer table.
 
 ## 2. `$9C95` — Talk / interaction dispatcher
 
@@ -57,32 +57,36 @@ Pointer table at `$9C9B`:
 | 8 | `$9F00` |
 | 9 | `$9F99` |
 | 10 | `$9FF4` |
-| 11 | `$9FF4` structural alias only; no canonical stable `$0B` battle |
+| 11 | `$9FF4` structural alias only |
 | 12 | `$A1AD` |
 
-Stage `$00` Talk `$9CB7` is fully closed by `MuStage00Context`:
+### Stage `$00` Talk
+
+Closed by `MuStage00Context`:
 
 ```text
-$066F==0
-  common selectors $32/$33
-  Saint selector $9D24 = 35 35 36 34
-  $066F=1
-
-$066F!=0
-  common selectors $37/$38
-  Saint selector $9D28 = 3B 3B 11 3B
-  $0670=$01
+$066F==0 -> first presentation -> $066F=1
+$066F!=0 -> second/repeated presentation -> $0670=$01
 ```
 
-The tables cover the four reachable initial Saints Seiya/Hyoga/Shun/Shiryu; Ikki is excluded by initial story marker `$0673=$30`. Active Saint changes only text selection, not control.
+### Stage `$02` Talk
 
-Saga `$9FF4` dispatches `$06CE` to `$A000/$A0E0/$A115`. Phase 0 uses scripted-miss history and `$06CF/$06D0`; phase 1 first Talk clears `$0690`; phase 2 first Talk opens the prerequisite state for the later support event.
+Closed by `GeminiStage02Context`:
 
-Stage `$0C` Talk `$A1AD` has no active-Saint control branch: both exact Seiya/Shun variants display messages `$D3/$D5`; first Talk grants +1000 Seventh Sense through `$A1FF/$F31E`, increments `$066F`, and returns without a release.
+```text
+$9D81 INC $DC
+       message $45
+       if $066F==0:
+           INC $066F
+           message $43
+       RTS
+```
+
+Every stage-2 Talk therefore forces a Gold response through transient `$DC`. First Talk writes `$066F:0->1`; repeats preserve the nonzero value. If Talk occurs before the mandatory platform detour, `$066F` survives the ordinary release-`$02` return because `$ED8F` bypasses `$A973`.
+
+Saga `$9FF4` and final-special `$A1AD` retain their already-closed semantics.
 
 ## 3. `$A361` — post-Bronze-action dispatcher
-
-Fixed-bank callers include `$F83F` in a special battle branch and `$F932` after the player action/attack flow.
 
 Pointer table at `$A367`:
 
@@ -104,15 +108,38 @@ Pointer table at `$A367`:
 
 `$A3A1` is `RTS`.
 
-For stage `$00`, fixed Attack owner `$F057` checks `$050E` and jumps directly to `$F238`; therefore `$A361` is canonically unreachable. The structural `$A3A1` pointer must not be promoted into fake battle semantics.
+### Stage `$02` phase split
 
-Saga `$AB18` phase-dispatches to `$AB24/$AB62/$AB6F`. Only phase 2 owns final opponent-defeat release `$01`.
+`$A444` begins with `$067C`:
 
-For final-special stage `$0C`, fixed `$F925+` returns for stage indices `>= $0B`, so command-1 Attack never calls `$A361`.
+```text
+$067C==0
+  -> presentation
+  -> $02=$0E
+  -> release $0670=$02
+  -> leave battle before generic opponent classification
+
+$067C!=0
+  -> JSR $ACD6
+  -> consume $EB
+```
+
+Thus the first Bronze action is mandatorily diverted to platform substate `$0E`; the ordinary `$EB=$FF` victory branch is unreachable before that detour.
+
+The already-closed platform `$0E` reload increments `$067C:0->1`. Seiya/Shun/Shiryu resume ordinary stage `$02`; Hyoga is redirected by fixed `$ED99+` to `$050E=$08/$06B8=$0A/$0690=$FF`, composing with the closed first-Camus Aquarius context.
+
+Once `$067C!=0`, `$A444` owns:
+
+```text
+$EB=$FF -> release $01 victory
+$EB=$01 -> low-opponent feedback
+$EB=$00 + $06BC=0 -> miss feedback
+$EB=$00 + hit -> continue
+```
+
+Mu `$00`, Saga `$0A` and final-special `$0C` retain their previously closed reachability constraints.
 
 ## 4. `$A381` — post-Gold-response dispatcher
-
-Fixed `$FA86` invokes this after Gold-Saint attack selection, dodge resolution, damage and resource refresh.
 
 Pointer table at `$A387`:
 
@@ -132,36 +159,21 @@ Pointer table at `$A387`:
 | 11 | `$A3A1` structural only |
 | 12 | `$A3A1` structural only; unreachable at canonical `$0C` |
 
-Stage `$00` cannot reach a Gold response because Resource Allocation/Attack/Escape are diverted before the ordinary battle pipeline and Talk never forces a Gold path. Stage `$0B` has no canonical stable battle entry.
-
-Saga `$AC05` phase-dispatches to `$AC11/$AC3E/$AC76`; final phase converts only true player defeat into `$DD` after resetting `$06CE`.
-
-Final-special stage `$0C` never reaches Gold response.
-
-## Stage `$00` fixed command ownership
-
-The stage-zero context is special before either post-action dispatcher can matter:
+Stage `$02` `$A4CC` consumes the already-computed player condition:
 
 ```text
-Resource Allocation  $F041 -> if $050E==0: JMP $F238
-Attack               $F057 -> if $050E==0: JMP $F238
-Talk                 $F0B1 -> $9C95 -> $9CB7
-Escape               $F0D3 -> if $050E==0: JMP $F238
+$EA=$00 -> healthy-player feedback, continue
+$EA=$01 -> low-player feedback, continue
+$EA=$FF -> release $FF
 ```
 
-Blocked owner `$F238` uses `$06BB`:
+Generic `$FF` does not advance story. On the next normal re-entry, `$ED57` takes the non-`$02/$03` branch and calls `$A973`, clearing `$067C`; therefore a stage-2 retry rearms the mandatory platform detour.
 
-```text
-$06BB==0   first blocked presentation, then INC -> 1
-$06BB!=0   add selector $48, then INC
-all        selector $39, redraw, return to command loop
-```
-
-Global RAM clear seeds `$06BB=0`; common reset `$A973` does not clear it. No blocked command writes `$0670`.
+Stage `$00` cannot reach Gold response, `$0B` has no stable battle, and `$0C` bypasses ordinary Gold response entirely.
 
 ## Canonical story-stage provenance
 
-Fixed `$F016` maps `$067D=$00-$0E` as:
+Fixed `$F016` maps `$067D=$00-$0E`:
 
 ```text
 00->00  01->01  02->02  03->03  04->04
@@ -169,7 +181,7 @@ Fixed `$F016` maps `$067D=$00-$0E` as:
 0A->08  0B->09  0C->0C  0D->0A  0E->00
 ```
 
-Therefore canonical ordinary `$00-$0B` entries occur at:
+Canonical ordinary entries:
 
 ```text
 stage 00 <- progress 00
@@ -186,48 +198,53 @@ stage 0A <- progress 0D
 stage 0B <- none
 ```
 
-Progress `$0E` reuses numeric `$00` only inside the already-closed post-Saga platform tail; it does not re-enter Mu.
+Progress `$0E` reuses numeric `$00` only in the already-closed post-Saga platform tail.
 
-Mu's second Talk release `$01` joins fixed `$E399/$E3B3`:
+### Stage `$02` successor ownership
+
+Ordinary stage-2 release `$01` joins fixed `$E399/$E3B3`:
 
 ```text
-$067D: 00 -> 01
-$06CD = 00
-$0673 = 30
-$F016[01] = 01
+$067D:02->03
+$F016[03]=$03
+$E50B[03]=$02
+$06CD=$02
+$0673=$32
 ```
 
-so the exact successor is Taurus stage `$01`, preserving the reachable active Saint.
+The reachable ordinary winners are Seiya/Shun/Shiryu; Hyoga's `$0E` exit redirects to first Camus instead.
+
+First-Camus completion uses existing release `$FE` ownership. Both the three-Talk scripted-freezing route and actual Hyoga defeat during first-Camus Gold response emit `$FE`, force Seiya and advance the same `$067D:02->03 / $050E=$03` boundary. Adding the fixed progress-`$03` descriptor yields the same `$06CD=$02/$0673=$32` Cancer state.
 
 ## Gold-selector coverage
 
-Bank 6 `$9074-$9146` proves canonical reachable opponent technique slots:
+Bank 6 `$9074-$9146` proves canonical reachable opponent slots:
 
 | Stage | Reachable `$0680` slots |
 |---:|---|
-| `$00` | none; attack path blocked |
+| `$00` | none |
 | `$01` | `0,1` |
 | `$02` | `0,1` |
 | `$03` | `0,1` |
 | `$04` | `0,1` |
 | `$05` | `0,1,2` |
-| `$06` | `0,1` via dodge-history branch |
+| `$06` | `0,1` |
 | `$07` | `0,1` |
 | `$08` | `0,1,2` |
 | `$09` | `0,1,2` |
-| `$0A` | `0,1,2,3` across Saga phases |
-| `$0B` | none canonically |
+| `$0A` | `0,1,2,3` |
+| `$0B` | none |
 
-Equal coefficient entries in the damage table do not make structural slots reachable.
+Stage `$02` uses the generic parity fallthrough at `$913E`: `slot = $065F & 1`.
 
 ## Coverage classification
 
-| Stage | Battle context | Coverage status |
+| Stage | Context | Coverage status |
 |---:|---|---|
 | `$00` | Mu / pre-battle repair | dedicated special context closed |
 | `$01` | Taurus — Aldebaran | dedicated context closed |
-| `$02` | Gemini / first Camus branch | **material context missing; next boundary** |
-| `$03` | Cancer — Death Mask | **material context missing** |
+| `$02` | Gemini / first Camus composite | dedicated context closed |
+| `$03` | Cancer — Death Mask | **material context missing; next boundary** |
 | `$04` | Leo — Aioria | dedicated context closed |
 | `$05` | Virgo — Shaka | dedicated context closed |
 | `$06` | Scorpio — Milo | **material context missing** |
@@ -235,28 +252,11 @@ Equal coefficient entries in the damage table do not make structural slots reach
 | `$08` | Aquarius — Camus | dedicated context closed |
 | `$09` | Pisces — Aphrodite | dedicated context closed |
 | `$0A` | Pope/Saga | dedicated context closed |
-| `$0B` | transient/structural presentation index | no canonical stable battle; no dedicated context required |
+| `$0B` | transient/structural presentation index | no stable battle |
 | `$0C` | final-special rose bridge | separately closed non-boss exception |
-
-The uncovered `$02/$03/$06/$07` handlers all contain persistent counters, release ownership or stage-specific Talk/post-action branching; they are not generic-only placeholders.
-
-## Architectural consequence
-
-A normal Gold Saint encounter composes stage init, command selection, Talk when chosen, Bronze selection/hit/damage, post-Bronze, Gold selection/dodge/damage and post-Gold. Table presence alone does not prove reachability: Mu `$00` and structural `$0B` are explicit counterexamples.
-
-### Stage `$0C` exception
-
-```text
-Attack -> special rose effect -> release $01 -> progress $0D -> Saga $0A
-Talk   -> shared dialogue -> first-use +1000 Seventh Sense / $066F++
-Escape -> message $D4
-Resource allocation -> suppressed/redraw-only
-```
-
-No generic opponent damage, post-Bronze, Gold response/dodge/damage or post-Gold dispatcher is reachable in stage `$0C`.
 
 ## Promoted contexts and next gap
 
-Dedicated executable contexts are now closed for `$00/$01/$04/$05/$08/$09/$0A`; final-special `$0C` is closed separately. Coverage audit `BattleStageContextCoverage` leaves material gaps at `$02/$03/$06/$07` and no canonical stable battle at `$0B`.
+Dedicated executable contexts are now closed for `$00/$01/$02/$04/$05/$08/$09/$0A`; final-special `$0C` is closed separately. Remaining material gaps are `$03/$06/$07`; `$0B` remains structural only.
 
-The next checkpoint is stage `$02`: close Gemini / first Camus branch from its exact progress `$067D=$02` entry through its special `$067C` detour, Talk, post-action terminals and successor ownership without reopening generic arithmetic.
+The next checkpoint is **stage `$03` Cancer / Death Mask**. Its exact handlers are already bounded at `$9851/$9D96/$A50F/$A560`, and the coverage audit has already identified its `$067C=0` Talk-created platform `$0C` detour as the first special surface to compose.
