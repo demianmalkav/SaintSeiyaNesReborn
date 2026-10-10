@@ -6,239 +6,230 @@ Technical subsystem documents remain authoritative for evidence and semantics. T
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / special normal platform exits`
+- Phase: `ORIGINAL SPEC / global engine state dispatcher`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#104` — principal normal warm-reload final destinations through common `$E22C-$E254` commit.
-- Merge commit: `b58258f9f103ca22f7588b29b82cf230916bea40`
-- Exact final PR head: `6c542baafeb4f47729678b52349e4627a7c85097`
+- Last verified technical checkpoint: PR `#107` — special normal platform exits `$02=$0C-$10` closed through the existing exit/reload pipeline.
+- Merge commit: `e89ecb64b429a9a0b4b035e47b8a90c77fe7047f`
+- Exact final PR head: `63c441ccf5b0b890074d8b44eeedaab6e0d959b2`
 - Verification gate on that exact head:
-  - `ORIGINAL SPEC tests` run `#278`: `SUCCESS`
-  - `Original Spec` run `#467`: `SUCCESS`
+  - `ORIGINAL SPEC tests` run `#284`: `SUCCESS`
+  - `Original Spec` run `#476`: `SUCCESS`
   - build, OriginalSpec self-test and password compatibility fixture: `SUCCESS`
-- PR `#102` previously closed the interactive `$F025 <-> $A275` warm-reload selector.
+- PR `#104` closed principal normal warm-reload destinations.
+- PR `#102` closed the interactive `$F025 <-> $A275` warm-reload selector.
 - Recovery curation: PR `#101`, merge `c6b872bbc6ceee276e7454cead93ac989a9f866e`.
-- Previous technical checkpoints: PR `#98` closed `$04=$8F -> $E100 -> $00/$00`; PR `#96` closed narrative `$80-$89`; PR `#94` closed immediate post-exit `$70->$80`; PR `#92` closed primary-family reachability; PR `#90` closed the persistent normal platform frame.
+- Previous platform-exit checkpoints: PR `#98` closed `$04=$8F -> $E100 -> $00/$00`; PR `#96` closed narrative `$80-$89`; PR `#94` closed immediate post-exit `$70->$80`.
 - Workflow hardening checkpoint: PR `#74` remains authoritative for continuation/anti-loop semantics.
 
 ## DONE
 
-### Special `$11` platform/narrative chain
+### Platform exit/reload boundary `$02=$00-$11`
 
-Closed sequence:
+The complete platform-exit family is now partitioned and promoted.
+
+#### Principal normal exits `$00-$0B`
+
+PRs #102/#104 close the warm-reload selector and every principal stable destination:
 
 ```text
-special platform exit
- -> $70 -> $71 -> $72 -> $73 -> $74 -> $75
- -> $80 -> $81 -> $82 -> $83 -> $84 -> $85 -> $86 -> $87 -> $88 -> $89
- -> $04=$8F, $00/$01=$3D
+normal accepted platform exit
+ -> $04=$00
+ -> snapshot Saints
+ -> $00/$01=$3D
  -> $E100
- -> stable $00/$00
+ -> warm selector $F025 <-> $A275
+ -> release $0670
+ -> common destination logic
 ```
 
-Artifacts:
-
-- `PlatformPostExitStateMachine.cs`
-- `PlatformNarrative80To89StateMachine.cs`
-- `PlatformNarrative8FReload.cs`
-- corresponding self-tests and reverse-engineering documents
-- PRs `#94`, `#96`, `#98`
-
-Do not reopen this chain absent contradictory ROM evidence or fixture failure.
-
-### Normal warm-reload interactive selector
-
-PR #102 closes fixed `$E327-$E35D`, `$F025`, bank-5 `$A20B/$A275`.
-
-Exact semantic selector:
-
-```text
-entry:
-  $0670=$00
-  $0584=$05
-  $0585=$00
-  $0586=$00
-  $DB=$FF
-
-case 5 = initialization
-case 0 = idle/unlock -> $DB=0
-
-$A20B accepts direction only while $DB=0
-$0585 = 0 left / 2 right
-$0586 = 0 up   / 1 down
-
-confirm $A275:
-  $0584 = $0585 + $0586 + 1
-
-real choices:
-  left/up    -> case 1 -> $DB=2
-  left/down  -> case 2 -> $DB=3 -> Talk $9C91
-  right/up   -> case 3 -> $DB=4
-  right/down -> case 4 -> $DB=1
-```
-
-Selector-wide loop-release set:
+Principal selector-wide release set:
 
 ```text
 $0670 ∈ { $01, $02, $04, $DD, $FE, $FF }
 ```
 
-Artifacts:
-
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformWarmReloadInteractiveState.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/WarmReloadInteractiveStateChecks.cs`
-- `docs/reverse-engineering/PLATFORM_WARM_RELOAD_INTERACTIVE_STATE.md`
-- PR `#102`
-
-### Principal normal warm-reload destination
-
-PR #104 closes the post-interactive principal path from `$E35F+` through `$E22C-$E254`.
-
-Principal interactive releases are:
-
-```text
-{ $01, $02, $DD, $FE, $FF }
-```
-
-`$04` is excluded from **principal** progression because its interactive writer is Talk context `$050E=$0D`, while the principal `$F016` map contains no `$0D` entry.
-
-Closed stable-result rules:
-
-```text
-$01:
-  advance $067D
-  rebuild $06CD/$0673, clear $06CC
-  ordinary new indices -> state $10
-  new $067D=$0D/$0E -> $0670=$05, state $00
-
-$FE:
-  force canonical $0533=0
-  normalize to progression release $01
-  then same advance rule
-
-$02:
-  no progression advance
-  state $00
-
-$DD:
-  $0673=$3F
-  $068F=$DD
-  state $90
-
-$FF with $06CE!=0:
-  stage-$0A Saga phase only
-  no stable commit
-  return to $E327 and reseed interactive selector
-
-$FF with $06CE=0:
-  if (($0673 | $06CC) & $0F) == $0F -> $068F=$DD, state $90
-  otherwise -> refresh $06CC Saint mask, state $00
-```
-
-The complete stable engine-state set for principal normal warm reload is:
+Principal stable engine-state set:
 
 ```text
 { $00, $10, $90 }
 ```
 
-plus explicit Saga phase reentry.
+plus explicit stage-$0A Saga selector reentry on `$FF + $06CE!=0`.
 
-At every stable common commit:
+Key artifacts:
+
+- `PlatformWarmReloadInteractiveState.cs`
+- `PlatformNormalWarmReloadDestination.cs`
+- `PLATFORM_WARM_RELOAD_INTERACTIVE_STATE.md`
+- `PLATFORM_NORMAL_WARM_RELOAD_DESTINATIONS.md`
+- PRs `#102`, `#104`
+
+#### Special-normal exits `$0C-$10`
+
+PR #107 proves that these states reuse the common `$96CB` normal exit gate but carry different persistent reload inputs.
+
+Closed results:
 
 ```text
-$00/$01 = committed engine state
-$03 = $E505[$0533]
+$0C:
+  provenance = stage-3 Talk $9D96+
+  inherited $0670=$02, creation $067C=0
+  $ED57 increments $067C -> 1
+  reenter selector at progression/stage $03
+
+$0D:
+  provenance = stage-5 $A361 special action $A6A8+
+  inherited $0670=$02, creation $067C=0
+  $ED57 increments $067C -> 1
+  reenter selector at progression/stage $05
+
+$0E:
+  provenance = stage-2 $A361 special action $A444+
+  inherited $0670=$02, creation $067C=0
+  $ED57 increments $067C -> 1
+  ordinary Saint -> selector stage $02
+  canonical Hyoga -> temporary $050E=$08, $06B8=$0A
+
+$0F:
+  provenance = $E4D7 progression map at new $067D=$0D
+  inherited $0670=$05
+  $ED57 -> $A973 reset
+  reenter clean selector at Saga stage $0A
+
+$10:
+  provenance = $E4D7 progression map at new $067D=$0C
+  inherited $0670=$01
+  $E26A intercepts before $ED57
+  no selector reentry
+  accepted exit is Seiya-only
+  direct stable commit -> engine state $00
 ```
 
-Canonical-to-internal Saint mapping remains:
+For accepted `$10`/Seiya exit, the stable result is:
 
 ```text
-$0533: 0 1 2 3 4
-$03:   0 2 1 3 4
+$00/$01=$00
+$03=$00
+$0670=$05
+$067D=$0C
+$0533=$00
+$050E=$0C
+$0673=$3E
+$06CC=$01
+$06CD=$0E
+$068F=$00
+$05=$01
 ```
-
-Persistent progression details closed by #104:
-
-- `$06CD` is preserved on non-advancing `$02/$DD/$FF` branches;
-- `$01/$FE` recompute it only after `$067D` advances;
-- new `$067D=$0C` is special and can produce `$06CD=$0E`/canonical Saint 0 or `$06CD=$0B`/canonical Saint 2 from old `$0673` bit 0;
-- ordinary `$FF` maps `$050E=$0F` to `$0D` when canonical `$0533!=3`.
 
 Artifacts:
 
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformNormalWarmReloadDestination.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/NormalWarmReloadDestinationChecks.cs`
-- `docs/reverse-engineering/PLATFORM_NORMAL_WARM_RELOAD_DESTINATIONS.md`
-- PR `#104`
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformSpecialNormalExitPipeline.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/SpecialNormalPlatformExitChecks.cs`
+- `docs/reverse-engineering/PLATFORM_SPECIAL_NORMAL_EXITS.md`
+- PR `#107`
 
-The principal normal platform reload chain is now closed end-to-end. Do not reopen it without contradictory evidence or failing fixtures.
+#### Special narrative exit `$11`
+
+Already closed by PRs #94/#96/#98:
+
+```text
+$11 special platform exit
+ -> $70 -> $71 -> $72 -> $73 -> $74 -> $75
+ -> $80 -> $81 -> ... -> $89
+ -> $04=$8F, $00/$01=$3D
+ -> $E100
+ -> stable $00/$00
+```
+
+Therefore the platform-exit/reload boundary `$02=$00-$11` is closed at the semantic level required by ORIGINAL SPEC. Do not reopen it absent contradictory ROM evidence or fixture failure.
+
+### Persistent normal platform frame
+
+The persistent platform frame, primary/auxiliary entities, hazards, player interaction ordering and late-object frame are already promoted through the earlier platform checkpoints. This remains a closed dependency for the global dispatcher investigation.
 
 ## EVIDENCE
 
-### Normal platform exit entry
+### Canonical normal gate
 
-A normal accepted platform exit does:
+Accepted normal platform exits use bank-1 `$96CB`:
 
 ```text
 $04=$00
-snapshot Saints
-$00/$01=$3D
+JSR $951F       ; snapshot all five Saints
+$00=$3D
+$01=$3D
+...
 JMP $E100
 ```
 
-The established lifecycle carries `$06AB=$FF`, so warm reload reaches `$E257/$E26A`.
+Substate `$11` instead takes the already-promoted `$70` special branch.
 
-RAM `$03` is internal active-Saint index; `$E121-$E126` maps it through `$E505` into canonical/battle index `$0533`:
+### Special-normal provenance matters
+
+The special-normal distinction is not a different physical gate. It is the state carried into `$E100`:
+
+- `$0C/$0D/$0E` retain `$0670=$02`; `$ED57` increments one-shot phase `$067C` before selector reentry.
+- `$0E` additionally remaps canonical Hyoga to temporary `$050E=$08/$06B8=$0A`.
+- `$0F` retains `$0670=$05`; `$A973` clears warm phase state and reopens stage `$0A`.
+- `$10` retains `$0670=$01`; `$E26A` consumes it before `$ED57` and commits state `$00` directly.
+
+### Late progression map
+
+Fixed `$E4D7` maps progression into platform substate:
 
 ```text
-$03:    00 01 02 03 04
-$0533:  00 02 01 03 04
+new $067D=$0C -> $02=$10
+new $067D=$0D -> $02=$0F
+new $067D=$0E -> $02=$11
 ```
 
-### Principal progression map
+PR #104 already proved the `$0B->$0C` progression choice can create only Seiya or Shun; the `$10` physical exit gate rejects Shun, so the accepted `$10` exit is Seiya-only.
 
-Confirmed `$F016` mapping:
+### Why the next boundary moves upward
 
-```text
-$067D: 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E
-$050E: 00 01 02 03 04 05 0F 06 10 07 08 09 0C 0A 00
-```
+Platform movement/combat/frame semantics and platform exit/reload semantics are now substantially promoted. The remaining uncertainty immediately above them is no longer a platform-local branch but the fixed-bank global engine dispatcher that coordinates `$00/$01` between main loop and NMI.
 
-The `$0F/$10` entries are intercepted earlier in `$E100`; `$0D` is absent from the principal map and belongs to a special interaction context.
+Known anchors already established by previous checkpoints include:
 
-### Remaining nearby boundary
+- main loop mirrors `$00 -> $01` before dispatch;
+- `$00=$3D` dispatches into `$E100` reload;
+- NMI reads mirrored `$01` and has corresponding special handling;
+- platform active/init states, `$70-$89`, `$3D`, and stable reload destinations `$00/$10/$90` are now known locally.
 
-The platform exit gate still has ordinary/special-normal substates beyond the principal `$02=$00-$0B` family. Earlier state discovery intentionally deferred normal exits `$02=$0C-$10` until the common interactive and destination machinery was understood. That prerequisite is now satisfied.
-
-Substate `$11` is **not** part of this open boundary; it is the already closed special `$70->$89` chain.
+What is missing is one authoritative top-level map showing how those known families coexist with the remaining engine states and which reachable family is the next genuinely unmodeled transition.
 
 ## OPEN
 
-1. Normal platform exits with platform substate `$02=$0C-$10` have not yet been enumerated end-to-end against the now-closed reload machinery.
-2. For each of `$0C-$10`, we need to determine whether the exit is reachable, whether it uses the generic `$04=$00/$3D->$E100` handoff unchanged, and which already-modeled selector/destination branch it reaches.
-3. Any special persistent writes performed before the common exit gate must be identified only if they materially alter the reload result.
-4. Cold `$06AB=0`, `$04=$FF`, renderer/audio/stack internals and unrelated global reload families remain outside scope unless one of these special normal exits proves dependent on them.
+1. There is no promoted semantic map of the complete fixed-bank main `$00` dispatcher and NMI `$01` companion dispatcher.
+2. We have local models for several state families, but no single partition proving which engine-state values/ranges are reachable, which are aliases/transitional states, and which are still unresolved.
+3. Writers that introduce unresolved engine-state families have not been globally indexed.
+4. Renderer/PPU/audio internals must remain outside scope unless they change logical `$00/$01` transitions.
+5. RNG, global boss progression, renderer/metasprites and audio remain later global fronts; they should not be selected before the state dispatcher tells us which unresolved engine family is actually next in control flow.
 
 ## NEXT
 
-**Close normal platform exits `$02=$0C-$10` through the existing exit/reload pipeline.**
+**Build the top-level `$00/$01` engine-state dispatcher map and select the first unresolved reachable state family.**
 
 Completion criterion:
 
-> For each platform substate `$0C`, `$0D`, `$0E`, `$0F` and `$10`, prove reachability and exact exit semantics, then map every reachable normal exit to an already-closed reload outcome or promote the smallest genuinely new branch. Substate `$11` must remain excluded as the previously closed special narrative path.
+> Enumerate the logical state families dispatched by the fixed-bank main loop and NMI, reconcile them with all already-promoted platform/reload/narrative states, identify every writer that can enter an unresolved family, and reduce the result to one concrete next state-family boundary without modeling unrelated renderer/audio bodies.
 
 Required sequence:
 
-1. trace the platform dispatcher/gates for `$02=$0C-$10` and identify the exact condition under which each can reach the accepted normal exit;
-2. record any pre-exit writes that survive into `$E100` and can alter `$03/$0533`, `$067D/$050E`, `$0670`, `$06CE`, `$0673/$06CC` or the exit mode `$04`;
-3. prove which substates reuse the generic normal snapshot + `$04=$00`, `$00/$01=$3D`, `JMP $E100` path;
-4. route those states through the verified #102/#104 selector and destination models rather than duplicating them;
-5. implement only special-normal semantics not already represented by existing models;
-6. add discriminating fixtures for every reachable `$0C-$10` exit and explicit unreachable cases;
-7. document the complete special-normal exit table and run both verification workflows.
+1. disassemble the fixed-bank main dispatcher around `$C180-$C2xx` and NMI dispatcher around `$D269-$D3xx` only far enough to enumerate state comparisons/ranges and branch targets;
+2. record the `$00->$01` mirror semantics and identify which transitions are main-owned, NMI-owned or cooperative;
+3. classify every discovered state/range as:
+   - already promoted and represented by existing ORIGINAL SPEC artifacts;
+   - transitional/alias with no independent semantic body;
+   - reachable but unresolved;
+   - statically present but reachability not yet proven;
+4. search writers of `$00/$01` for each unresolved family and determine which unresolved family is reachable directly from an already-closed checkpoint;
+5. add a dispatcher/state-family document and a minimal executable semantic map/fixtures if the partition can be represented without emulating subsystem internals;
+6. set the next checkpoint to exactly one unresolved reachable family, not to the whole global engine.
 
 ## BLOCKERS
 
-- None. The common normal reload machinery is now closed and the canonical ROM is available.
+- None. The canonical ROM, fixed-bank dispatchers and existing local state-machine artifacts are available.
 
 ## RECOVERY CONTRACT
 
@@ -258,7 +249,7 @@ Historical private trace/save-state packs were not present at curation time and 
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `platform-special-normal-exits-0c-10`
+- `last_next_signature`: `global-engine-state-dispatcher-map`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
