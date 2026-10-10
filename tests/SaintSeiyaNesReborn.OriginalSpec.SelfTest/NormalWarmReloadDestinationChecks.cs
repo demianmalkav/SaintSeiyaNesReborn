@@ -35,7 +35,11 @@ internal static class NormalWarmReloadDestinationChecks
     private static void CheckRelease02CommitsStateZeroWithoutAdvancing()
     {
         var result = PlatformNormalWarmReloadDestination.ResolvePrincipal(
-            Input(terminal0670: 0x02, progression067D: 0x03, saint0533: 0x01));
+            Input(
+                terminal0670: 0x02,
+                progression067D: 0x03,
+                saint0533: 0x01,
+                progressionCode06CD: 0x77));
 
         RequireCommitted(result, 0x00);
         Require(result.Progression067D == 0x03 && result.ReloadField050E == 0x03,
@@ -44,12 +48,19 @@ internal static class NormalWarmReloadDestinationChecks
             "common commit maps canonical Hyoga index 1 back to internal $03=2 through $E505");
         Require(result.Terminal0670 == 0x02,
             "$0670=$02 remains the post-loop transition value through the state-zero commit");
+        Require(result.ProgressionCode06CD == 0x77,
+            "$0670=$02 crosses no $06CD writer and preserves the incoming progression code");
     }
 
     private static void CheckReleaseDdCommitsState90()
     {
         var result = PlatformNormalWarmReloadDestination.ResolvePrincipal(
-            Input(terminal0670: 0xDD, progression067D: 0x09, saint0533: 0x03, reloadField050E: 0x07));
+            Input(
+                terminal0670: 0xDD,
+                progression067D: 0x09,
+                saint0533: 0x03,
+                reloadField050E: 0x07,
+                progressionCode06CD: 0x55));
 
         RequireCommitted(result, 0x90);
         Require(result.Flags0673 == 0x3F,
@@ -58,6 +69,8 @@ internal static class NormalWarmReloadDestinationChecks
             "$E187 stores $068F=$DD before committing engine state $90");
         Require(result.EngineSubstate03 == 0x03,
             "canonical/internal Shiryu index 3 survives the common commit");
+        Require(result.ProgressionCode06CD == 0x55,
+            "$DD path does not synthesize a new $06CD value");
     }
 
     private static void CheckOrdinaryReleaseFfCommitsStateZero()
@@ -69,7 +82,8 @@ internal static class NormalWarmReloadDestinationChecks
                 saint0533: 0x02,
                 reloadField050E: 0x04,
                 flags0673: 0x30,
-                flags06CC: 0x00));
+                flags06CC: 0x00,
+                progressionCode06CD: 0x44));
 
         RequireCommitted(result, 0x00);
         Require(result.ReloadField050E == 0x04,
@@ -80,6 +94,8 @@ internal static class NormalWarmReloadDestinationChecks
             "ordinary non-completion $FF path stores $068F=0 at $E1F8");
         Require(result.EngineSubstate03 == 0x01,
             "canonical Shun index 2 maps back to internal $03=1");
+        Require(result.ProgressionCode06CD == 0x44,
+            "ordinary $FF commit preserves $06CD because progression does not advance");
     }
 
     private static void CheckReleaseFfCompletionMaskCommitsState90()
@@ -91,13 +107,16 @@ internal static class NormalWarmReloadDestinationChecks
                 saint0533: 0x00,
                 reloadField050E: 0x07,
                 flags0673: 0x37,
-                flags06CC: 0x08));
+                flags06CC: 0x08,
+                progressionCode06CD: 0x33));
 
         RequireCommitted(result, 0x90);
         Require(result.Selector068F == 0xDD,
             "completion mask gate joins $E187 and therefore stores $068F=$DD");
         Require(result.Flags0673 == 0x37,
             "completion-mask entry at $E187 does not execute the separate $E417 $0673=$3F write");
+        Require(result.ProgressionCode06CD == 0x33,
+            "completion-mask $FF handoff preserves the incoming $06CD value");
     }
 
     private static void CheckReleaseFfSagaPhaseReentersSelector()
@@ -108,7 +127,8 @@ internal static class NormalWarmReloadDestinationChecks
                 progression067D: 0x0D,
                 saint0533: 0x00,
                 reloadField050E: 0x0A,
-                storyPhase06CE: 0x01));
+                storyPhase06CE: 0x01,
+                progressionCode06CD: 0x0E));
 
         Require(result.Disposition == PlatformNormalWarmReloadDisposition.ReenterInteractiveSelector,
             "stage-$0A $FF with nonzero $06CE returns to $E327 instead of committing a stable state");
@@ -120,6 +140,8 @@ internal static class NormalWarmReloadDestinationChecks
             "$E327 reseeds the next Saga interactive phase with $0670=0");
         Require(result.Progression067D == 0x0D && result.StoryPhase06CE == 0x01,
             "phase-local Saga reentry does not advance the global progression index or clear $06CE");
+        Require(result.ProgressionCode06CD == 0x0E,
+            "Saga phase reentry preserves the preexisting $06CD value");
     }
 
     private static void CheckRelease01AdvancesAndCommitsState10()
@@ -254,7 +276,8 @@ internal static class NormalWarmReloadDestinationChecks
         byte reloadField050E = 0,
         byte storyPhase06CE = 0,
         byte flags0673 = 0x30,
-        byte flags06CC = 0) =>
+        byte flags06CC = 0,
+        byte progressionCode06CD = 0) =>
         new(
             Terminal0670: terminal0670,
             Progression067D: progression067D,
@@ -262,7 +285,8 @@ internal static class NormalWarmReloadDestinationChecks
             ReloadField050E: reloadField050E,
             StoryPhase06CE: storyPhase06CE,
             Flags0673: flags0673,
-            Flags06CC: flags06CC);
+            Flags06CC: flags06CC,
+            ProgressionCode06CD: progressionCode06CD);
 
     private static void RequireCommitted(PlatformNormalWarmReloadResult result, byte expectedState)
     {
