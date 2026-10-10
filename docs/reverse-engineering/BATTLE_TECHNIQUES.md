@@ -80,7 +80,7 @@ Final count: 3.
 
 ### Hyoga — Aquarius sequence closed
 
-Hyoga starts with count 2. The two increment writers are now tied to exact stage-8 events by `BOSS_CONTEXT_STAGE_08_AQUARIUS.md`.
+Hyoga starts with count 2. The two increment writers are tied to exact stage-8 events by `BOSS_CONTEXT_STAGE_08_AQUARIUS.md`.
 
 #### Unlock 1: final Camus initialization
 
@@ -120,15 +120,44 @@ A non-Hyoga active Saint still advances `$066F` on this first post-dodge Talk bu
 
 Final count: 4.
 
-### Shun
+### Shun — Pisces sequence closed
 
-Shun starts with count 2.
+Shun starts with count 2. `BOSS_CONTEXT_STAGE_09_PISCES.md` ties both writers to exact reachable stage-9 conditions.
 
-Bank 5 `$AA57+` maintains an event/turn counter. When it reaches 2 and again when it reaches 5, `$AA6E/$AA71` increments `$0589` and `$0696`.
+Canonical story progress `$067D=$0B` produces `$0673=$3A`. The generic Saint-selection gate rejects set Saint bits, so only Seiya (`$0533=0`) and Shun (`$0533=2`) are selectable in Pisces. This proves that the raw `$AA57` test `$0533!=0` is Shun-specific inside the reachable stage-9 state space.
 
-Thus the same battle script exposes slot 2 and later slot 3 in sequence: Nebula Stream and Nebula Storm.
+`$AA57` increments zero-page `$EF` once per **Bronze action** and then tests exact equality:
 
-Final count: 4.
+```text
+INC $EF
+LDA $0533
+BEQ skip_growth          ; Seiya
+LDA $EF
+CMP #$02
+BEQ grow
+CMP #$05
+BEQ grow
+...
+grow:
+INC $0589
+INC $0696
+```
+
+Canonical Shun path:
+
+```text
+start                 $0589/$0696 = 2/2
+second Bronze action  $EF=2 -> 3/3 -> slot2 / attack id 10 / Nebula Stream
+fifth Bronze action   $EF=5 -> 4/4 -> slot3 / attack id 11 / Nebula Storm
+```
+
+The checks are equality-triggered, not `>=`. A Seiya route therefore misses an increment if Seiya is active when `$EF` becomes 2 or 5; the missed threshold is not replayed later by merely changing Saint.
+
+Growth occurs before `$AA57` consumes the opponent condition `$EB`, so a Shun action that reaches `$EF==2` or `$05` and defeats Aphrodite still increments the technique counts before the `$FE` victory release.
+
+The separate first Shun Talk after at least two Gold dodge attempts grants +1000 Seventh Sense through `$A1FF/$F31E`; it does **not** alter technique count.
+
+Final canonical count after both Shun thresholds: 4.
 
 ### Shiryu
 
@@ -161,13 +190,15 @@ The password serializes `$0587-$058A` — technique counts for Seiya, Hyoga, Shu
 
 Tests live in `tests/test_battle_techniques_spec.py`.
 
-Stage-local Aquarius composition and transition fixtures live in:
+Stage-local composition and transition fixtures now include:
 
 - `src/SaintSeiyaNesReborn.OriginalSpec/AquariusStage08Context.cs`;
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/AquariusStage08ContextChecks.cs`.
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/AquariusStage08ContextChecks.cs`;
+- `src/SaintSeiyaNesReborn.OriginalSpec/PiscesStage09Context.cs`;
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PiscesStage09ContextChecks.cs`.
 
 ## Remaining work
 
 1. complete final localization review for technique naming/wording in the JP→ES corpus;
-2. close remaining character-specific progression state machines such as Shun/Pisces and late Seiya/Saga;
+2. close late Seiya/Saga technique progression;
 3. keep opponent `$0680` reachability stage-local rather than inferring unused structural slots from coefficient tables.
