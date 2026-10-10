@@ -56,9 +56,9 @@ public readonly record struct BattleStageCoverageRow(
 /// </summary>
 public static class BattleStageContextCoverage
 {
-    public const byte FirstMaterialGapStage = 0x00;
+    public const byte FirstMaterialGapStage = 0x02;
 
-    // First material gap ($00 / Mu repair context).
+    // Closed stage $00 / Mu repair context.
     public const ushort Stage00InitializationHandler = 0x97F7;
     public const ushort Stage00TalkHandler = 0x9CB7;
     public const ushort Stage00PostActionHandler = 0xA3A1;
@@ -101,7 +101,7 @@ public static class BattleStageContextCoverage
         new(
             0x00,
             "Mu / pre-battle repair",
-            BattleStageCoverageClassification.MaterialContextMissing,
+            BattleStageCoverageClassification.DedicatedContextClosed,
             0x97F7,
             0x9CB7,
             0xA3A1,
@@ -110,7 +110,7 @@ public static class BattleStageContextCoverage
             0x00,
             0x00,
             BattleStageSurface.Initialization | BattleStageSurface.Talk,
-            null),
+            nameof(MuStage00Context)),
         new(
             0x01,
             "Taurus / Aldebaran",
