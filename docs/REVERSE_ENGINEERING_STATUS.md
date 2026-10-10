@@ -11,15 +11,15 @@
 | Front-end/title/password | HIGH | Modal, attract, codec y overlays ejecutables cerrados. |
 | Plataforma / exits / reload / narrativa | HIGH | Main path, special exits, `$70-$89`, `$8F` y terminal final cerrados. |
 | Boss primitives | HIGH | Recursos, clasificadores, daño, técnicas, dodge y dispatchers. |
-| Cobertura stage-local `$00-$0B` | HIGH | Matriz completa de reachability/ownership, PR #139. |
-| Mu / repair `$00` | ACTIVE | Primer gap material: Talk-only; cierre dedicado pendiente. |
+| Cobertura stage-local `$00-$0B` | HIGH | Matriz completa de reachability/ownership, PR #139; actualizada con Mu cerrado. |
+| Mu / repair `$00` | HIGH | Contexto especial completo: `$06BB`, Talk, release `$01` y Taurus boundary, PR #141. |
 | Taurus/Aldebaran `$01` | HIGH | Contexto completo, PR #123. |
-| Gemini / first Camus `$02` | MEDIUM | Material confirmado por auditoría; contexto dedicado pendiente después de `$00`. |
-| Cancer/Death Mask `$03` | MEDIUM | Material confirmado por auditoría; contexto dedicado pendiente. |
+| Gemini / first Camus `$02` | ACTIVE | Próximo gap: detour obligatorio `$0E`, split ordinario/Hyoga y first-Camus compuesto. |
+| Cancer/Death Mask `$03` | MEDIUM | Gap material confirmado; contexto dedicado pendiente tras `$02`. |
 | Leo/Aioria `$04` | HIGH | Contexto completo, PR #125. |
 | Virgo/Shaka `$05` | HIGH | Contexto completo, PR #127. |
-| Scorpio/Milo `$06` | MEDIUM | Material confirmado por auditoría; contexto dedicado pendiente. |
-| Capricorn/Shura `$07` | MEDIUM | Material confirmado por auditoría; contexto dedicado pendiente. |
+| Scorpio/Milo `$06` | MEDIUM | Gap material confirmado; contexto dedicado pendiente. |
+| Capricorn/Shura `$07` | MEDIUM | Gap material confirmado; contexto dedicado pendiente. |
 | Aquarius/Camus `$08` | HIGH | Dos encuentros Camus y unlocks Hyoga cerrados, PR #129. |
 | Pisces/Aphrodite `$09` | HIGH | Roster, Talk, Shun growth, selector y `$FE->$0C` cerrados, PR #131. |
 | Saga `$0A` | HIGH | Máquina `$06CE` completa y terminales cerrados, PR #135. |
@@ -32,59 +32,67 @@
 | Texto/localización | MEDIUM | Corpus JP + borrador ES; integración final pendiente. |
 | REBORN | EARLY | Congelado hasta cierre integral de ORIGINAL SPEC. |
 
-## Checkpoint técnico reciente — PR #139
+## Checkpoint técnico reciente — PR #141
 
-La cobertura stage-local `$050E=$00-$0B` quedó cerrada como denominador ejecutable.
+Stage `$00` Mu / pre-battle repair quedó cerrado como contexto dedicado especial.
 
 Resultados centrales:
 
-- se fijaron las cuatro familias exactas de dispatch (`init`, `Talk`, `post-Bronze`, `post-Gold`) para cada índice `$00-$0B`;
-- se promovió el mapa fijo `$F016` de `$067D=$00-$0E`, eliminando ambigüedad entre índice numérico y entrada narrativa real;
-- clasificación final: cerrados `$01/$04/$05/$08/$09/$0A`; gaps materiales `$00/$02/$03/$06/$07`; `$0B` estructural/transitorio sin combate estable; `$0C` bridge separado ya cerrado;
-- `$0B` no aparece como salida estable de `$F016`; los usos inmediatos relevantes cargan `$0B` sólo mediante `$F2ED` para presentación y el raw init pointer `$A960` cae dentro de la instrucción que empieza en `$A95F`;
-- reachability de Gold slots quedó separada de los slots estructurales de coeficientes;
-- `$00` es el primer gap material canónico: Attack/resource/Escape están bloqueados, mientras Talk `$9CB7` mantiene una máquina `$066F 0->1` y en el segundo uso emite release `$01` hacia Taurus.
+- el clear global `$AD4A-$AD54` prueba `$06BB=0` al inicio canónico;
+- `$A100+` deriva `$0673=$30`, selecciona Seiya inicialmente y deja disponibles Seiya/Hyoga/Shun/Shiryu, no Ikki;
+- reset común `$A973+` limpia `$066F/$0670` pero preserva `$06BB`;
+- Resource Allocation, Attack y Escape desvían stage `$00` a `$F238`, que diferencia primer/repetido mediante `$06BB`, incrementa el contador y vuelve al command loop;
+- Talk `$9CB7` usa tablas exactas `$9D24=35 35 36 34` y `$9D28=3B 3B 11 3B`; primer Talk hace `$066F=1`, segundo/repetido emite `$0670=$01`;
+- `$AEDA` es presentación, no progresión/daño/recursos persistentes de Mu;
+- release `$01` -> `$E399/$E3B3` produce `$067D=$01/$050E=$01/$06CD=$00/$0673=$30`, preservando Saint 0..3;
+- ninguna orden canónica de Mu alcanza Bronze damage, post-Bronze, Gold selector/dodge/damage o post-Gold;
+- la matriz de cobertura promueve `$00` a cerrado y mueve el primer gap a `$02`.
 
 ```text
-merge 2ed957e779277be7441fec2732e1ba0c919e4903
-head  d25433da6f4a178922c2a6dbe06eac048ec7cca5
-CI    #349 SUCCESS / #548 SUCCESS
+merge 33ac4e3b3ec249b37424f4def9344e96a525654f
+head  fe4d5f92cb90aff67a43618c17b5b56a92e9b2de
+CI    #353 SUCCESS / #554 SUCCESS
 ```
 
-Artifacts principales: `BATTLE_STAGE_CONTEXT_COVERAGE.md`, `BattleStageContextCoverage.cs`, sus fixtures y la actualización de `BATTLE_EVENT_DISPATCH.md`.
+Artifacts principales: `MuStage00Context.cs`, `MuStage00ContextChecks.cs`, `BOSS_CONTEXT_STAGE_00_MU.md` y actualización de la matriz/dispatch global.
 
 ## Frontera operativa actual
 
 ```text
-ORIGINAL SPEC / stage $00 Mu repair context
+ORIGINAL SPEC / stage $02 Gemini + first-Camus detour
 ```
 
-La auditoría ya decidió el orden de trabajo. Stage `$00` es un contexto especial, no un combate Gold ordinario:
+Stage `$02` debe cerrarse como un compuesto, no como un boss lineal:
 
 ```text
-seed: $067D=$00 / $050E=$00 / $066F=0 / $0670=0
+seed: $067D=$02 / $050E=$02
+init $981F -> +300 Seventh Sense -> release $03
+Talk $9D81 -> $DC++ siempre; primer uso también $066F++
 
-Attack              -> blocked owner $F238
-Resource allocation -> blocked owner $F238
-Escape              -> blocked owner $F238
-Talk                -> $9CB7
+primer post-Bronze con $067C=0
+  -> $02=$0E
+  -> release $02
+  -> platform $0E
+  -> accepted exit X>=$B4 / Y=$80 / jump=0
+  -> special resume $067C:0->1
 
-Talk #1: $066F 0->1
-Talk #2+: $0670=$01
-release $01 -> fixed progression -> $067D=$01 -> $050E=$01 Taurus
+ordinary Saint -> reabre stage $02
+Hyoga          -> $050E=$08 / $06B8=$0A / $0690=$FF
+                  -> first-Camus branch ya cerrado en AquariusStage08Context
 ```
 
-El siguiente checkpoint debe convertir este contrato en un contexto dedicado ejecutable, incluyendo la prueba negativa de que ninguna superficie Bronze/Gold estructural es alcanzable.
+Tras `$067C!=0`, stage `$02` posee su post-Bronze ordinario con victoria `$01`, slots Gold `0/1` y post-Gold con derrota `$FF`. El checkpoint debe componer todas las rutas canónicas hasta el boundary Cancer `$067D=$03/$050E=$03`, reutilizando plataforma `$0E`, Aquarius first-Camus y aritmética genérica ya cerrados.
 
 ## No reabrir sin evidencia nueva
 
 - global `$00/$01` — #121;
 - coverage matrix `$00-$0B` — #139;
-- Taurus — #123;
-- Leo — #125;
-- Virgo — #127;
-- Aquarius — #129;
-- Pisces — #131;
+- Mu `$00` — #141;
+- Taurus `$01` — #123;
+- Leo `$04` — #125;
+- Virgo `$05` — #127;
+- Aquarius `$08` — #129;
+- Pisces `$09` — #131;
 - final-special `$0C` — #133;
 - Saga `$0A` — #135;
 - post-Saga ending/hard terminal — #137;
@@ -96,8 +104,8 @@ El siguiente checkpoint debe convertir este contrato en un contexto dedicado eje
 
 ## Áreas abiertas
 
-1. contexto dedicado `$00` Mu / pre-battle repair;
-2. contextos materiales `$02` Gemini/first Camus, `$03` Cancer, `$06` Scorpio y `$07` Capricorn, en orden canónico tras `$00`;
+1. contexto compuesto `$02` Gemini / first Camus;
+2. contextos materiales `$03` Cancer, `$06` Scorpio y `$07` Capricorn, en orden canónico;
 3. renderer/metasprites/CHR global;
 4. RNG;
 5. audio;
