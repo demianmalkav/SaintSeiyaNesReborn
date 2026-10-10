@@ -11,6 +11,7 @@ internal static class BattleStageContextCoverageChecks
         CheckCoverageClassification();
         CheckGoldSelectorReachability();
         CheckStage00ClosedContract();
+        CheckStage02ClosedContract();
         CheckStage0BStructuralOnlyContract();
     }
 
@@ -81,8 +82,8 @@ internal static class BattleStageContextCoverageChecks
 
     private static void CheckCoverageClassification()
     {
-        byte[] closed = [0x00, 0x01, 0x04, 0x05, 0x08, 0x09, 0x0A];
-        byte[] missing = [0x02, 0x03, 0x06, 0x07];
+        byte[] closed = [0x00, 0x01, 0x02, 0x04, 0x05, 0x08, 0x09, 0x0A];
+        byte[] missing = [0x03, 0x06, 0x07];
 
         foreach (var stage in closed)
             Require(BattleStageContextCoverage.Get(stage).Classification == BattleStageCoverageClassification.DedicatedContextClosed,
@@ -98,8 +99,8 @@ internal static class BattleStageContextCoverageChecks
             "stage $0B is structural/transient rather than a canonical battle gap");
 
         var first = BattleStageContextCoverage.FirstMaterialGap();
-        Require(first.StageIndex == BattleStageContextCoverage.FirstMaterialGapStage && first.StageIndex == 0x02,
-            "after Mu closure the first material uncovered context in canonical order is stage $02");
+        Require(first.StageIndex == BattleStageContextCoverage.FirstMaterialGapStage && first.StageIndex == 0x03,
+            "after stage-02 closure the first material uncovered context in canonical order is stage $03");
     }
 
     private static void CheckGoldSelectorReachability()
@@ -123,6 +124,8 @@ internal static class BattleStageContextCoverageChecks
         for (var i = 0; i < masks.Length; i++)
             Require(BattleStageContextCoverage.Get((byte)i).ReachableGoldSlotMask == masks[i], $"stage {i:X2} Gold-slot reachability mask");
 
+        Require(BattleStageContextCoverage.Get(0x02).GoldSelectorKind == BattleStageGoldSelectorKind.GenericParitySlots01,
+            "Gemini reuses generic parity Gold selector slots 0/1");
         Require(BattleStageContextCoverage.Get(0x06).GoldSelectorKind == BattleStageGoldSelectorKind.ScorpioStage06,
             "Scorpio owns its dodge-history Gold selector branch");
         Require(BattleStageContextCoverage.Get(0x08).GoldSelectorKind == BattleStageGoldSelectorKind.AquariusStage08,
@@ -156,6 +159,25 @@ internal static class BattleStageContextCoverageChecks
             && BattleStageContextCoverage.Stage00SuccessorProgress == 0x01
             && BattleStageContextCoverage.Stage00SuccessorStage == 0x01,
             "Mu second-Talk release $01 advances progress $00->$01 and hands off to Taurus");
+    }
+
+    private static void CheckStage02ClosedContract()
+    {
+        var gemini = BattleStageContextCoverage.Get(0x02);
+        Require(gemini.Classification == BattleStageCoverageClassification.DedicatedContextClosed
+            && gemini.DedicatedContextArtifact == nameof(GeminiStage02Context),
+            "stage $02 is promoted as a closed Gemini/first-Camus composite context");
+        Require(gemini.CanonicalBattleStoryProgress == 0x02,
+            "stage $02 canonical battle provenance remains story progress $02");
+        Require(gemini.InitializationHandler == 0x981F
+            && gemini.TalkHandler == 0x9D81
+            && gemini.PostBronzeHandler == 0xA444
+            && gemini.PostGoldHandler == 0xA4CC,
+            "stage $02 retains exact dispatcher owners after promotion");
+        Require(gemini.ReachableSurfaces == BattleStageSurface.OrdinaryBattle,
+            "stage $02 retains all ordinary battle surfaces around its mandatory phase detour");
+        Require(gemini.ReachableGoldSlotMask == 0x03,
+            "stage $02 canonical Gold selector exposes only slots 0/1");
     }
 
     private static void CheckStage0BStructuralOnlyContract()
