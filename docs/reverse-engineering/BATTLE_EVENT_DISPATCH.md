@@ -2,9 +2,9 @@
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: all four stage-indexed dispatcher families are statically confirmed and the canonical `$050E=$00-$0B` namespace is coverage-audited end-to-end. Dedicated contexts are closed for `$00/$01/$02/$03/$04/$05/$06/$08/$09/$0A`; **Capricorn `$07` is the only remaining material gap**. `$0B` is structural/transient. Final-special `$0C` is closed separately.
+Status: all four stage-indexed dispatcher families are statically confirmed and every material canonical `$050E=$00-$0A` battle context is now closed by an executable stage model. `$0B` remains structural/transient with no canonical stable battle; final-special `$0C` is closed separately.
 
-See `BATTLE_STAGE_CONTEXT_COVERAGE.md` for the denominator and `BOSS_CONTEXT_STAGE_06_SCORPIO.md` for the Scorpio composite and its progress-`$08` bridge.
+See `BATTLE_STAGE_CONTEXT_COVERAGE.md` for the denominator, `BOSS_CONTEXT_STAGE_06_SCORPIO.md` for the Scorpio bridge, and `BOSS_CONTEXT_STAGE_07_CAPRICORN.md` for the final material stage-local closure.
 
 ## Stage-indexed architecture
 
@@ -35,9 +35,27 @@ JSR $E698
 | `$0A` | `$9B5D` |
 | `$0B` | raw `$A960`; structural only |
 
-Scorpio `$9ACE` is exactly `RTS`; there is no stage-specific intro reward, presentation or release handoff.
+### Capricorn initializer dispatch is gated before `$97DB`
 
-Stage `$0B` has no stable canonical provenance: `$F016` never returns `$0B`, and `$A960` points into the real instruction beginning at `$A95F`.
+The outer battle-entry owner at `$9770-$97B8` first tests `$068E`, then compares the active Saint against `$F36F[$050E]`.
+
+Exact designated-Saint table prefix:
+
+```text
+$F36F: FF 00 02 03 00 FF FF 03 01 FF FF FF FF
+```
+
+Therefore:
+
+```text
+stage $07 -> designated Saint $03 -> Shiryu
+```
+
+Fresh Seiya/Hyoga/Shun entries bypass `$9ACF`. Fresh Shiryu reaches it.
+
+`$9ACF` itself begins with an independent `$0670==$FE` early return. The ordinary Shiryu path clears `$0672`, increments `$058A/$0696`, grants +600 Seventh Sense and exits through shared `$9C3D` release `$03`.
+
+Stage `$0B` has no stable canonical provenance: `$F016` never returns `$0B`, and `$A960` points inside the real instruction beginning at `$A95F`.
 
 ## 2. Talk `$9C95` / table `$9C9B`
 
@@ -57,44 +75,22 @@ Stage `$0B` has no stable canonical provenance: `$F016` never returns `$0B`, and
 | `$0B` | `$9FF4` structural alias |
 | `$0C` | `$A1AD` separate final-special handler |
 
-### Scorpio `$9E51`
-
-Helper `$A1EC` computes the 8-bit sum `$0678+$0677`.
-
-With total below two:
+### Capricorn `$9ED6`
 
 ```text
-Hyoga ($0533=$01):
-  messages $84/$85
-  if $068A==0:
-      INC $068A
-      #$03 -> $A1FF -> +300 Seventh Sense
-  else:
-      no second reward
-
-Seiya/Shun/Shiryu:
-  messages $F8/$3E
-  no reward/state mutation
+message $AE
+if $066F==0:
+    per-Saint table $43/$43/$43/$AF
+    INC $066F
+    return
+else:
+    same semantic per-Saint table through repeat display helper
+    INC $DC
+    INC $066F
+    return
 ```
 
-With total at least two and `$066F==0`:
-
-```text
-per-Saint message table $9ED2 = 86 86 87 86
-message $A3
-INC $066F
-#$02 -> $A1FF -> +200 Seventh Sense
-```
-
-With total at least two and `$066F!=0`:
-
-```text
-repeat per-Saint message + $A3
-Hyoga -> return
-Seiya/Shun/Shiryu -> INC $DC -> fixed caller forces Gold response
-```
-
-`$068A` and `$066F` are independent reward gates.
+The first Talk does not force Gold. Every repeated Talk raises transient `$DC`; the fixed caller converts that into the Gold-response path. `$066F` keeps incrementing as an 8-bit counter.
 
 ## 3. Post-Bronze `$A361` / table `$A367`
 
@@ -113,18 +109,34 @@ Seiya/Shun/Shiryu -> INC $DC -> fixed caller forces Gold response
 | `$0A` | `$AB18` |
 | `$0B` | `$A3A1` structural |
 
-### Scorpio `$A7FF`
+### Capricorn `$A86B`
 
-After shared helpers `$ADC4/$ACD6`:
+After shared classifier `$ACD6`:
 
 ```text
-$EB=$FF -> victory presentation -> release $01
-otherwise:
-    $06BC!=0 -> message $A6 -> continue
-    $06BC==0 -> continue without Scorpio-local feedback
+$EB=$00:
+  $06BC!=0 -> continue
+  $06BC==0 -> message $8B -> continue
+
+$EB=$01:
+  active Shiryu -> continue, no $0690 mutation
+  Seiya/Hyoga/Shun -> $0690=$FF -> continue
+
+$EB=$FF:
+  scripted victory
+  $06B1=$FF
+  #$08 -> $F31E -> +800 Seventh Sense
+  release $FE
 ```
 
-Only `$EB=$FF` is terminal. Scorpio does not distinguish `$EB=$00` from `$EB=$01` for a separate local terminal.
+Fixed `$FAB9-$FAE5` makes `$0690` executable state:
+
+```text
+$0690!=0 -> force $06BC=0
+$0690==0 -> preserve generic hit-token ownership
+```
+
+Thus the stage context composes the override and does not duplicate generic hit arithmetic.
 
 ## 4. Post-Gold `$A381` / table `$A387`
 
@@ -143,101 +155,93 @@ Only `$EB=$FF` is terminal. Scorpio does not distinguish `$EB=$00` from `$EB=$01
 | `$0A` | `$AC05` |
 | `$0B` | `$A3A1` structural |
 
-### Scorpio `$A847`
+### Capricorn `$A8D8`
 
-After shared classifier `$AD4D`:
+After shared player classifier `$AD4D`:
 
 ```text
-$EA=$00 -> return/continue
-$EA=$01 -> messages $A4/$91 -> continue
+$EA=$00 -> continue
+$EA=$01 -> repeatable messages $40/$91 -> continue
 $EA=$FF -> release $FF defeat
 ```
 
-The low-player feedback is repeatable; no Scorpio one-shot latch is consulted.
+No Capricorn one-shot low-player latch exists.
 
-## 5. Scorpio Gold selector `$908C+`
+## 5. Gold selection
 
-Bank 6 owns a dedicated branch before the generic parity fallthrough:
+Canonical reachable slots remain:
 
-```text
-908C LDA $050E
-908F CMP #$06
-9091 BNE $90A8
-9093 LDA $0677
-9096 CLC
-9097 ADC $0678
-909A CMP #$02
-909C BCC $90A3
-909E LDA #$00
-90A0 JMP $9143
-90A3 LDA #$01
-90A5 JMP $9143
-```
+| Stage | Reachable slots |
+|---:|---|
+| `$00` | none |
+| `$01` | `0,1` |
+| `$02` | `0,1` |
+| `$03` | `0,1` |
+| `$04` | `0,1` |
+| `$05` | `0,1,2` |
+| `$06` | `0,1` |
+| `$07` | `0,1` |
+| `$08` | `0,1,2` |
+| `$09` | `0,1,2` |
+| `$0A` | `0,1,2,3` |
+| `$0B` | none |
 
-Therefore:
-
-```text
-8-bit dodge sum < 2  -> slot 1
-8-bit dodge sum >= 2 -> slot 0
-```
-
-Only slots `0,1` are reachable.
-
-## 6. Scorpio retry owner
-
-Generic `$FF` defeat leaves story progress `$07`. On normal re-entry common `$A973` clears, among other fields:
+Capricorn falls through generic parity at `$913E`:
 
 ```text
-$066F $0670 $0677 $0678 $067C $068A $068E $0690 $06B8
+slot = $065F & 1
 ```
 
-This resets the Scorpio dodge selector and rearms both one-time Talk rewards.
+## 6. Capricorn `$FF` retry ownership
 
-## 7. Scorpio successor ownership
+Defeat `$FF` leaves progress `$09`. Fixed `$E4D7` maps that progress to principal platform substate `$02=$09`.
 
-Scorpio victory release `$01` does not hand directly to Capricorn.
-
-First fixed progression:
-
-```text
-$067D:07->08
-$F016[08]=$10
-$E50B[08]=$00
-$050E=$10
-$06CD=$00
-$0673=$30
-```
-
-Fixed `$E4D7` maps progress `$08` to principal platform substate:
-
-```text
-$02=$08
-```
-
-The already-closed common principal platform gate for `$02=$08` requires:
+Accepted principal-platform exit remains the shared gate:
 
 ```text
 X >= $D0
 Y == $40
 jump phase == 0
+-> State3DReload / $E100
 ```
 
-and exits through normal `State3DReload` (`$3D/$E100`).
+Warm reload reaches `$ED57`, which invokes `$A973` for inherited `$FF` and clears encounter-local state including `$066F/$0670/$068E/$0690`.
 
-After reload, fixed `$E2DD` sees story-stage `$050E=$10`, synthesizes release `$01`, and fixed progression reaches:
+The decisive continuation is:
 
 ```text
-$067D:08->09
-$F016[09]=$07
-$E50B[09]=$00
-$050E=$07
-$06CD=$00
-$0673=$30
+$E2DD sees stage $07, not story-stage $10
+$0670 is now 0
+-> $E2E7 BEQ $E33D
+-> direct command-loop resume
 ```
 
-Active Seiya/Hyoga/Shun/Shiryu is preserved throughout.
+No call to `$970A/$97DB/$9ACF` occurs on this retry. Therefore the Shiryu +600 reward and `$058A/$0696` increments are not replayed; technique counts and `$0672` survive the reset unchanged.
 
-Namespace rule: `$050E=$10` is a story-stage value. It is not special-normal platform substate `$02=$10`; this bridge uses `$02=$08`.
+## 7. Capricorn successor ownership
+
+Scripted victory release `$FE` is handled by fixed `$E3ED-$E414`:
+
+```text
+save winning Saint record
+force $0533=$00 (Seiya)
+rewrite $0670=$01
+join ordinary story increment
+```
+
+From progress `$09`:
+
+```text
+$067D:09->0A
+$F016[$0A]=$08
+$E50B[$0A]=$08
+$050E=$08
+$06CD=$08
+$0673=$38
+active Saint = Seiya
+```
+
+This is the exact already-closed Aquarius/final-Camus story boundary. Capricorn closure stops there and does not reopen stage `$08` internals.
 
 ## 8. Canonical story-stage provenance
 
@@ -264,30 +268,13 @@ stage 0A <- progress 0D
 stage 0B <- none
 ```
 
-## 9. Gold-slot coverage
-
-| Stage | Reachable slots |
-|---:|---|
-| `$00` | none |
-| `$01` | `0,1` |
-| `$02` | `0,1` |
-| `$03` | `0,1` |
-| `$04` | `0,1` |
-| `$05` | `0,1,2` |
-| `$06` | `0,1` |
-| `$07` | `0,1` |
-| `$08` | `0,1,2` |
-| `$09` | `0,1,2` |
-| `$0A` | `0,1,2,3` |
-| `$0B` | none |
-
-## Coverage classification
+## Coverage classification after Capricorn closure
 
 ```text
-closed dedicated : 00 01 02 03 04 05 06 08 09 0A
-material missing : 07
+closed dedicated : 00 01 02 03 04 05 06 07 08 09 0A
+material missing : NONE
 structural only  : 0B
 separate closed  : 0C
 ```
 
-The next stage-local checkpoint is **Capricorn / Shura `$07`**, owned by `$9ACF/$9ED6/$A86B/$A8D8`. Scorpio's checkpoint terminates at the exact progress `$09` / stage `$07` boundary and does not reopen those internals.
+The stage-indexed boss/event dispatcher layer has no remaining material `$00-$0B` gap. Subsequent ORIGINAL SPEC work must move to unresolved global subsystems rather than extend this denominator.
