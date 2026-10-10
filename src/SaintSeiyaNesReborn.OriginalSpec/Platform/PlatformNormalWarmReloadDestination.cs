@@ -334,7 +334,7 @@ public static class PlatformNormalWarmReloadDestination
         if (!IsPrincipalInteractiveRelease(input.Terminal0670))
         {
             throw new InvalidOperationException(
-                $"${input.Terminal0670:X2} is outside the principal post-interactive release set {01,02,DD,FE,FF}.");
+                $"${input.Terminal0670:X2} is outside the principal post-interactive release set 01/02/DD/FE/FF.");
         }
 
         _ = InternalSaintFor(input.CanonicalSaint0533);
