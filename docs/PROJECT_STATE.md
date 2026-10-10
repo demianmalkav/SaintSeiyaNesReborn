@@ -4,283 +4,255 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / stage $07 Capricorn / Shura`
+- Phase: `ORIGINAL SPEC / platform visual-resource closure — metasprites $05-$0F + special objects`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#147` — complete canonical stage `$06` Scorpio / Milo context plus progress-`$08` story-stage-`$10` principal-platform `$08` successor bridge.
-- Merge commit: `62f474bd4e31cd4ca4f40006fd4e9b475bd950b6`
-- Exact final PR head: `4148e0b178592126ee2587a4ca83753019580b42`
+- Last verified technical checkpoint: PR `#149` — complete canonical stage `$07` Capricorn / Shura context and forced-Seiya Aquarius handoff.
+- Merge commit: `28ba0a71c943d0f2ee943e8b60158a15c9d3efd5`
+- Exact final PR head: `eb55de62e008d1dbb92b16a6432759a22b32b7fb`
 - Verification on that exact head:
-  - `ORIGINAL SPEC tests` #375: `SUCCESS`
-  - `Original Spec` #582: `SUCCESS`
+  - `ORIGINAL SPEC tests` #384: `SUCCESS`
+  - `Original Spec` #593: `SUCCESS`
   - build/self-test/password compatibility: `SUCCESS`
-- Coverage matrix `$050E=$00-$0B`: dedicated contexts closed at `$00/$01/$02/$03/$04/$05/$06/$08/$09/$0A`; `$07` Capricorn is the **only remaining material stage-local gap**; `$0B` remains structural/transient.
-- Final-special `$0C` remains separately closed.
+- Canonical `$050E=$00-$0B` battle/event denominator now has **zero material stage-local gaps**.
+- Dedicated contexts are closed at `$00-$0A`; `$0B` remains structural/transient with no canonical stable battle; final-special `$0C` remains separately closed.
+- Do not invent another House/boss gap. ORIGINAL SPEC now returns to unresolved global subsystems.
 
 ## DONE
 
-### Stage `$06` Scorpio / Milo — PR #147
+### Stage `$07` Capricorn / Shura — PR #149
 
-Canonical seed:
+Canonical entry from the frozen Scorpio bridge:
 
 ```text
-$067D=$07
-$050E=$06
+$067D=$09
+$050E=$07
 $06CD=$00
 $0673=$30
 reachable Saints = Seiya / Hyoga / Shun / Shiryu
 Ikki excluded
 ```
 
-Initializer `$9ACE` is exactly `RTS`.
+Exact stage owners remain `$9ACF/$9ED6/$A86B/$A8D8`, with generic parity Gold slots `0/1`.
 
-Talk `$9E51` consumes the 8-bit dodge-history sum `$0677+$0678`:
+#### Fresh initialization is Shiryu-only
+
+The outer battle-entry owner `$9770-$97B8` checks the fixed designated-Saint table before dispatching the stage initializer:
 
 ```text
-total < 2, Hyoga
-  -> messages $84/$85
-  -> first time $068A:0->1 and +300 Seventh Sense
-  -> later low-history Hyoga Talks: no second +300
-
-total < 2, other Saints
-  -> messages $F8/$3E; no reward/state mutation
-
-total >= 2, $066F==0
-  -> per-Saint $86/$86/$87/$86 + $A3
-  -> $066F:0->1
-  -> +200 Seventh Sense
-
-total >= 2, $066F!=0
-  -> repeat dialogue
-  -> Hyoga returns
-  -> Seiya/Shun/Shiryu raise $DC and force Gold response
+$F36F[$07]=$03 = Shiryu
 ```
 
-Post-Bronze `$A7FF`:
+Therefore fresh Seiya/Hyoga/Shun entries bypass `$9ACF`. Fresh Shiryu dispatches it.
+
+Ordinary Shiryu `$9ACF`:
 
 ```text
-$EB=$FF -> release $01 victory
-otherwise + $06BC!=0 -> message $A6 and continue
-otherwise -> continue without Scorpio-local feedback
+temporary presentation $0F
+$0672=0
+$058A:1->2
+$0696:1->2
++600 Seventh Sense
+shared $9C3D -> release $03 / $068E=1
 ```
 
-Post-Gold `$A847`:
+Inbound `$0670=$FE` returns before reward/growth.
+
+#### Talk / battle branches
+
+Talk `$9ED6`:
 
 ```text
-$EA=$00 -> continue
-$EA=$01 -> repeatable $A4/$91 low-player feedback
-$EA=$FF -> release $FF defeat
-```
-
-Gold selector `$908C+`:
-
-```text
-8-bit dodge sum < 2  -> slot 1
-8-bit dodge sum >= 2 -> slot 0
-```
-
-Generic `$FF` retry calls `$A973`, clearing `$066F/$0677/$0678/$068A` and rearming both Talk reward gates.
-
-Scorpio victory is a two-release successor chain, not a direct Capricorn handoff:
-
-```text
-release $01 at progress $07
-  -> $067D=$08
-  -> $050E=$10 story-stage
-  -> $06CD=$00 / $0673=$30
-
-fixed $E4D7
-  -> principal platform $02=$08
-  -> accepted gate X >= $D0 / Y == $40 / jump=0
-  -> State3DReload
-
-fixed $E2DD after reload sees $050E=$10
-  -> synthesizes release $01
-  -> $067D=$09
-  -> $050E=$07
-  -> $06CD=$00
-  -> $0673=$30
-  -> active Saint preserved
-```
-
-`$050E=$10` story-stage and platform `$02=$10` are distinct namespaces; Scorpio's bridge uses platform `$02=$08`.
-
-Artifacts:
-
-- `src/SaintSeiyaNesReborn.OriginalSpec/ScorpioStage06Context.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/ScorpioStage06ContextChecks.cs`
-- `docs/reverse-engineering/BOSS_CONTEXT_STAGE_06_SCORPIO.md`
-- promoted `BattleStageContextCoverage` and fixtures
-- updated battle coverage/dispatch docs
-- PR #147
-
-Do not reopen Scorpio, its progress-`$08` bridge, or principal platform `$08` without contradictory ROM evidence or a failing fixture.
-
-## EVIDENCE FOR NEXT
-
-### Stage `$07` Capricorn / Shura — final material stage-local gap
-
-Canonical entry from the closed Scorpio bridge is:
-
-```text
-$067D=$09
-$F016[$09]=$07 -> $050E=$07
-$E50B[$09]=$00 -> $06CD=$00
-$0673=$30
-reachable Saints = Seiya / Hyoga / Shun / Shiryu
-Ikki excluded
-```
-
-Exact stage owners:
-
-```text
-init          $9ACF
-Talk          $9ED6
-post-Bronze   $A86B
-post-Gold     $A8D8
-Gold selector generic parity slots 0,1
-```
-
-### Initializer `$9ACF`
-
-Static ROM flow:
-
-```text
-9ACF LDA $0670
-9AD2 CMP #$FE
-9AD4 BNE $9AD7
-9AD6 RTS
-
-9AD7 JSR $9C6D
-...
-9ADF LDA #$0F
-9AE1 JSR $F2ED          ; temporary presentation $0F
-...
-9AFC LDA #$00
-9AFE STA $0672
-...
-9B06 INC $058A
-9B09 INC $0696
-9B0C LDA #$06
-9B0E JSR $F31E          ; +600 Seventh Sense
-9B11 JMP $9C3D          ; shared intro handoff
-```
-
-The dedicated checkpoint must establish exact canonical-entry and retry semantics for this growth path, including the `$0670==$FE` early-return guard, `$058A/$0696` increments, `$0672=0`, +600 reward, and shared `$9C3D` release-`$03` handoff.
-
-### Talk `$9ED6`
-
-```text
-message $AE
-if $066F==0:
-  per-Saint table $9EFC = 43 43 43 AF
-  display first-form dialogue
+first $066F=0:
+  $AE + per-Saint $43/$43/$43/$AF
   INC $066F
-  return
-else:
-  same per-Saint table via repeat-form call
+  no forced Gold
+repeat $066F!=0:
+  repeat-form dialogue
   INC $DC
   INC $066F
-  return
+  fixed caller forces Gold
 ```
 
-Thus first Talk does not force Gold; every repeated Talk raises transient `$DC` and the fixed caller forces a Gold response. The counter continues incrementing rather than acting as a strict boolean.
-
-### Post-Bronze `$A86B`
-
-After shared opponent classifier `$ACD6`:
+Post-Bronze `$A86B`:
 
 ```text
-$EB=$00
-  -> if $06BC!=0: continue
-  -> if $06BC==0: message $8B feedback; continue
-
-$EB=$01
-  -> if active Shiryu ($0533=$03): continue without arming $0690
-  -> otherwise: $0690=$FF; continue
-
-$EB=$FF
-  -> scripted victory sequence
-  -> $06B1=$FF
-  -> #$08 -> $F31E -> +800 Seventh Sense
-  -> release $FE
+$EB=$00 + $06BC!=0 -> continue
+$EB=$00 + $06BC=0  -> message $8B
+$EB=$01 + Shiryu   -> continue; no $0690
+$EB=$01 + other    -> $0690=$FF
+$EB=$FF             -> $06B1=$FF / +800 Seventh Sense / release $FE
 ```
 
-`$0690` is consumed by fixed battle setup at `$FAB9+`: when nonzero it forces `$06BC=0`. The Capricorn model must compose this effect rather than treating `$0690` as an inert flag.
+Fixed `$FAB9+` consumes `$0690` materially:
 
-### Post-Gold `$A8D8`
+```text
+$0690!=0 -> force $06BC=0
+$0690==0 -> generic battle subsystem retains $06BC ownership
+```
+
+Post-Gold `$A8D8`:
 
 ```text
 $EA=$00 -> continue
-$EA=$01 -> messages $40/$91; continue
-$EA=$FF -> release $FF defeat
+$EA=$01 -> repeatable $40/$91 feedback
+$EA=$FF -> release $FF
 ```
 
-The low-player feedback is repeatable; no stage-local one-shot latch is consulted.
+#### Defeat retry cannot farm the initializer reward
 
-### Victory release `$FE` successor
+Defeat `$FF` keeps progress `$09`, so fixed `$E4D7` selects principal platform substate `$02=$09`. The common accepted gate is `X >= $D0 / Y=$40 / jump=0`, followed by normal `$E100` warm reload.
 
-Fixed release owner `$E3ED-$E414` handles `$FE` specially:
+`$ED57/$A973` clears encounter-local state including `$066F/$0670/$068E/$0690`. The warm continuation then reaches `$E2DD->$E33D` directly. It **does not** call `$970A/$97DB/$9ACF` again.
+
+Consequences:
 
 ```text
-save active record
-force $0533=$00 (Seiya)
-rewrite release to $01
-join ordinary story increment at $E3B3
+$058A preserved at 2
+$0696 preserved at 2
+$0672 preserved
+no second +600
+no duplicate technique increment
 ```
 
-From canonical progress `$09`, this yields:
+#### Victory `$FE` exact successor
+
+Fixed `$E3ED-$E414` saves the winning Saint record, forces `$0533=$00` Seiya, rewrites `$FE->$01`, and joins ordinary story progression:
 
 ```text
 $067D:09->0A
-$F016[$0A]=$08
-$E50B[$0A]=$08
 $050E=$08
 $06CD=$08
 $0673=$38
 active Saint = Seiya
 ```
 
-This is the exact already-closed final-Camus/Aquarius story boundary. The Capricorn checkpoint must stop there and reuse `AquariusStage08Context`; do not reopen Aquarius internals.
+This is the exact already-closed Aquarius/final-Camus story boundary. Aquarius internals were not reopened.
+
+Artifacts:
+
+- `src/SaintSeiyaNesReborn.OriginalSpec/CapricornStage07Context.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/CapricornStage07ContextChecks.cs`
+- `docs/reverse-engineering/BOSS_CONTEXT_STAGE_07_CAPRICORN.md`
+- promoted battle-stage coverage and fixtures
+- updated battle coverage/dispatch docs
+- PR #149
+
+Frozen coverage result:
+
+```text
+closed dedicated : 00 01 02 03 04 05 06 07 08 09 0A
+material missing : NONE
+structural only  : 0B
+separate closed  : 0C
+```
+
+Do not reopen the battle-stage denominator without contradictory ROM evidence or a failing fixture.
+
+## EVIDENCE FOR NEXT
+
+The next unresolved global area with the strongest existing groundwork is the **platform visual-resource layer**. This is deliberately narrower than “write the renderer”.
+
+### Already closed/proven visual foundations
+
+`PLATFORM_CHR_MAP.md` proves fixed `$CB04` CHR routing from platform substate `$02`:
+
+```text
+$CACF[$02] -> MMC1 CHR bank 0
+$CABD[$02] -> MMC1 CHR bank 1 / shadow $75
+```
+
+MMC1 is in 4 KiB CHR mode. Proven platform groups include:
+
+```text
+$00-$0B : CHR0=25 / CHR1=15
+$0C-$0D : CHR0=29 / CHR1=19
+$0E     : CHR0=27 / CHR1=17
+$0F-$10 : CHR0=25 / CHR1=15
+$11     : CHR0=25 / CHR1=30
+```
+
+`PLATFORM_MAP_KITS.md` already proves PPUCTRL shadow `$77=$90` in platform mode:
+
+```text
+sprite pattern table     = $0000 -> CHR0
+background pattern table = $1000 -> CHR1
+```
+
+Thus CHR0 is the platform sprite resource bank and CHR1 is the background/metatile resource bank.
+
+The map-kit layer for all substates `$00-$11` is already closed, including PRG data bank, metatile base, page counts and pool-page sequences. Do not rediscover that mapping.
+
+### Existing metasprite foundation
+
+Bank 3 entity rendering already selects metasprite definitions through pointer-table families around:
+
+```text
+$B669 / $B671 / $B699 / $B6C1
+```
+
+Using the proven CHR0 banks `25/27/29`, entity types `$01-$04` have already been parsed into coherent multi-tile figures. One common animation table resolves:
+
+```text
+type $01 -> $ACC4, 7 hardware sprites
+type $02 -> $AD0F, 6 hardware sprites
+type $03 -> $AD54, 6 hardware sprites
+type $04 -> $AD9C, 7 hardware sprites
+```
+
+The format is established as hardware-sprite records containing tile/Y/X triples with optional `$FF` attribute overrides.
+
+`tools/reverse/render_platform_entities.py` is a clean-room ROM-fed renderer for types `$01-$04`; it embeds no original graphics and verifies the canonical ROM core CRC before extracting CHR/metasprite data.
+
+### Existing runtime/object foundation
+
+The persistent `$9B93` multisprite runtime is already closed independently, including bootstrap/normal/flag/death/substate-`$0D` routing and shared state carry. Its remaining boundary is composition into the complete late-object order, not rediscovery of those branch internals.
+
+### Actual visual gap
+
+`PLATFORM_CHR_MAP.md` explicitly leaves unresolved:
+
+1. metasprite definitions for entity types `$05-$0F`;
+2. special-object sprite tables outside the ordinary type `$01-$0F` family;
+3. complete semantic inventory linking each decoded definition to its pointer-table/animation selector and CHR0 group;
+4. an executable invariant that every reachable platform sprite definition resolves within the selected 4 KiB CHR0 bank and produces a bounded OAM composition.
+
+Visual identity names from screenshots are **not** required to close this mechanical resource layer. Names may remain numeric/semantic until capture evidence is unambiguous.
 
 ## OPEN
 
-1. Model exact Capricorn seed `$067D=$09/$050E=$07/$06CD=$00/$0673=$30` and reachable 0..3 roster.
-2. Close initializer `$9ACF`: `$FE` early return versus ordinary temp `$0F`, `$0672=0`, `$058A++/$0696++`, +600 Seventh Sense and shared release `$03` handoff.
-3. Prove whether generic `$FF` retry re-executes the ordinary initializer growth/reward path and encode the ROM-exact behavior rather than assuming one-time story ownership.
-4. Close Talk `$9ED6`: first `$066F` increment, per-Saint `$43/$43/$43/$AF`, repeated `$DC++` forced Gold response and continuing `$066F++`.
-5. Close post-Bronze `$A86B` for `$EB=$00/$01/$FF`, including Shiryu exception to `$0690`, miss feedback `$8B`, scripted victory, `$06B1=$FF`, +800 reward and release `$FE`.
-6. Compose `$0690` with fixed `$FAB9+` so its forced `$06BC=0` effect is executable/tested.
-7. Close post-Gold `$A8D8`: healthy, repeatable low feedback `$40/$91`, defeat `$FF`.
-8. Encode generic parity Gold slots `0/1`.
-9. Prove `$FF` retry reset/re-entry semantics for `$066F/$0690` and initializer-owned technique/reward fields.
-10. Compose release `$FE` through fixed `$E3ED-$E414` to forced Seiya and exact Aquarius boundary `$067D=$0A/$050E=$08/$06CD=$08/$0673=$38`; reuse existing Aquarius context and stop.
-11. Promote `$07` to `DedicatedContextClosed`; the `$00-$0B` material stage-local gap set must become empty.
+1. Trace bank-3 entity renderer selector flow far enough to enumerate the complete reachable ordinary entity-type domain `$01-$0F` and the exact pointer-table/animation families that select definitions.
+2. Decode and model metasprite definitions for types `$05-$0F` using the already-established count / optional `$FF` attribute / tile-Y-X record format; reject any type or animation family that static reachability proves unused rather than inventing data.
+3. Enumerate special-object sprite-definition tables reachable from platform mode that are not owned by the ordinary entity-type table; keep already-closed `$9B93` behavior separate from its visual definition data.
+4. Bind each reachable definition to the proven CHR0 bank set selected by `$02` (`25/27/29`, plus any other bank only if ROM evidence establishes it).
+5. Extend the ROM-fed clean-room visual tool so it can audit/render all reachable ordinary entity definitions and special-object definitions without embedding ROM graphics.
+6. Add executable semantic fixtures/invariants for pointer validity, sprite-count bounds, tile-index validity inside a 4 KiB bank, optional attribute overrides, and deterministic definition selection.
+7. Produce one focused visual-resource document distinguishing mechanical closure from optional visual-name identification.
+8. Stop after resource-definition closure. Do not yet absorb the complete NMI/PPU frame scheduler, palette system, or late-object execution order unless required by contradictory evidence.
 
 ## NEXT
 
-**Close canonical stage `$07` Capricorn / Shura from story seed `$067D=$09/$050E=$07/$06CD=$00/$0673=$30` through initializer `$9ACF`, Talk `$9ED6`, post-Bronze `$A86B`, post-Gold `$A8D8`, generic parity Gold slots `0/1`, `$0690->$FAB9` composition, generic `$FF` retry/re-entry, and scripted victory release `$FE`; then compose fixed `$E3ED-$E414` to forced Seiya and exact already-closed Aquarius boundary `$067D=$0A/$050E=$08/$06CD=$08/$0673=$38`.**
+**Close the platform visual-resource definition layer: extend the proven CHR0/metasprite chain from ordinary entity types `$01-$04` to every canonically reachable ordinary type `$05-$0F`, enumerate reachable special-object sprite-definition tables, bind each definition to its exact bank-3 selector/pointer family and proven platform CHR0 bank, and promote the ROM-fed renderer/auditor plus fixtures so every reachable definition is mechanically reproducible without committing original graphics.**
 
 Completion criterion:
 
-> Produce an executable dedicated Capricorn model proving ordinary versus `$FE`-guarded init, exact +600 technique/reward growth, first/repeat Talk behavior, `$0690` Shiryu/non-Shiryu split and its fixed consumer, all post-Bronze/post-Gold terminals, retry semantics, +800 scripted victory and `$FE` forced-Seiya handoff to Aquarius. Promote stage `$07` so no material `$00-$0B` battle-stage gaps remain. Do not reopen Aquarius.
+> Starting from the frozen `$02 -> CHR0/CHR1` selection and existing types `$01-$04` parser, produce a complete executable inventory of all canonically reachable platform sprite definitions (ordinary `$01-$0F` plus separately selected special objects), their pointer/animation ownership, record parsing and selected CHR0 resource set. Every reachable definition must satisfy deterministic pointer, record-length, tile-range and hardware-sprite-count invariants and be renderable from a user-supplied canonical ROM. Numeric identities are sufficient; screenshot-based character naming is optional and must not block closure.
 
 ## BLOCKERS
 
-- None. Canonical ROM, exact stage-7 handlers, common reset/battle primitives, fixed `$0690` consumer, fixed `$FE` release owner and already-closed Aquarius successor are available.
+- None. Canonical ROM, platform CHR routing, map kits, ordinary metasprite parser, ROM-fed renderer tool and major platform object runtimes are already available.
 
 ## RECOVERY CONTRACT
 
-1. Read this file from `main` first and reconcile it with newer merged history if present.
-2. Freeze PR #147 / `BOSS_CONTEXT_STAGE_06_SCORPIO.md` and all earlier closed stage contexts.
-3. Start only from Capricorn `$9ACF/$9ED6/$A86B/$A8D8` at progress `$09`.
-4. Reuse generic damage/resources/classifiers and fixed release/story owners; do not duplicate them.
-5. Reuse `AquariusStage08Context` only as the terminal successor boundary.
-6. Stop after stage `$07` closure and coverage promotion; the next phase must be chosen from the remaining global ORIGINAL SPEC gaps, not by inventing another battle-stage gap.
-7. Drive remains private asset/evidence storage only; it never owns an independent `NEXT`.
+1. Read this file from `main` and reconcile it with newer merged history before executing `NEXT`.
+2. Freeze PR #149 and the complete `$050E=$00-$0B` battle-stage coverage. Do not reopen a House/boss context merely because the active work moved to visuals.
+3. Reuse `PLATFORM_CHR_MAP.md`, `PLATFORM_MAP_KITS.md` and `render_platform_entities.py`; do not rediscover CHR0/CHR1 roles or platform map-kit tables.
+4. Treat visual identity labels as a separate confidence layer from mechanically proven pointers/tiles/metasprites.
+5. Do not commit extracted CHR art or generated PNGs; only clean-room code, semantic tables/tests/docs belong in GitHub.
+6. Drive remains private ROM/evidence storage only; it never owns an independent `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `stage-07-capricorn-fe-aquarius-boundary`
+- `last_next_signature`: `platform-visual-resource-metasprites-05-0f-special-objects`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
