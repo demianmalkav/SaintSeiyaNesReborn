@@ -2,7 +2,7 @@
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: four stage-indexed dispatcher families are confirmed statically. Individual handler semantics are being promoted stage by stage, with stage `$0C` now explicitly classified as a special fixed-code exception rather than an ordinary boss context.
+Status: four stage-indexed dispatcher families are confirmed statically. The major canonical late-game contexts through Saga `$0A` and final-special `$0C` are now promoted with reachability, not merely table membership.
 
 ## Stage-indexed architecture
 
@@ -10,7 +10,7 @@ PRG bank 5 repeatedly uses the same pattern:
 
 `LDA $050E -> JSR $E698 -> inline pointer table`
 
-`$E698` is the shared indirect dispatcher. Four important tables are now isolated.
+`$E698` is the shared indirect dispatcher. Four important tables are isolated below.
 
 ## 1. `$97DB` — battle/stage initialization dispatcher
 
@@ -34,7 +34,9 @@ Pointer table at `$97E1`:
 
 These routines establish stage-local counters, dialogue/setup state and transitions before/when entering an encounter.
 
-Stage `$0C` is a proven exception. Index 12 reads beyond the intended pointer table and would decode bytes `$97F9/$97FA` as `$8D00`, which is table/data context rather than a valid final-special initializer. Canonical stage-`$0C` entry never reaches `$97DB`: the mandatory-Saint table has `$F36F[$0C]=$FF`, which cannot match either reachable active Saint (Seiya `0` or Shun `2`), so the common entry path returns before initialization dispatch.
+Saga stage `$0A` is itself phase-dispatched: `$9B5D` uses `$06CE` to select `$9B69/$9B9E/$9C2C`. Canonical initial story ingress does not call `$9B5D`; release `$FF` re-entry calls it later to create phase 1 (Ikki) and phase 2 (Seiya). Structural init phase 2 `$9C2C` is unreachable because final phase has no `$FF` terminal. See `BOSS_CONTEXT_STAGE_0A_SAGA.md`.
+
+Stage `$0C` is a separate proven exception. Index 12 reads beyond the intended pointer table and would decode bytes `$97F9/$97FA` as `$8D00`, which is data/table context rather than a valid final-special initializer. Canonical stage-`$0C` entry never reaches `$97DB`: mandatory-Saint table `$F36F[$0C]=$FF` cannot match either reachable active Saint (Seiya `0` or Shun `2`).
 
 ## 2. `$9C95` — Talk / interaction dispatcher
 
@@ -56,16 +58,13 @@ Pointer table at `$9C9B`:
 | 11 | `$9FF4` |
 | 12 | `$A1AD` |
 
-Stage 1 proves the ordinary role particularly clearly: its handler advances a conversation counter and, on the second conversation phase, increments the Gold-Saint attack weakening tier `$0681`.
+Saga `$9FF4` dispatches `$06CE` to `$A000/$A0E0/$A115`. Phase 0 uses the scripted-miss history and `$06CF/$06D0`; phase 1 first Talk clears `$0690`; phase 2 first Talk opens the prerequisite state for the later support event. None of these Talk handlers raises transient `$DC`.
 
-Stage `$0C` Talk `$A1AD` is now closed separately in `FINAL_SPECIAL_STAGE_0C.md`. It has no active-Saint branch: both exact Seiya/Shun entry variants display messages `$D3/$D5`; the first Talk calls `$A1FF` with `#$10`, grants +1000 Seventh Sense through fixed `$F31E`, increments `$066F`, and returns without `$DC` or a release. Repeated Talk has no further reward.
+Stage `$0C` Talk `$A1AD` has no active-Saint branch: both exact Seiya/Shun entry variants display messages `$D3/$D5`; the first Talk calls `$A1FF` with `#$10`, grants +1000 Seventh Sense through fixed `$F31E`, increments `$066F`, and returns without `$DC` or a release.
 
 ## 3. `$A361` — post-Bronze-action dispatcher
 
-Fixed-bank callers:
-
-- `$F83F` in a special battle branch;
-- `$F932` after the player action/attack flow.
+Fixed-bank callers include `$F83F` in a special battle branch and `$F932` after the player action/attack flow.
 
 Pointer table at `$A367`:
 
@@ -87,7 +86,9 @@ Pointer table at `$A367`:
 
 `$A3A1` is `RTS`.
 
-For final-special stage `$0C`, fixed `$F925+` performs `CMP #$0B` and returns for stage indices `>= $0B`, so command-1 Attack never calls `$A361`. The stage-12 table entry is therefore not part of the reachable `$0C` graph.
+Saga `$AB18` phase-dispatches to `$AB24/$AB62/$AB6F`. Phase 0 can four-PLA unwind the first scripted miss; phases 0/1 consume player condition; only phase 2 consumes opponent condition and owns final victory `$01`.
+
+For final-special stage `$0C`, fixed `$F925+` returns for stage indices `>= $0B`, so command-1 Attack never calls `$A361`.
 
 ## 4. `$A381` — post-Gold-response dispatcher
 
@@ -111,11 +112,13 @@ Pointer table at `$A387`:
 | 11 | `$A3A1` |
 | 12 | `$A3A1` (structural only; unreachable at canonical `$0C`) |
 
-Final-special stage `$0C` never reaches Gold response at all: fixed `$F936+` returns for stage indices `>= $0B` before Gold technique selection, dodge polling, damage or `$A381` can run.
+Saga `$AC05` phase-dispatches to `$AC11/$AC3E/$AC76`. Phases 0/1 convert either low or defeated player condition into release `$FF` re-entry. Final phase keeps low condition nonterminal and converts only true defeat into `$DD` after resetting `$06CE`.
+
+Final-special stage `$0C` never reaches Gold response: fixed `$F936+` returns for stage indices `>= $0B` before Gold technique selection, dodge, damage or `$A381`.
 
 ## Stage identity
 
-Opponent initialization records and independently published boss stats match exactly for ordinary battle stages, giving the following externally corroborated mapping:
+Opponent initialization records and independently published boss stats match exactly for ordinary battle stages:
 
 | Stage | Battle context |
 |---:|---|
@@ -133,11 +136,11 @@ Opponent initialization records and independently published boss stats match exa
 | 11 | special/final context |
 | 12 | final-special rose-clearing bridge to Saga; not a boss battle |
 
-The numeric stage index remains ROM-canonical. Stage `$0C` identity is now internally tied to its fixed command flow, `$A1AD` dialogue and exact Pisces/Saga progression handoffs.
+The numeric stage index remains ROM-canonical. Saga `$0A` is internally tied to the three-phase `$06CE` machine; stage `$0C` is tied to its fixed command flow and exact Pisces/Saga progression handoffs.
 
 ## Architectural consequence
 
-A normal Gold Saint encounter is not one monolithic state machine. It composes at least:
+A normal Gold Saint encounter composes at least:
 
 1. stage initialization dispatcher;
 2. command selection;
@@ -152,19 +155,34 @@ A normal Gold Saint encounter is not one monolithic state machine. It composes a
 11. dialogue/reward/phase transitions;
 12. next turn or battle termination.
 
-This is the semantic architecture to preserve before REBORN expands presentation or mechanics.
+Saga demonstrates a second layer of composition: each of those stage-local surfaces can itself dispatch a synchronized narrative phase byte (`$06CE`). Table presence alone still does not prove reachability: Saga init phase 2 is structurally present but unreachable, while final-special stage `$0C` bypasses ordinary boss surfaces altogether.
+
+### Saga `$0A` phase summary
+
+```text
+phase0 inherited Seiya/Shun
+  scripted $0690 block
+  first action -> $0678 + outer unwind
+  post-miss Talk -> $06CF/$06D0
+  low/dead after Gold -> $FF
+
+$FF -> init0 -> phase1 Ikki
+  first Talk clears $0690
+  Gold selector uses $0649/$06D0
+  low/dead after Gold -> $FF
+
+$FF -> init1 -> phase2 Seiya +1000 Seventh Sense
+  final Talk -> enables one-shot support gate
+  support -> $068F=$55 / $06D4 rewards / Seiya technique count3
+  opponent defeat -> $01 victory
+  Seiya defeat -> $DD
+```
 
 ### Stage `$0C` exception
 
-The final-special stage deliberately exposes only a subset of that surface:
-
 ```text
 Attack
-  -> technique selection (cancel disabled)
-  -> special bank-1 action
-  -> $FF9F / bank0 $B900 rose effect
-  -> temporary $050E=$12
-  -> restore $050E=$0C
+  -> special rose effect
   -> release $01
   -> $067D $0C->$0D
   -> stage $0A Saga
@@ -172,42 +190,36 @@ Attack
 Talk
   -> $A1AD shared dialogue
   -> first-use +1000 Seventh Sense / $066F++
-  -> no release
 
 Escape
   -> message $D4
-  -> no release
 
 Resource allocation
   -> suppressed/redraw-only
-  -> no release
 ```
 
-No generic opponent damage, post-Bronze handler, Gold response/dodge/damage or post-Gold handler is reachable in this context.
+No generic opponent damage, post-Bronze, Gold response/dodge/damage or post-Gold dispatcher is reachable in stage `$0C`.
 
 ## Frequently used per-battle state
 
 - `$EA` — player coarse condition (`FF` defeated, `00` above threshold, `01` alive/below threshold);
 - `$EB` — opponent coarse condition with the same encoding;
 - `$064D/$064E` — stage-local event/phase counters;
-- `$066F` — conversation/progression counter in several stage Talk handlers;
-- `$0677/$0678` — failed/successful Gold-attack dodge counters;
+- `$066F` — conversation/progression counter;
+- `$0677/$0678` — dodge/event history bytes, with stage-specific reuse;
 - `$0681` — Gold attack weakening tier;
 - `$0690` — scripted player-hit block;
-- `$06CE-$06D0` — multi-phase story/battle state used heavily in Gemini/Saga-related paths;
+- `$06CE-$06D0` — multi-phase story/battle state;
 - `$06BC` — current Bronze attack hit token.
 
-These locations are structurally reusable but some counter semantics remain stage-specific. Stage `$0C` demonstrates why table membership alone is not sufficient evidence of subsystem reachability.
-
-## Stage-by-stage closure order
-
-Closed/promoted contexts:
+## Closed/promoted contexts
 
 1. Taurus/Aldebaran `$01`;
 2. Leo/Aioria `$04`;
 3. Virgo/Shaka `$05`;
 4. Aquarius/Camus `$08`;
 5. Pisces/Aphrodite `$09`;
-6. final-special bridge `$0C`.
+6. final-special bridge `$0C`;
+7. Saga final machine `$0A`.
 
-The next direct canonical boundary after `$0C` is Saga stage `$0A`, reached at story progress `$067D=$0D`. Saga still requires complete composition of its multi-phase final state machine.
+Saga's exact post-victory boundary is story progress `$0E`, stage `$00`, release `$05`, engine bootstrap `$00->$20`; its final defeat boundary is `$DD` followed by bootstrap `$90->$91`. Further ownership belongs to the already-separated global engine/story subsystems, not to the Saga boss dispatcher.
