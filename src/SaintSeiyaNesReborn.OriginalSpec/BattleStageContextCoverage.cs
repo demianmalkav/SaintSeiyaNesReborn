@@ -48,16 +48,13 @@ public readonly record struct BattleStageCoverageRow(
 /// Coverage audit for the canonical stage-indexed battle/event namespace
 /// $050E=$00-$0B.
 ///
-/// This is a coverage/specification layer, not a second battle engine. It records
-/// the four bank-5 dispatcher families, canonical story provenance, reachable
-/// Gold-selector topology and whether each numeric stage already has a dedicated
-/// executable context. Generic damage/resources/dodge/technique arithmetic stays
-/// owned by the existing battle specifications.
+/// Every material canonical battle context is now closed by a dedicated executable
+/// stage model. Numeric $0B remains structural/transient because no canonical story
+/// progress enters it as a stable battle. Generic battle arithmetic remains owned by
+/// the shared resource/damage/dodge/technique specifications.
 /// </summary>
 public static class BattleStageContextCoverage
 {
-    public const byte FirstMaterialGapStage = 0x07;
-
     // Closed stage $00 / Mu repair context.
     public const ushort Stage00InitializationHandler = 0x97F7;
     public const ushort Stage00TalkHandler = 0x9CB7;
@@ -192,7 +189,7 @@ public static class BattleStageContextCoverage
         new(
             0x07,
             "Capricorn / Shura",
-            BattleStageCoverageClassification.MaterialContextMissing,
+            BattleStageCoverageClassification.DedicatedContextClosed,
             0x9ACF,
             0x9ED6,
             0xA86B,
@@ -201,7 +198,7 @@ public static class BattleStageContextCoverage
             0b0000_0011,
             0x09,
             BattleStageSurface.OrdinaryBattle,
-            null),
+            nameof(CapricornStage07Context)),
         new(
             0x08,
             "Aquarius / Camus",
@@ -282,6 +279,24 @@ public static class BattleStageContextCoverage
     public static bool IsCanonicalOrdinaryBattleEntryProgress(byte storyProgress067D) =>
         storyProgress067D is <= 0x05 or 0x07 or 0x09 or 0x0A or 0x0B or 0x0D;
 
+    public static int MaterialContextGapCount()
+    {
+        var count = 0;
+        foreach (var row in RowsInternal)
+        {
+            if (row.Classification == BattleStageCoverageClassification.MaterialContextMissing)
+                count++;
+        }
+
+        return count;
+    }
+
+    public static bool HasMaterialContextGaps() => MaterialContextGapCount() != 0;
+
+    /// <summary>
+    /// Compatibility helper retained for callers that explicitly need the first
+    /// open material row. It now throws because Capricorn closure leaves none.
+    /// </summary>
     public static BattleStageCoverageRow FirstMaterialGap()
     {
         foreach (var row in RowsInternal)
