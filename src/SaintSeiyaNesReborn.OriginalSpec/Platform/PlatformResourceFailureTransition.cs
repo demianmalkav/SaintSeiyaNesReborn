@@ -1,3 +1,5 @@
+using SaintSeiyaNesReborn.OriginalSpec;
+
 namespace SaintSeiyaNesReborn.OriginalSpec.Platform;
 
 public enum PlatformResourceFailureCause
