@@ -72,9 +72,40 @@ Table notation is `Cosmo drain coefficient / Life drain coefficient`. Published 
 
 ## Progression unlocks
 
-### Seiya
+### Seiya — Saga support sequence closed
 
-Seiya starts with count 2. Fixed `$F497` writes `3` directly to `$0587`, and the same event grants a large +1000 Seventh Sense reward. This corresponds to the late Saga sequence in which Seiya gains Pegasus Rolling Crash.
+Seiya starts with count 2. `BOSS_CONTEXT_STAGE_0A_SAGA.md` now ties the late writer `$F497` to an exact reachable final-phase gate rather than treating it as a detached late-game event.
+
+Saga final phase is `$050E=$0A / $06CE=2`, with active Seiya. Fixed command-3 handling at `$F153+` only opens the support overlay when all of the following are true:
+
+```text
+$06CE == 2
+$06D0 == 0
+$066F != 0        ; final Talk already completed
+```
+
+The command then increments `$06CF/$06D0`, clears `$06D4`, writes `$068F=$55` and enters `$F381`. Using this command before final Talk still increments `$06D0` but does not open the overlay, making the support event unreachable for the remainder of that phase.
+
+Inside the `$068F=$55` overlay, fixed `$F477-$F49A` obtains a support bit from `$F786`. When that bit is not already set in `$06D4`:
+
+```text
+$06D4 |= support_bit
+LDA #$0A
+JSR $F31E          ; +1000 Seventh Sense
+LDA #$03
+STA $0587
+STA $0696
+```
+
+Therefore the **first newly confirmed support** is Seiya's exact unlock event:
+
+```text
+$0587/$0696: 2 -> 3
+```
+
+This exposes contiguous slot 2 / attack id 2: **Pegasus Rolling Crash**.
+
+Further unique support bits can grant their own +1000 Seventh Sense reward, but the technique-count write remains idempotently `3`; repeating an already-recorded `$06D4` bit gives no reward.
 
 Final count: 3.
 
@@ -195,10 +226,11 @@ Stage-local composition and transition fixtures now include:
 - `src/SaintSeiyaNesReborn.OriginalSpec/AquariusStage08Context.cs`;
 - `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/AquariusStage08ContextChecks.cs`;
 - `src/SaintSeiyaNesReborn.OriginalSpec/PiscesStage09Context.cs`;
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PiscesStage09ContextChecks.cs`.
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PiscesStage09ContextChecks.cs`;
+- `src/SaintSeiyaNesReborn.OriginalSpec/SagaStage0AContext.cs`;
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/SagaStage0AContextChecks.cs`.
 
 ## Remaining work
 
 1. complete final localization review for technique naming/wording in the JP→ES corpus;
-2. close late Seiya/Saga technique progression;
-3. keep opponent `$0680` reachability stage-local rather than inferring unused structural slots from coefficient tables.
+2. keep opponent `$0680` reachability stage-local rather than inferring unused structural slots from coefficient tables.
