@@ -48,7 +48,7 @@ public readonly record struct LeoTalkResult(
 public readonly record struct LeoPostBronzeResult(
     LeoStage04State State,
     LeoPostBronzeOutcome Outcome,
-    bool UsesCanonicalEdNonzeroVictoryPresentation);
+    bool UsesEdNonzeroVictoryPresentation);
 
 public readonly record struct LeoPostGoldResult(
     LeoStage04State State,
@@ -98,8 +98,9 @@ public static class LeoStage04Context
 
     /// <summary>
     /// Generic stage-entry dispatch reaches $989D when $068E==0 and the active
-    /// Saint equals fixed table $F36F[4]==0 (Seiya), ignoring presentation-only
-    /// special cases that do not apply to stage 4.
+    /// Saint equals fixed table $F36F[4]==0 (Seiya). A non-Seiya route can enter
+    /// the ordinary battle loop without running this intro, leaving inbound $ED
+    /// and $0681 untouched until Seiya later satisfies the intro gate.
     /// </summary>
     public static bool ShouldRunStageIntro(LeoStage04State state, byte activeSaintCanonicalIndex)
     {
@@ -186,6 +187,9 @@ public static class LeoStage04Context
     /// <summary>
     /// Stage post-Bronze handler $A5B3. Opponent condition $EB is supplied by
     /// the already-promoted classifier. The handler does not inspect $06BC.
+    /// Both $ED==0 and $ED!=0 victory presentation branches converge on release
+    /// $01; $989D makes $ED!=0 after the Seiya intro, while an intro-skipped
+    /// route may retain $ED==0 and reach the alternate presentation.
     /// </summary>
     public static LeoPostBronzeResult AfterBronzeAction(
         LeoStage04State state,
@@ -201,7 +205,7 @@ public static class LeoStage04Context
             return new(
                 state with { Release0670 = VictoryRelease },
                 LeoPostBronzeOutcome.VictoryRelease01,
-                UsesCanonicalEdNonzeroVictoryPresentation: state.EventEd != 0);
+                UsesEdNonzeroVictoryPresentation: state.EventEd != 0);
         }
 
         if (opponentConditionEb == 0x00)
@@ -209,7 +213,7 @@ public static class LeoStage04Context
             return new(
                 state,
                 LeoPostBronzeOutcome.HealthyOpponentContinues,
-                UsesCanonicalEdNonzeroVictoryPresentation: false);
+                UsesEdNonzeroVictoryPresentation: false);
         }
 
         if (activeSaintCanonicalIndex == 0)
@@ -217,7 +221,7 @@ public static class LeoStage04Context
             return new(
                 state,
                 LeoPostBronzeOutcome.LowOpponentSeiyaContinues,
-                UsesCanonicalEdNonzeroVictoryPresentation: false);
+                UsesEdNonzeroVictoryPresentation: false);
         }
 
         return new(
@@ -227,7 +231,7 @@ public static class LeoStage04Context
                 HistoryF1 = unchecked((byte)(state.HistoryF1 + 1))
             },
             LeoPostBronzeOutcome.LowOpponentNonSeiyaRelocksBronze,
-            UsesCanonicalEdNonzeroVictoryPresentation: false);
+            UsesEdNonzeroVictoryPresentation: false);
     }
 
     /// <summary>
