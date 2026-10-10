@@ -7,30 +7,32 @@ public readonly record struct PlatformNarrative8FReloadResult(
     byte Intermediate0533,
     byte ReloadField050E,
     byte Selector068F,
+    byte ProgressDescriptor06CD,
+    byte StoryRoster0673,
+    byte SaintAvailability06CC,
+    byte PrgBank0639,
+    ushort EndingEntryCpu,
+    bool DivertsToBank0Ending,
     bool ReturnsToMainLoopC180);
 
 /// <summary>
-/// Semantic reduction of the bounded $04=$8F branch through fixed-bank $E100.
+/// Semantic reduction of the exact $04=$8F narrative return through fixed-bank
+/// $E100 and the ending-only branch inside $F381.
 ///
-/// This is deliberately not a generic $E100 model. It accepts only the exact
-/// logical state produced by the closed $89 narrative terminator path:
-/// $04=$8F, $00/$01=$3D and $03=$00.
+/// This is deliberately not a generic $E100 model. It accepts only the state
+/// produced by the closed $89 narrative terminator path: $04=$8F,
+/// $00/$01=$3D and $03=$00, with persistent $06AB=$FF.
 ///
-/// Static writer audit shows that $06AB has one direct PRG writer, $E165, which
-/// stores $FF during the earlier reload that creates the gameplay/narrative
-/// lifecycle. The $70-$89 sequence does not write it. Therefore the returning
-/// narrative path reaches $E100 with $06AB=$FF and takes $E13C -> $E257.
-/// At $E263 the $8F selector jumps directly to $E20E, bypassing the generic
-/// $0670/$067D destination branches.
+/// $E121 maps incoming $03 through $E505 and therefore writes $0533=$00. The
+/// warm branch $E257 sees $04=$8F and jumps to $E20E, which stores $068F=$8F
+/// and calls $F381.
 ///
-/// $E121 first maps incoming $03 through table $E505 into $0533. The narrative
-/// chain has already forced $03=$00 at state $72 and does not modify it later,
-/// so $0533=$00. The common commit at $E22C then writes A=$00 to $00/$01 and
-/// maps $0533 through $E505 once more, producing final $03=$00.
-///
-/// $E214 also normalizes $050E from $0F to $0D when $0533 != $03. On this exact
-/// path $0533 is $00, so that side effect is deterministic if the incoming field
-/// happens to be $0F. Other $050E values are preserved by the bounded branch.
+/// The crucial terminal discriminator is inside $F381. With $068F=$8F,
+/// $F38D-$F3A2 writes $06CD=$20, $0673=$20 and $06CC=$21. Then
+/// $F3B0-$F3BC selects PRG bank 0 through $E589 and performs JMP $BC39.
+/// This is a tail jump, not a JSR/RTS continuation. Consequently control never
+/// reaches the common $E214-$E254 commit on this path: $050E is not normalized,
+/// $00/$01 are not rewritten to zero, and $C180 is not re-entered.
 /// </summary>
 public static class PlatformNarrative8FReload
 {
@@ -38,10 +40,14 @@ public static class PlatformNarrative8FReload
     public const byte RequiredEntryState = 0x3D;
     public const byte RequiredEntrySubstate03 = 0x00;
     public const byte RequiredPersistent06AB = 0xFF;
+
     public const byte Intermediate0533 = 0x00;
     public const byte Selector068F = 0x8F;
-    public const byte DestinationState = 0x00;
-    public const byte DestinationSubstate03 = 0x00;
+    public const byte EndingProgressDescriptor06CD = 0x20;
+    public const byte EndingStoryRoster0673 = 0x20;
+    public const byte EndingSaintAvailability06CC = 0x21;
+    public const byte EndingPrgBank = 0x00;
+    public const ushort EndingEntryCpu = 0xBC39;
 
     public static PlatformNarrative8FReloadResult ResolveNarrativeReturn(
         PlatformPostExitEngineState state,
@@ -68,17 +74,19 @@ public static class PlatformNarrative8FReload
                 $"Narrative $8F reload requires persistent $06AB=$FF from the established lifecycle; got ${persistent06AB:X2}.");
         }
 
-        var normalized050E = reloadField050E == 0x0F
-            ? (byte)0x0D
-            : reloadField050E;
-
         return new PlatformNarrative8FReloadResult(
-            EngineState00: DestinationState,
-            EngineMirror01: DestinationState,
-            EngineSubstate03: DestinationSubstate03,
+            EngineState00: RequiredEntryState,
+            EngineMirror01: RequiredEntryState,
+            EngineSubstate03: RequiredEntrySubstate03,
             Intermediate0533: Intermediate0533,
-            ReloadField050E: normalized050E,
+            ReloadField050E: reloadField050E,
             Selector068F: Selector068F,
-            ReturnsToMainLoopC180: true);
+            ProgressDescriptor06CD: EndingProgressDescriptor06CD,
+            StoryRoster0673: EndingStoryRoster0673,
+            SaintAvailability06CC: EndingSaintAvailability06CC,
+            PrgBank0639: EndingPrgBank,
+            EndingEntryCpu: EndingEntryCpu,
+            DivertsToBank0Ending: true,
+            ReturnsToMainLoopC180: false);
     }
 }
