@@ -4,175 +4,155 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / post-Saga ending tail`
+- Phase: `ORIGINAL SPEC / battle-stage context coverage audit`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#135` — complete Saga stage `$067D=$0D / $050E=$0A` multiphase final-boss machine, including both inherited ingress variants, Ikki/Seiya phase re-entry, support/technique progression and exact victory/defeat boundaries.
-- Merge commit: `36d5929502f8beb535b44ab3e54d3a1d1213b4a9`
-- Exact final PR head: `bfc65e9d18848c7dec9d0b17d328ad0cebbbe254`
+- Last verified technical checkpoint: PR `#137` — complete post-Saga ending tail from the exact Saga victory boundary to the original hard terminal.
+- Merge commit: `f7592b7f586f81c6130082dbd5cd0b54f8ba8ba7`
+- Exact final PR head: `049d8bec0c6da51ef8ba0a91ec5508e621db8051`
 - Verification on that exact head:
-  - `ORIGINAL SPEC tests` #341: `SUCCESS`
-  - `Original Spec` #538: `SUCCESS`
+  - `ORIGINAL SPEC tests` #345: `SUCCESS`
+  - `Original Spec` #544: `SUCCESS`
   - build/self-test/password compatibility: `SUCCESS`
-- PR #133 closes final-special `$0C`; PR #131 closes Pisces/Aphrodite `$09`; PR #129 closes Aquarius/Camus `$08`; PR #127 closes Virgo/Shaka `$05`; PR #125 closes Leo/Aioria `$04`; PR #123 closes Taurus/Aldebaran `$01`.
+- PR #135 closes Saga `$0A`; PR #133 closes final-special `$0C`; PR #131 closes Pisces `$09`; PR #129 closes Aquarius `$08`; PR #127 closes Virgo `$05`; PR #125 closes Leo `$04`; PR #123 closes Taurus `$01`.
 - PR #121 closes the complete global `$00/$01` namespace.
 
 ## DONE
 
-### Saga stage `$0A` — PR #135
+### Post-Saga ending tail — PR #137
 
-Closed the complete reachable `$06CE` final-boss graph across:
+Closed the complete canonical successor chain after Saga victory:
 
 ```text
-initialization       $9B5D -> {0:$9B69, 1:$9B9E, 2:$9C2C}
-Talk                 $9FF4 -> {0:$A000, 1:$A0E0, 2:$A115}
-post-Bronze action   $AB18 -> {0:$AB24, 1:$AB62, 2:$AB6F}
-post-Gold response   $AC05 -> {0:$AC11, 1:$AC3E, 2:$AC76}
-Gold selector        bank6 $90EC+ -> {0:$9104, 1:$911D, 2:$9135}
+Saga phase-2 victory
+ -> release $01
+ -> $067D: $0D -> $0E
+ -> $050E=$00 / $06CD=$00 / $0673=$30
+ -> release rewritten to $05
+ -> bootstrap $00->$20
+ -> progress $0E maps to platform substate $11
+ -> accepted gate: X >= $D0 / Y == $50 / jump phase 0
+ -> $70->$71->$72->$73->$74->$75
+ -> $80->$81->$82->$83->$84->$85->$86->$87->$88->$89
+ -> $04=$8F / $00=$01=$3D / JMP $E100
+ -> $068F=$8F
+ -> $F381 ending branch
+ -> $06CD/$0673/$06CC = $20/$20/$21
+ -> PRG bank 0
+ -> JMP $BC39
+ -> presentation streams 0..9
+ -> $BD2F: JMP $BD2F
 ```
 
-Promoted semantics:
+Promoted semantics and correction:
 
-- both final-special predecessor variants reach Saga at `$067D=$0D/$050E=$0A/$0673=$3E` with inherited active Seiya or Shun and canonical `$06CE=0`;
-- global initialization is the proven seed for `$06CE=0`; common battle reset preserves `$06CE`;
-- initial story ingress does **not** call Saga init `$9B5D`; the first fight starts in phase 0 with the inherited Saint;
-- common entry reset arms scripted Bronze-hit block `$0690=$FF`, so phase 0 cannot connect normal Bronze damage;
-- phase-0 first Bronze action increments `$0678`, performs the deliberate four-`PLA` unwind and suppresses the Gold response;
-- first post-miss phase-0 Talk advances `$066F/$06CF/$06D0`; later Bronze actions can set `$06D0=$FF` from the player-condition classifier;
-- phase-0 Gold selector exposes slot0 `35/23` or slot1 `30/30`; low/dead player after Gold response emits release `$FF`;
-- release `$FF` owner `$E3ED->$F2E4->$970A` invokes init `$9B69`, saves the inherited Saint record, forces Ikki (`$0533=4`), advances `$06CE:0->1`, clears phase dialogue state and re-arms `$0690=$FF`;
-- Ikki's first phase-1 Talk is the exact `$A1F4` event that clears `$0690`; skipping that Talk can carry `$0690=$FF` into the final Seiya phase and leave normal Bronze connections script-blocked;
-- phase-1 post-Bronze consumes player condition; `$0649` is the selected Bronze technique slot; phase-1 Gold selection reaches slot2 `60/60` for `$0649=0`, slot0 `35/23` for nonzero `$0649`, and slot3 `60/60` when `$06D0=$FF`;
-- phase-1 low/dead Gold response emits the second `$FF`; init `$9B9E` then forces Seiya, advances `$06CE:1->2`, clears `$06CF/$06D0/$066F/$064D/$0681`, reloads Seiya technique count and calls `$FDE0` exactly 1000 times, granting nominal +1000 Seventh Sense subject to the global cap;
-- `$9B9E` does not rewrite `$0690`; therefore the Ikki Talk clear — or its absence — survives into phase 2;
-- phase-2 first Talk runs the final scripted presentation and increments `$066F`;
-- Saga command-3/Escape is blocked in phases 0/1 and becomes a one-shot support gate in phase 2: final Talk must occur before the first phase-2 Escape, otherwise `$06D0` is consumed without opening support;
-- correct ordering opens `$068F=$55`, clears `$06D4` and enters the support overlay;
-- support masks from `$F786` are recorded in `$06D4`; every newly confirmed bit grants +1000 Seventh Sense; the first new support also writes `$0587/$0696=3`, proving the exact Pegasus Rolling Crash unlock event; repeated use of an already-set support bit gives no reward;
-- phase-2 post-Bronze alone consumes opponent condition: first `$EB=$01` latches `$064D`, `$EB=$FF` resets `$06CE` and emits victory `$01`;
-- phase-2 Gold selector always uses slot3 `60/60`; `$EA=$01` is nonterminal feedback, while `$EA=$FF` resets `$06CE` and emits special defeat `$DD`;
-- all four structural Saga Gold slots are reachable somewhere in the complete machine, but no single phase exposes all four;
-- structural init phase 2 `$9C2C` is canonically unreachable because Saga init is entered through `$FF` re-entry and phase 2 has no reachable `$FF` terminal;
-- victory `$01` advances `$067D:0D->0E`, produces `$06CD=00/$0673=30/$050E=00`, rewrites release to `$05`, commits engine bootstrap `$00`, and the already-closed dispatcher maps that bootstrap to immediate state `$20`;
-- final defeat `$DD` leaves story progress `$0D`, writes `$0673=$3F/$068F=$DD`, runs the dedicated defeat overlay and commits bootstrap `$90->$91`.
+- the first post-Saga bootstrap `$00->$20` is real and enters the final two-page platform substate `$11` as Seiya;
+- the `$11` exit is the already-closed special `$70` path, not the ordinary `$3D` reload, and does not snapshot Saints;
+- the existing `$70-$75` and `$80-$89` machines compose without new inferred transitions;
+- state `$89` produces the exact `$8F` reload entry `$04=$8F/$00=$01=$3D/$03=0`;
+- previous bounded analysis had incorrectly assumed `$F381` returned to `$E214`, allowing a second common state-zero commit/bootstrap;
+- deeper control flow proves the opposite: with `$068F=$8F`, `$F381` writes `$06CD=$20`, `$0673=$20`, `$06CC=$21`, selects PRG bank 0 and tail-jumps at `$F3BC` to `$BC39`;
+- because that is `JMP`, not `JSR`, `$F381` never returns to `$E214`: `$050E` normalization, `$00/$01=0`, `$C180` and a supposed second `$00->$20` bootstrap are unreachable on the ending path;
+- bank-0 `$BC39-$BD2F` drives exactly ten final presentation streams in order, using pointers `$BDF2/$BE14/$BE48/$BE81/$BEB1/$BEE9/$BEFD/$BF3B/$BF71/$BF87`;
+- after stream 9 completes (`$0641=0`), `$BD2F` executes `JMP $BD2F` permanently;
+- there is no software edge from that terminal back to gameplay, reload, title/front-end or another engine state; leaving it requires external reset/power semantics.
 
 Artifacts:
 
-- `src/SaintSeiyaNesReborn.OriginalSpec/SagaStage0AContext.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/SagaStage0AContextChecks.cs`
-- `docs/reverse-engineering/BOSS_CONTEXT_STAGE_0A_SAGA.md`
-- promoted Seiya progression in `docs/reverse-engineering/BATTLE_TECHNIQUES.md`
-- promoted Saga phase dispatch in `docs/reverse-engineering/BATTLE_EVENT_DISPATCH.md`
-- PR #135
+- `src/SaintSeiyaNesReborn.OriginalSpec/PostSagaEndingTail.cs`
+- corrected `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformNarrative8FReload.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PostSagaEndingTailChecks.cs`
+- corrected `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/Narrative8FReloadChecks.cs`
+- `docs/reverse-engineering/POST_SAGA_ENDING_TAIL.md`
+- corrected `docs/reverse-engineering/PLATFORM_RELOAD_MODE_8F.md`
+- PR #137
 
-Do not reopen Saga stage `$0A` without contradictory ROM evidence or a failing fixture.
+Do not reopen the post-Saga ending chain or the corrected `$8F` diversion without contradictory ROM evidence or a failing fixture.
 
 ## EVIDENCE FOR NEXT
 
-### Why the post-Saga ending tail is next
+### Why battle-stage context coverage is now the next boundary
 
-Saga victory does not prove an immediate title/credits terminal. It hands control back to the already-promoted platform engine:
+The canonical main story control path is now proven through the final hard terminal, and the major platform/global/boss primitives are already executable. Before moving to renderer, RNG, audio or REBORN, the stage-local battle surface must be checked for omitted material contexts.
 
-```text
-Saga phase-2 opponent defeat
-  -> release $01
-  -> $067D: $0D -> $0E
-  -> $06CD=$00 / $0673=$30 / $050E=$00
-  -> release rewritten to $05
-  -> stable bootstrap $00
-  -> global bootstrap successor $20
-```
-
-Fixed platform-substate mapping `$E4D7/$E4E0` gives:
+`BATTLE_EVENT_DISPATCH.md` proves stage-indexed handler families across `$050E=$00-$0B`:
 
 ```text
-progress $067D=$0E -> $02=$11
+init          stages 00..0B at $97DB
+Talk          stages 00..0B at $9C95
+post-Bronze   stages 00..0B at $A361
+post-Gold     stages 00..0B at $A381
 ```
 
-This is the special two-page platform map already reconstructed in `PLATFORM_MAP_KITS.md`.
-
-Its accepted exit is also already known:
+ROM-backed identities currently recorded there are:
 
 ```text
-substate $11
-player_x >= $D0
-player_y == $50
-jump_phase == 0
-  -> $00=$70
-  -> $26/$27=0
-  -> $57=$C0
+$00  Mu / pre-battle repair context
+$01  Taurus — Aldebaran
+$02  Gemini / first Camus branch
+$03  Cancer — Death Mask
+$04  Leo — Aioria
+$05  Virgo — Shaka
+$06  Scorpio — Milo
+$07  Capricorn — Shura
+$08  Aquarius — Camus
+$09  Pisces — Aphrodite
+$0A  Pope/Saga
+$0B  special/final context
 ```
 
-Unlike all normal platform exits, this path does not use the `$3D` reload and does not snapshot Saints.
-
-The existing platform state specifications then close the following *individual* layers:
+Dedicated executable context checkpoints currently exist for:
 
 ```text
-$70 -> $71 -> $72 -> $73 -> $74 -> $75 -> $80
-$80 -> $81 -> $82 -> $83 -> $84 -> $85 -> $86 -> $87 -> $88 -> $89
-$89 -> $04=$8F / $00=$01=$3D -> $E100
+$01 Taurus
+$04 Leo
+$05 Virgo
+$08 Aquarius
+$09 Pisces
+$0A Saga
+$0C final-special bridge (non-boss exception)
 ```
 
-States `$80-$88` are NMI-owned narrative scripts with confirmed pointer/terminator progression; state `$89` performs the `$8F` reload handoff.
+Therefore `$00/$02/$03/$06/$07/$0B` are not yet classified at the same context granularity. Table membership alone is insufficient: some may be generic/no-boss/special presentation contexts, while others may contain material stage-local progression, dialogue, releases, technique growth or alternate branches that still need dedicated executable contexts.
 
-`PLATFORM_RELOAD_MODE_8F.md` proves the bounded reload result:
-
-- entry `$04=$8F/$03=0/$06AB=$FF` takes the warm `$E257` branch;
-- `$E263-$E267` jumps to `$E20E`, writes `$068F=$8F`, invokes `$F381`, and bypasses the generic `$0670/$067D` destination selectors;
-- the common commit produces stable engine state `$00`, internal Seiya `$03=0`, and returns through `$C180`, whose already-closed bootstrap successor is `$20`.
-
-Fresh canonical-ROM inspection adds two discriminating anchors for the unresolved tail:
-
-```text
-$F38D-$F3A2 when $068F==$8F:
-  $06CD=$20
-  $0673=$20
-  $06CC=$21
-
-$F3B0-$F3BC when $068F==$8F:
-  invokes $E589 with A=0
-  transfers into the banked continuation at $BC39
-```
-
-The bounded `$8F` reload does not call progression-to-substate mapper `$E4D7`; therefore the high-level destination after this second bootstrap cannot be inferred by simply reapplying `$067D=$0E -> $02=$11`. It must be traced through the actual `$068F=$8F` setup and subsequent state-$20` control.
-
-This is now the only unresolved canonical control tail directly downstream of the proven Saga victory. The already-promoted `$70-$89` layers must be **composed**, not reopened.
+The next cycle must establish that classification before choosing any one omitted boss by narrative intuition. Generic battle damage/resources/dodge/techniques and fixed release/reload owners are already closed and must be reused.
 
 ## OPEN
 
-1. Join the exact Saga victory state to platform substate `$11` entry and prove all relevant carried fields at the first state `$20` frame.
-2. Compose the already-closed substate-`$11` physical exit with `$70-$75` and `$80-$89` without re-reversing those state machines.
-3. Trace the `$8F` reload beyond its current bounded commit, including `$068F=$8F`, `$06CD=$20`, `$0673=$20`, `$06CC=$21`, `$F381/$F5B6` setup and the banked continuation reached from `$F3BC`.
-4. Prove what state `$20` actually owns after the `$8F` reload: normal platform replay, ending-specific interactive state, loop, title/front-end handoff, or another bounded subsystem.
-5. Resolve any post-`$8F` writes to `$02/$04/$0670/$067D/$068F` before assigning high-level semantics; do not assume that the preserved progress byte alone chooses the destination.
-6. Identify the true terminal/restart boundary of the original game and join it to an already-closed global/front-end owner, or isolate the smallest still-unclosed state family if the tail continues beyond current coverage.
-7. Implement only the missing composition/context and discriminating fixtures; reuse `PlatformExitGate`, `PlatformPostExitStateMachine`, `PlatformNarrative80To89StateMachine`, `PlatformNarrative8FReload` and global `$00/$01` contracts.
-8. Stop when the Saga victory path has one evidence-backed successor chain all the way to a true terminal, restart/title boundary, or an explicitly isolated next subsystem with no ambiguous intermediate ownership.
+1. Enumerate exact init/Talk/post-Bronze/post-Gold and Gold-selector ownership for every `$050E=$00-$0B` stage, cross-referencing the existing dedicated contexts.
+2. Prove canonical reachability/provenance for the currently unclassified `$00/$02/$03/$06/$07/$0B` surfaces, including the story-progress values that select them.
+3. Classify each stage as one of: `dedicated-context closed`, `generic-only/no material stage context`, `special/non-boss context`, or `material context missing`.
+4. For every stage classified generic/special, provide evidence that no unmodeled stage-local release/progression or persistent mutation is being skipped.
+5. For every material gap, identify its exact entry state, local RAM/counters, Talk/action handlers, reachable Gold slots, release tokens and successor ownership without reopening generic arithmetic.
+6. Produce one coverage matrix/spec with discriminating fixtures so future work cannot silently skip a stage or reopen already-closed ones.
+7. Set the next authoritative boundary to the **first material uncovered stage** in canonical progression order; if the audit proves no material stage gap remains, advance instead to the next system-level audit.
+8. Do not start renderer/RNG/audio or REBORN until this coverage audit has eliminated stage-context ambiguity.
 
 ## NEXT
 
-**Close the complete post-Saga ending tail from the proven `$067D=$0E / release $05 / bootstrap $00->$20` victory boundary through platform substate `$11`, the special `$70->$89` narrative chain, reload mode `$8F`, and the true terminal/restart boundary of the original game.**
+**Close the complete battle-stage context coverage audit across `$050E=$00-$0B`: prove canonical reachability and stage-local ownership for every index, classify all currently omitted `$00/$02/$03/$06/$07/$0B` contexts as generic/special versus materially uncovered, encode the classification in an executable coverage matrix with fixtures, and promote the first real uncovered stage as the next boundary.**
 
 Completion criterion:
 
-> Starting from the exact `SagaStage0AContext` victory boundary, compose the existing platform/narrative specifications to prove entry into `$02=$11`, traverse the accepted `$11 -> $70 -> ... -> $89 -> $E100` path, then close the currently unresolved `$068F=$8F` return far enough to determine whether control loops, resumes interactive play, enters a final scene, or returns to the front-end. Every reachable post-Saga transition must have a known owner; already-closed `$70-$89` internals must be reused rather than duplicated.
+> Starting from the four confirmed stage-indexed event dispatcher families and the already-closed dedicated contexts, every `$050E=$00-$0B` value must have a documented and testable coverage classification with evidence for its canonical reachability and stage-local semantic surface. No stage may remain merely “not yet inspected.” If one or more material contexts are missing, the audit must identify the earliest canonical one and give its exact handler/release/progression entry contract as the next actionable checkpoint.
 
 ## BLOCKERS
 
-- None. Canonical ROM, Saga victory boundary, progress-to-platform map, substate `$11` exit, `$70-$89` state machines, bounded `$8F` reload and global dispatcher are all available.
+- None. Canonical ROM, event dispatcher tables, existing dedicated boss contexts, generic boss primitives, story/reload machinery and the complete canonical ending path are available.
 
 ## RECOVERY CONTRACT
 
 1. Read this file from `main`.
 2. Reconcile it with newer merged Git history if present.
-3. Read `BOSS_CONTEXT_STAGE_0A_SAGA.md` only for the exact victory boundary.
-4. Reuse `PLATFORM_MAP_KITS.md`, `PLATFORM_EXIT_GATES.md`, `PLATFORM_POST_EXIT_STATE_MACHINE.md`, `PLATFORM_NARRATIVE_STATES_80_89.md`, `PLATFORM_RELOAD_MODE_8F.md` and `ENGINE_STATE_DISPATCHER.md` as frozen predecessors.
-5. Inspect only the missing composition around progress `$0E` entry and post-`$8F` state-$20` ownership, especially fixed `$F381+` and its banked continuation; follow callers/writers before assigning ending semantics.
-6. Do not call `$20` an ending/title state: it is the generic platform body unless the `$8F` mode proves a specialized reachable branch.
-7. Drive is private ROM/evidence storage only; it never owns a separate `NEXT`.
+3. Treat PR #137 and `POST_SAGA_ENDING_TAIL.md` as frozen unless contradictory ROM evidence appears.
+4. Start the coverage audit from `BATTLE_EVENT_DISPATCH.md`; enumerate numeric stages before assigning narrative semantics.
+5. Reuse `BOSS_BATTLE_DAMAGE.md`, `BOSS_BATTLE_RESOURCES.md`, `BOSS_DODGE.md`, `BATTLE_TECHNIQUES.md`, `RESOURCE_ECONOMY.md`, fixed release ownership and existing stage contexts; do not reopen generic mechanics.
+6. Follow canonical story-progress/reload provenance to prove reachability for `$00/$02/$03/$06/$07/$0B` before modeling handlers.
+7. Keep stage `$0C` outside the ordinary `$00-$0B` audit except as a known non-boss bridge already closed by #133.
+8. Drive is private ROM/evidence storage only; it never owns an independent `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `post-saga-ending-tail-8f`
+- `last_next_signature`: `battle-stage-context-coverage-audit-00-0b`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
