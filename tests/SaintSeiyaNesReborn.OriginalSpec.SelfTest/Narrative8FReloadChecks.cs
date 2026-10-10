@@ -6,52 +6,46 @@ internal static class Narrative8FReloadChecks
     [ModuleInitializer]
     internal static void Run()
     {
-        CheckExactNarrativeReturnCommitsStateZero();
-        Check050ENormalization();
-        CheckOther050EValuesArePreserved();
+        CheckExactNarrativeReturnDivertsToBank0Ending();
+        Check050EIsNotNormalizedOnTerminalDiversion();
         CheckColdReloadGateIsRejected();
         CheckNonzeroNarrativeSubstateIsRejected();
     }
 
-    private static void CheckExactNarrativeReturnCommitsStateZero()
+    private static void CheckExactNarrativeReturnDivertsToBank0Ending()
     {
         var result = PlatformNarrative8FReload.ResolveNarrativeReturn(
             NarrativeReturnState(),
             persistent06AB: 0xFF,
-            reloadField050E: 0x05);
+            reloadField050E: 0x00);
 
-        Require(result.EngineState00 == 0
-            && result.EngineMirror01 == 0
+        Require(result.EngineState00 == 0x3D
+            && result.EngineMirror01 == 0x3D
             && result.EngineSubstate03 == 0,
-            "$8F narrative return commits stable engine state/substate $00/$00");
+            "$8F path diverts before the common state-zero commit");
         Require(result.Intermediate0533 == 0,
-            "$E505[$03=$00] produces intermediate $0533=$00");
+            "$E505[$03=$00] still produces intermediate $0533=$00 before the diversion");
         Require(result.Selector068F == 0x8F,
-            "$E257 branch reaches $E20E with A=$8F and stores selector $068F=$8F");
-        Require(result.ReturnsToMainLoopC180,
-            "common $E22C commit returns through fixed main-loop entry $C180");
+            "$E257 branch reaches $E20E and stores selector $068F=$8F");
+        Require(result.ProgressDescriptor06CD == 0x20
+            && result.StoryRoster0673 == 0x20
+            && result.SaintAvailability06CC == 0x21,
+            "$F38D-$F3A2 installs the ending-specific descriptor/roster/availability fields");
+        Require(result.PrgBank0639 == 0x00 && result.EndingEntryCpu == 0xBC39,
+            "$F3B7-$F3BC selects PRG bank 0 and tail-jumps to $BC39");
+        Require(result.DivertsToBank0Ending && !result.ReturnsToMainLoopC180,
+            "$8F narrative return is terminally diverted inside $F381 and never re-enters $C180");
     }
 
-    private static void Check050ENormalization()
+    private static void Check050EIsNotNormalizedOnTerminalDiversion()
     {
         var result = PlatformNarrative8FReload.ResolveNarrativeReturn(
             NarrativeReturnState(),
             persistent06AB: 0xFF,
             reloadField050E: 0x0F);
 
-        Require(result.ReloadField050E == 0x0D,
-            "$E214 normalizes $050E=$0F to $0D because narrative $0533 is not $03");
-    }
-
-    private static void CheckOther050EValuesArePreserved()
-    {
-        var result = PlatformNarrative8FReload.ResolveNarrativeReturn(
-            NarrativeReturnState(),
-            persistent06AB: 0xFF,
-            reloadField050E: 0x07);
-
-        Require(result.ReloadField050E == 0x07,
-            "bounded $8F branch preserves $050E values other than $0F");
+        Require(result.ReloadField050E == 0x0F,
+            "$E214 normalization is unreachable because $F381 tail-jumps to bank 0 first");
     }
 
     private static void CheckColdReloadGateIsRejected()
@@ -62,7 +56,7 @@ internal static class Narrative8FReloadChecks
             _ = PlatformNarrative8FReload.ResolveNarrativeReturn(
                 NarrativeReturnState(),
                 persistent06AB: 0x00,
-                reloadField050E: 0x05);
+                reloadField050E: 0x00);
         }
         catch (InvalidOperationException)
         {
@@ -81,7 +75,7 @@ internal static class Narrative8FReloadChecks
             _ = PlatformNarrative8FReload.ResolveNarrativeReturn(
                 NarrativeReturnState() with { EngineSubstate03 = 0x02 },
                 persistent06AB: 0xFF,
-                reloadField050E: 0x05);
+                reloadField050E: 0x00);
         }
         catch (InvalidOperationException)
         {

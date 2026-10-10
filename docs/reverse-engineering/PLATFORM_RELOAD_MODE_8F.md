@@ -1,10 +1,10 @@
-# Platform reload selector `$04=$8F`
+# Platform narrative reload mode `$04=$8F`
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: **CONFIRMED for the narrative return produced by state `$89`**.
+Status: **CONFIRMED through the bank-0 ending diversion**.
 
-This document intentionally closes only the `$04=$8F` path reached after the already-promoted special platform/narrative sequence. It is not a general model of `$E100`.
+This document covers only the `$04=$8F` path produced by the already-closed `$80-$89` narrative sequence. It is not a generic model of `$E100`.
 
 ## Entry state
 
@@ -17,168 +17,107 @@ $01 = $3D
 JMP $E100
 ```
 
-The preceding special sequence also gives one important invariant: state `$72` clears `$03`, and states `$73-$89` do not write it again. Therefore the reload enters with:
+The preceding `$70-$89` sequence also guarantees `$03=$00` because state `$72` clears it and no later state in that chain rewrites it.
 
-```text
-$03 = $00
-```
+Persistent `$06AB=$FF` is inherited from the established lifecycle; the `$70-$89` sequence does not write it.
 
-## First `$8F` check
+## `$E100` warm branch
 
-Fixed-bank `$E100` begins:
-
-```text
-$E100  LDA #$00
-$E102  STA $0527
-$E105  LDA $04
-$E107  CMP #$8F
-$E109  BEQ $E10E
-$E10B  JSR $C00D
-```
-
-Thus the narrative `$8F` return skips the otherwise immediate `$C00D` call and continues through the shared reload initialization.
-
-At `$E121`, the current `$03` indexes table `$E505`:
-
-```text
-LDX $03
-LDA $E505,X
-STA $0533
-```
-
-For the confirmed narrative input `$03=$00`, table entry `$E505[0]` is `$00`, so:
+`$E100` first handles common reload setup. At `$E121`, `$03=$00` indexes `$E505`, producing:
 
 ```text
 $0533 = $00
 ```
 
-## `$06AB` makes the narrative path deterministic
+At `$E13C`, `$06AB=$FF` forces the warm branch at `$E257`.
 
-At `$E13C`:
-
-```text
-LDA $06AB
-BEQ $E144
-JMP $E257
-```
-
-A static PRG writer audit finds one direct writer of `$06AB`: `$E165`, which stores `$FF` during the earlier reload initialization. The closed `$70-$89` state sequence does not write `$06AB`.
-
-Therefore the returning narrative path reaches `$E100` with:
-
-```text
-$06AB = $FF
-```
-
-and necessarily jumps to `$E257`.
-
-This matters because it bypasses the broad cold/generic branch beginning at `$E144`, including the later selectors that inspect `$0670` and `$067D`. Those fields do not choose the destination of the narrative `$8F` return.
-
-## Second `$8F` check
-
-The warm branch starts:
+The relevant dispatch is:
 
 ```text
 $E257  JSR $DE00
 $E25A  LDA $04
 $E25C  CMP #$FF
-...
 $E263  CMP #$8F
 $E265  BNE $E26A
 $E267  JMP $E20E
 ```
 
-Because A still contains `$8F`, jumping to `$E20E` stores:
+Because `$04=$8F`, control jumps to `$E20E`.
+
+## Critical correction: `$F381` does not return on `$8F`
+
+The fixed path at `$E20E` is:
 
 ```text
-$068F = $8F
+$E20E  STA $068F       ; A is still $8F
+$E211  JSR $F381
+$E214  ...             ; common commit only if $F381 returns
 ```
 
-before calling the shared initialization helper `$F381`.
+A deeper trace of `$F381` resolves the previously bounded ambiguity.
 
-Renderer/banked initialization performed below `$F381` is outside this bounded destination model. The relevant fact is that control returns to `$E214-$E22C` without consulting `$0670/$067D` for the `$8F` destination.
-
-## `$050E` side effect
-
-At `$E214-$E224`:
+When `$068F=$8F`:
 
 ```text
-LDA $050E
-CMP #$0F
-BNE $E227
-LDA $0533
-CMP #$03
-BEQ $E227
-LDA #$0D
-STA $050E
-```
-
-The narrative path has `$0533=$00`, so an incoming `$050E=$0F` is normalized to `$0D`. Any other `$050E` value passes through this bounded branch unchanged.
-
-This is a side effect, not a destination-state branch.
-
-## Common commit
-
-After `$E227` the routine reaches:
-
-```text
-$E22A  LDA #$00
-$E22C  PHA
+$F38D  LDA $068F
+$F390  CMP #$55
+$F394  CMP #$8F
 ...
-$E235  PLA
+$F398  LDA #$20
+$F39A  STA $06CD
+$F39D  STA $0673
+$F3A0  LDA #$21
+$F3A2  STA $06CC
 ...
-$E241  STA $01
-$E243  STA $00
-$E245  LDX $0533
-$E248  LDA $E505,X
-$E24B  STA $03
-$E24D  LDA #$01
-$E24F  STA $05
-$E251  LDX #$FF
-$E253  TXS
-$E254  JMP $C180
+$F3B0  LDA $068F
+$F3B3  CMP #$8F
+$F3B5  BNE $F3BF
+$F3B7  LDA #$00
+$F3B9  JSR $E589
+$F3BC  JMP $BC39
 ```
 
-For the narrative return:
+`$E589` is the MMC1 PRG-bank writer. Input `A=$00` selects PRG bank 0 into the switchable `$8000-$BFFF` window. `$F3BC` then performs a **tail jump** to bank-0 CPU `$BC39`.
+
+There is no `RTS` back to `$E214` on this path.
+
+Therefore the following operations are **unreachable** for the `$8F` narrative return:
+
+- `$E214-$E224` `$050E` normalization;
+- `$E227` common destination setup;
+- `$E22A-$E254` state-zero commit;
+- `$00/$01=$00`;
+- return to `$C180`;
+- any supposed second bootstrap `$00->$20`.
+
+The exact logical boundary is instead:
 
 ```text
-A at commit = $00
+$04   = $8F
+$00   = $3D
+$01   = $3D
+$03   = $00
 $0533 = $00
-$E505[$00] = $00
+$068F = $8F
+$06CD = $20
+$0673 = $20
+$06CC = $21
+PRG bank = 0
+PC -> $BC39
 ```
 
-so the next stable logical handoff is:
-
-```text
-$00 = $00
-$01 = $00
-$03 = $00
-$05 = $01
-main loop -> $C180
-```
-
-The clean-room model promotes the destination state/substate and the `$050E` normalization. PPU disable, stack reset, bank/render initialization and unrelated reload fields remain outside this semantic boundary.
+`$050E` remains whatever value entered this bounded `$8F` path because the former normalization code is never reached.
 
 ## Clean-room representation
 
-`PlatformNarrative8FReload` accepts only the exact closed narrative-return state:
+`PlatformNarrative8FReload` now models this exact diversion. It reports:
 
-```text
-$04=$8F
-$00/$01=$3D
-$03=$00
-$06AB=$FF
-```
+- the still-live `$3D/$3D` engine state at diversion time;
+- `$0533=$00`;
+- `$068F=$8F`;
+- ending setup `$06CD/$0673/$06CC=$20/$20/$21`;
+- PRG bank 0;
+- terminal continuation address `$BC39`;
+- `ReturnsToMainLoopC180 = false`.
 
-and returns the confirmed destination:
-
-```text
-engine state     $00
-engine mirror    $00
-engine substate  $00
-intermediate     $0533=$00
-selector         $068F=$8F
-handoff          $C180
-```
-
-It deliberately rejects `$06AB=0` and nonzero entry `$03` rather than pretending those generic `$E100` cases are part of this closed narrative path.
+The bank-0 sequence itself is owned by `PostSagaEndingTail` and `POST_SAGA_ENDING_TAIL.md`.
