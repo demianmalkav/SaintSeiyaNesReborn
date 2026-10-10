@@ -2,219 +2,157 @@
 
 This file is the **single operational source of truth for `continúa` / `next`**.
 
-Technical subsystem documents remain authoritative for detailed evidence and semantics. This file records the accepted checkpoint, open boundaries and one executable `NEXT`.
+Technical subsystem documents own detailed evidence and semantics. This file records the accepted checkpoint, open boundaries and one executable `NEXT`.
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / global engine-state reachability closure`
+- Phase: `ORIGINAL SPEC / boss context stage $01 Taurus`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#119` — exact global engine state `$50` front-end/title modal shell, executable CHR-to-RAM overlays, password bridge, and semantic correction of `$30-$4D` as the front-end attract/presentation loop.
-- Merge commit: `8e63d2467a878eaef24e94d07b3240e7f16b9e37`
-- Exact final PR head: `a93e175db2098b658606b0cdde69bc9a94e78554`
+- Last verified technical checkpoint: PR `#121` — complete global engine-state `$00/$01` reachability namespace.
+- Merge commit: `ab6859986b8d62b05943b2a011e6257a5933f308`
+- Exact final PR head: `ce56bb74663748edb71ff6fe15477575bd497114`
 - Verification gate on that exact head:
-  - `ORIGINAL SPEC tests` run `#308`: `SUCCESS`
-  - `Original Spec` run `#502`: `SUCCESS`
-  - build: `SUCCESS`, 0 errors
-  - OriginalSpec self-test: `SUCCESS`
-  - password compatibility fixture: `SUCCESS`
-- PR `#117` remains structurally authoritative for the `$30-$4D` transition graph, but its broad `scene/battle` semantic label is superseded by PR #119: that graph is the front-end attract/presentation loop.
-- PR `#115` closed `$91-$99`.
-- PR `#113` closed fatal resource state `$60` and reload `$04=$FF`.
-- PR `#111` closed `$11-$14`.
-- PR `#109` closed the top-level fixed-bank bootstrap/main/NMI dispatcher partition.
-- PRs `#94/#96/#98/#102/#104/#107` remain authoritative for platform exits, narrative reloads, selector and normal reload destinations.
+  - `ORIGINAL SPEC tests` run `#312`: `SUCCESS`
+  - `Original Spec` run `#506`: `SUCCESS`
+  - build, OriginalSpec self-test and password compatibility fixture: `SUCCESS`
+- PR `#119` closed exact front-end/title state `$50` and the executable CHR31 -> RAM overlay mechanism.
+- PR `#117` remains structurally authoritative for `$30-$4D`, semantically superseded by #119 as the front-end attract/presentation loop.
+- PRs `#109/#111/#113/#115` own the global dispatcher, `$11-$14`, fatal `$60`, and `$91-$99`.
+- PRs `#94/#96/#98/#102/#104/#107` remain authoritative for platform exits, narrative chains, selector and reload destinations.
 
 ## DONE
 
-### Global machine families already closed
+### Global engine-state namespace — PR #121
 
-The following reachable engine-state regions now have promoted semantic models and fixtures:
+Every possible byte value of live global state `$00` is now classified. Canonical execution produces exactly **59 values**: five bootstrap/handoff transients plus 54 ordinary reachable states.
 
-```text
-$00 bootstrap -> platform $20
-$10 bootstrap -> $11-$14
-$20 platform/gameplay
-$30,$31-$38,$40-$4D front-end attract/presentation loop
-$50 front-end/title modal shell
-$60 fatal platform resource failure
-$70-$89 promoted narrative/post-exit paths
-$90 bootstrap -> $91-$99
-$3D reload bridge
-```
-
-Known bootstrap/reload successors remain:
+Bootstrap/handoff transients:
 
 ```text
-reload $00 -> $20
-reload $10 -> $11
-reload $90 -> $91
+$00, $10, $30, $3D, $90
 ```
 
-### Front-end/title modal shell `$50` — PR #119
-
-Cold reset and completed attract playback enter paired global `$50` at `$0200=$00`.
-
-Reachable modal set is exactly:
+Ordinary reachable states:
 
 ```text
-$0200 = $00-$09
+$11-$14
+$20
+$31-$38
+$40-$4D
+$50
+$60
+$70-$75
+$80-$89
+$91-$99
 ```
 
-Normal front-end progression:
+The remaining **197 values are structural-but-unreachable**. Important closed gaps include:
 
 ```text
-$50:$00 -> $01 -> $02 -> $03 -> $04 -> $05
+$01-$0F
+$15-$1F
+$21-$2F
+$39-$3C / $3E-$3F
+$4E-$4F
+$51-$5F
+$61-$6F
+$76-$7F
+$8A-$8F
+$9A-$FF
 ```
 
-Newly pressed Start redirects intro substates `$00-$04` to ready step `$05` through bank-0 `$8857`.
+`$3D` is deliberately excluded from the `$39-$3F` dead-gap statement because it is independently reachable as the reload bridge.
 
-Ready step `$05` rewrites `$0202` every observing NMI from newly pressed directional edges:
+Binary audit against the canonical ROM:
 
-```text
-Up/default -> $0202=0
-Down       -> $0202=1
-```
-
-`$0202` is therefore a one-sample branch selector, not a persistent cursor.
-
-The complete control split is:
-
-```text
-$05 --scripted front-end event--> $06
-$06 --$0201=1/commit-----------> paired global $30
-                                     |
-                                     v
-                              $31 ... $4D
-                                     |
-                                     +----> $50:$00
-
-$05 --Start--> $07
-                |
-                +-- $0202=0 --> paired global $10
-                |
-                +-- $0202=1 --> password entry $09
-                                     |
-                                invalid -> $09
-                                valid   -> $08
-                                           |
-                                           +--> restored paired global $10
-```
-
-Start during `$30-$4D` writes paired `$50` and enters `$0200=$05`, returning directly to the ready front-end state.
-
-### Semantic correction of PR #117
-
-PR #117's transition evidence remains confirmed:
-
-```text
-$30 -> $31 -> $32 -> $33 -> $34 -> $35 -> $36 -> $37 -> $38
- -> $40 -> $41 -> ... -> $4D -> $50
-```
-
-Reachable set remains exactly:
-
-```text
-$30, $31-$38, $40-$4D
-```
-
-and `$39-$3F/$4E-$4F` remain without canonical producers.
-
-PR #119 proves this is the **front-end attract/presentation loop**, not the ordinary boss-battle scaffold. `ENGINE_STATE_50_FRONTEND.md` supersedes only the old semantic label, not the verified writers/thresholds.
-
-### Executable CHR-to-RAM overlays — PR #119
-
-Bank-0 `$8000/$8013` expose a previously hidden original-engine mechanism:
-
-1. select MMC1 4 KiB CHR bank `$1F` (31);
-2. read CHR pattern bytes through `$2006/$2007`;
-3. copy `$03C0` bytes into CPU RAM `$0440-$07FF`;
-4. `JMP $0440` and execute the copied 6502 code;
-5. overlay `RTS` returns to the original fixed-bank caller.
-
-Two confirmed sources:
-
-```text
-PPU $1000-$13BF -> front-end initialization overlay
-PPU $1400-$17BF -> password-entry overlay
-```
-
-The password overlay explicitly writes `$0200=$09`, closing the previously missing producer of the password editor state.
-
-This means CHR ROM is not graphics-only storage in the original; at least one bank also stores executable overlays.
+- 188 raw direct `$00/$01` writer byte-pattern candidates;
+- 54 true direct writer instructions after executable/dynamic-path reconciliation;
+- 134 rejected data/operand/inline-table false positives;
+- no reachable `DEC $00`;
+- 241 reachable indirect stores audited with no `$0000/$0001` destination;
+- CHR31 front-end/password overlays separately disassembled (77/73 reachable instructions), neither writing global `$00/$01`;
+- helper `$8023` has exactly two PRG callsites and no third promoted executable-overlay source.
 
 Artifacts:
 
-- `src/SaintSeiyaNesReborn.OriginalSpec/FrontEndState50Machine.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/FrontEndState50MachineChecks.cs`
-- `docs/reverse-engineering/ENGINE_STATE_50_FRONTEND.md`
-- PR `#119`
+- `src/SaintSeiyaNesReborn.OriginalSpec/EngineStateReachability.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/EngineStateReachabilityChecks.cs`
+- `docs/reverse-engineering/ENGINE_STATE_REACHABILITY.md`
+- PR `#121`
 
-Do not reopen `$50` or the `$30-$4D` structural graph absent contradictory ROM evidence or fixture failure.
+Do not reopen the top-level engine-state namespace without a concrete missing executable producer, contradictory ROM/trace evidence, or failing fixture.
+
+### Major gameplay foundations already promoted
+
+Platform movement, jumping, attacks, collision, entities/hazards, resource drain/failure, platform exits/reload and narrative handoffs are HIGH maturity. Boss battle primitives already promoted include:
+
+- active/persistent Life and Cosmo resources plus condition classifiers (`$EA/$EB`);
+- complete Bronze/Gold numeric damage pipeline;
+- Bronze technique slots/availability/unlocks;
+- Gold counterattack dodge window and success/failure counters;
+- stage-indexed initialization, Talk, post-Bronze and post-Gold dispatch tables.
+
+The remaining boss gap is principally **context composition**: prove each stage's event machine end-to-end instead of retaining isolated mechanics and individual handlers.
 
 ## EVIDENCE FOR NEXT
 
-### Why global reachability closure is selected now
+### Why stage `$01` Taurus is selected
 
-The major functional top-level families are now understood. The remaining uncertainty in the **global engine state machine itself** is no longer a large known subsystem; it is the set of numeric ranges recognized by the dispatcher for which reachability was never proved or disproved.
-
-PR #109 deliberately left these structural ranges as unknown where no producer had yet been established, including examples such as:
+`BATTLE_EVENT_DISPATCH.md` explicitly identifies Taurus/Aldebaran as the simplest complete per-stage pattern. Stage `$01` has four concrete bank-5 handlers:
 
 ```text
-$01-$0F outside proved bootstrap/use contexts
-$15-$1F
-$21-$2F
-$51-$5F
-unused members of other high-nibble families
-$9A+ and other common-tail values
+initialization       $97F8
+Talk/interaction     $9D2C
+post-Bronze action   $A3A2
+post-Gold response   $A415
 ```
 
-Several ranges have since been partially or completely eliminated by later checkpoints:
+The surrounding generic battle pipeline is already promoted, making this a bounded composition problem rather than a new combat-engine excavation.
 
-- `$39-$3F` and `$4E-$4F`: no canonical producer after PR #117/#119;
-- `$61-$6F`: no reachable producer from the fatal resource graph; only `$60` is used there;
-- `$50-$5F`: exact `$50` is now closed, while `$51-$5F` still require an explicit global reachability verdict rather than assumption.
+Direct ROM anchors already established for the next pass:
 
-A fresh raw writer audit against the canonical ROM found the expected executable immediate writers already owned by promoted families (`$12/$20/$3D/$40/$50/$60/$70/$80/$10`). Apparent extra `INC/DEC $00` hits at bank-5 `$9FF9` and bank-6 `$A489` resolve as inline-table/data false positives, demonstrating why the next pass must be **executable-control-flow based**, not byte-pattern based.
+- `$97F8` clears stage-local `$064D`, runs common battle setup, initializes display/event fields and enters the shared encounter flow;
+- `$9D2C` is keyed by conversation counter `$066F`; the first two Talk phases advance it, and the second phase increments weakening tier `$0681` exactly once when it is zero;
+- `$A3A2` calls the opponent condition classifier `$ACD6`; opponent defeated (`$EB=$FF`) terminates through `$ACAA` with release/result `$0670=$01`; surviving branches update stage-local turn/event state including `$064E`;
+- `$A415` calls the player condition classifier `$AD55`; player defeated (`$EA=$FF`) terminates through `$ACAA` with `$0670=$FF`; when player condition becomes `$01` and `$064D==0`, a one-time scripted event runs and increments `$064D`;
+- stage `$01` opponent damage coefficients are identical in all four structural Gold-technique slots (`19/29`), so attack-slot identity cannot alter raw numeric damage in this stage;
+- Talk weakening `$0681=1` therefore halves the already-promoted Gold raw damage pipeline.
 
-The newly discovered CHR-backed RAM overlays also change the audit rule: a complete producer census must include code loaded from CHR into RAM, not only the eight PRG banks.
-
-Closing this census will let us say that the top-level engine state machine is fully enumerated before moving into renderer/RNG/audio/boss-context completeness.
+This stage is the correct first template for defining what “complete boss context” means before applying the same method to Leo, Virgo, Aquarius, Pisces and Saga.
 
 ## OPEN
 
-1. Enumerate every executable writer to global `$00/$01` across fixed PRG, switchable PRG, and confirmed CHR-backed RAM overlays.
-2. Reconcile every writer with the already-promoted families and reject inline data/table false positives.
-3. For each remaining dispatcher-recognized numeric state/range, classify it as:
-   - `REACHABLE`;
-   - `BOOTSTRAP/TRANSIENT`;
-   - `STRUCTURAL BUT UNREACHABLE`;
-   - or `OPEN` only if an executable producer remains genuinely unresolved.
-4. Explicitly close residual ranges such as `$15-$1F`, `$21-$2F`, `$51-$5F`, and high common-tail values rather than inferring deadness from absence in gameplay traces.
-5. Determine whether any executable CHR overlay beyond the two state-$50 overlays writes `$00/$01` or creates a previously invisible global state.
-6. Produce one global reachability artifact/fixture set that composes all promoted families without duplicating their internal semantics.
-7. Only after the global state namespace is closed, select the next ORIGINAL SPEC subsystem using the integral-assimilation criterion: boss-context completeness, renderer/CHR, RNG, audio, or text runtime/localization.
+1. Close Taurus stage `$01` from initialization through every Talk phase, Bronze attack result, Gold response and terminal win/loss release.
+2. Prove how `$064D`, `$064E`, `$066F`, `$0681`, `$EA`, `$EB`, `$06BC`, `$DD` and `$0670` cooperate, distinguishing event counters from generic battle state.
+3. Compose—not duplicate—the promoted damage, technique, dodge and resource specifications.
+4. Identify all reachable Taurus turn/event paths and reject structurally present but unreachable branches.
+5. Resolve the exact effect of `$A3A2` branches around `$EB`, `$DD`, `$06BC`, and `$064E`, and the one-time `$A415` low-condition event.
+6. Prove both terminal outcomes through `$ACAA`: victory `$0670=$01` and player defeat `$0670=$FF`, then stop at the already-promoted reload/selector boundary.
+7. Implement one executable stage-1 encounter-context machine with discriminating fixtures and documentation.
+8. After Taurus becomes the template, continue remaining boss contexts stage-by-stage before renderer/RNG/audio unless new evidence requires a dependency first.
 
 ## NEXT
 
-**Close the global engine-state reachability census: prove every remaining `$00/$01` state value recognized by the dispatcher reachable, transient, or unreachable, including executable CHR/RAM overlays.**
+**Close the complete stage `$01` Taurus/Aldebaran boss context end-to-end, composing the four stage-specific event handlers with the already-promoted generic battle mechanics.**
 
 Completion criterion:
 
-> Starting from the verified dispatcher map and all promoted state-family checkpoints, enumerate every executable producer/advancer of global `$00/$01`, include PRG and executable CHR-to-RAM code, reject data/inline-table false positives, and leave no dispatcher-recognized numeric range with ambiguous reachability unless a concrete unresolved executable writer is documented.
+> Starting from stage `$050E=$01` initialization, produce an evidence-backed executable encounter graph that covers every reachable Taurus Talk/event phase, Bronze and Gold post-action branch, scripted weakening/condition event, and terminal victory/defeat release through `$0670`, without reimplementing already-closed numeric damage, resource, technique or dodge internals.
 
 Required sequence:
 
-1. build an exhaustive candidate writer index for `STA/STX/STY/INC/DEC $00/$01` plus indirect/overlay equivalents;
-2. prove executable reachability of each candidate from known roots and mark data/inline tables false;
-3. map each real writer into the existing promoted family graph;
-4. classify all residual state values/ranges, with explicit fixtures for representative dead gaps;
-5. scan confirmed executable CHR/RAM overlays for global-state writers and inventory any additional overlay entrypoints found;
-6. implement a compact `EngineStateReachability` artifact + discriminating fixtures;
-7. document the final top-level state namespace and run both verification workflows.
+1. trace `$97F8` initialization and normalize the Taurus-local starting counters/flags;
+2. close `$9D2C` Talk phases and exact `$066F/$0681` effects;
+3. trace `$A3A2` after Bronze action for all reachable `$EB/$DD/$06BC` combinations and `$064E` updates;
+4. trace `$A415` after Gold response for all reachable `$EA/$064D` branches;
+5. connect terminal `$ACAA` releases to already-promoted reload semantics and stop there;
+6. compose stage-1 context with existing battle damage/resources/techniques/dodge models;
+7. implement the smallest executable Taurus context + discriminating fixtures;
+8. document and run both verification workflows.
 
 ## BLOCKERS
 
-- None. Canonical ROM, global dispatcher map, promoted family models, exact state `$50`, and CHR-overlay mechanism are available.
+- None. Canonical ROM, stage dispatch tables and generic boss mechanics are available.
 
 ## RECOVERY CONTRACT
 
@@ -224,16 +162,16 @@ Recovery order:
 
 1. read this file from `main`;
 2. reconcile `CURRENT` with newer merged Git history if any exists;
-3. inspect `ENGINE_STATE_DISPATCHER.md` and `ENGINE_STATE_50_FRONTEND.md`;
-4. use existing family-specific documents only to classify already-owned writers, not to reopen their internals;
-5. scan canonical ROM/overlays only for global-state reachability evidence required by this boundary;
+3. inspect `BATTLE_EVENT_DISPATCH.md`, `BOSS_BATTLE_RESOURCES.md`, `BOSS_BATTLE_DAMAGE.md`, `BOSS_DODGE.md` and `BATTLE_TECHNIQUES.md`;
+4. inspect bank-5 Taurus handlers `$97F8`, `$9D2C`, `$A3A2`, `$A415` plus helpers only where they gate stage-local progression;
+5. reuse promoted generic battle specifications rather than reopening formulas;
 6. use `docs/REVERSE_ENGINEERING_STATUS.md` as navigation only;
 7. use `docs/WORK_PROTOCOL.md` for execution rules;
 8. use Drive only to locate private ROM/evidence; Drive never owns a separate `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `global-engine-state-reachability-census`
+- `last_next_signature`: `boss-context-stage-01-taurus`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
