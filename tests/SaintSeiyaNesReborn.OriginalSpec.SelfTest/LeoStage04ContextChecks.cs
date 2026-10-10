@@ -32,7 +32,7 @@ internal static class LeoStage04ContextChecks
         Require(LeoStage04Context.ShouldRunStageIntro(prepared, activeSaintCanonicalIndex: 0),
             "stage-4 intro dispatch accepts Seiya when $068E=0");
         Require(!LeoStage04Context.ShouldRunStageIntro(prepared, activeSaintCanonicalIndex: 1),
-            "stage-4 intro dispatch rejects non-Seiya active Saints");
+            "stage-4 intro dispatch lets a non-Seiya route skip $989D while $068E remains zero");
 
         var intro = LeoStage04Context.ApplyStageIntro(prepared);
         Require(intro.EventEd == 1
@@ -46,6 +46,10 @@ internal static class LeoStage04ContextChecks
         var active = LeoStage04Context.EnterCommandLoop(intro);
         Require(active.Release0670 == 0,
             "fixed entry flow consumes the Leo intro handoff before the command loop");
+
+        var skipped = LeoStage04Context.EnterCommandLoop(prepared);
+        Require(skipped.EventEd == 0 && skipped.Weakening0681 == 0 && skipped.IntroDone068E == 0,
+            "intro-skipped non-Seiya route retains inbound $ED/$0681 and can reach the ordinary loop without the $989D handoff");
 
         var wrap = LeoStage04Context.ApplyStageIntro(
             LeoStage04Context.PrepareBattleRuntime(inboundWeakening0681: 0xFE));
@@ -118,12 +122,19 @@ internal static class LeoStage04ContextChecks
             && lowOtherAgain.State.ScriptedBronzeBlock0690 == 0xFF,
             "$A5B3 increments $F1 on every reachable low-condition non-Seiya pass; it is a byte counter, not a boolean latch");
 
-        var victory = LeoStage04Context.AfterBronzeAction(active, opponentConditionEb: 0xFF, activeSaintCanonicalIndex: 0);
-        Require(victory.Outcome == LeoPostBronzeOutcome.VictoryRelease01
-            && victory.State.Release0670 == 0x01
-            && victory.UsesCanonicalEdNonzeroVictoryPresentation
-            && LeoStage04Context.IsTerminal(victory.State),
-            "$EB=$FF terminates Leo through release $01; canonical intro makes the $ED!=0 victory presentation branch the reachable one");
+        var victoryAfterIntro = LeoStage04Context.AfterBronzeAction(active, opponentConditionEb: 0xFF, activeSaintCanonicalIndex: 0);
+        Require(victoryAfterIntro.Outcome == LeoPostBronzeOutcome.VictoryRelease01
+            && victoryAfterIntro.State.Release0670 == 0x01
+            && victoryAfterIntro.UsesEdNonzeroVictoryPresentation
+            && LeoStage04Context.IsTerminal(victoryAfterIntro.State),
+            "$EB=$FF after the Seiya intro terminates through release $01 using the $ED!=0 victory presentation");
+
+        var introSkipped = LeoStage04Context.EnterCommandLoop(LeoStage04Context.PrepareBattleRuntime())
+            with { ScriptedBronzeBlock0690 = 0 };
+        var victoryWithoutIntro = LeoStage04Context.AfterBronzeAction(introSkipped, opponentConditionEb: 0xFF, activeSaintCanonicalIndex: 1);
+        Require(victoryWithoutIntro.State.Release0670 == 0x01
+            && !victoryWithoutIntro.UsesEdNonzeroVictoryPresentation,
+            "an intro-skipped route retains $ED=0 and reaches the alternate $A616 victory presentation before the same release $01");
     }
 
     private static void CheckPostGoldBranches()
