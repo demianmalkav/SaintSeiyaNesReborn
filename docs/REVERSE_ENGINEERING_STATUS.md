@@ -2,111 +2,116 @@
 
 > **Documento de orientación global, no operativo.**
 >
-> Este archivo resume la madurez de los subsistemas y sirve para localizar documentación. **No decide qué se hace a continuación.** El único punto de continuación autorizado es `docs/PROJECT_STATE.md`, reconciliado con `main` y con el historial de PR/CI.
+> Este archivo resume madurez y localización de evidencia. **No decide el trabajo siguiente.** La única autoridad de continuación es `docs/PROJECT_STATE.md`, reconciliada con `main` y PR/CI.
 
 ## Target primario
 
 **Saint Seiya: Ōgon Densetsu Kanketsu Hen** — Famicom, Japón, 1988.
 
-ROM canónica verificada:
+ROM canónica:
 
-- SHA-1: `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`
-- MD5: `3B0F17C2B6EFC928B3D3FE9B1A389680`
-- SHA-256: `6917B31D7343A9A17170E833BACDBC3B1EBA3E02D11C51C0D44DBE436C9AD43A`
-- CRC32 del archivo iNES: `F8D258A3`
-- CRC32 sin header: `9561798D`
+- SHA-1 `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`
+- MD5 `3B0F17C2B6EFC928B3D3FE9B1A389680`
+- SHA-256 `6917B31D7343A9A17170E833BACDBC3B1EBA3E02D11C51C0D44DBE436C9AD43A`
+- CRC32 iNES `F8D258A3`
+- CRC32 sin header `9561798D`
 - 128 KiB PRG + 128 KiB CHR
 - mapper 1 / MMC1
 
-Fuente detallada: `docs/reverse-engineering/CANONICAL_ROM.md`.
+Fuente: `docs/reverse-engineering/CANONICAL_ROM.md`.
 
-## Cómo leer este estado
+## Convención de madurez
 
-Las etiquetas de esta página son de **madurez del subsistema**, no de certeza de cada afirmación individual:
+- `HIGH`: especificación semántica sustancial + documentación/fixtures; quedan bordes concretos.
+- `MEDIUM`: partes importantes promovidas, superficie incompleta.
+- `LOW`: anclas parciales/investigación temprana.
 
-- `HIGH`: existe especificación semántica sustancial, documentación y/o fixtures ejecutables; quedan bordes concretos.
-- `MEDIUM`: hay partes importantes promovidas, pero no está cerrada toda la superficie funcional.
-- `LOW`: sólo hay anclas parciales o investigación temprana.
-
-Los niveles de evidencia `CONFIRMED / INFERRED / UNKNOWN / DISPROVEN` siguen aplicándose dentro de los documentos técnicos correspondientes.
+Los niveles `CONFIRMED / INFERRED / UNKNOWN / DISPROVEN` siguen aplicándose dentro de los documentos técnicos.
 
 ## Mapa global vigente
 
 | Subsistema | Madurez | Estado resumido | Entradas representativas |
 |---|---|---|---|
-| ROM / boot / MMC1 / bancos | HIGH | Target, vectores, wrappers MMC1 y mapa de bancos ampliamente establecidos. | `CANONICAL_ROM.md`, `BOOT_AND_MAPPER.md`, `BANK_MAP.md` |
-| Índices de Saints / selección interna | MEDIUM-HIGH | Mapeos internos promovidos y reutilizados por plataforma/reload. | `CHARACTER_INDEX_MAP.md` |
-| Plataforma: frame normal | HIGH | Orden persistente de frame, spawners, entidades primarias/auxiliares, hazards, interacción y timing ampliamente promovidos. | `PERSISTENT_LATE_OBJECT_FRAME.md`, `COMMON_EDGE_SPAWNER_B6D0.md`, `ENTITY_POST_INTERACTION_TIMING.md`, `ENTITY_TYPES_0A_0B.md` |
-| Plataforma: movimiento / colisión / combate local | HIGH | Movimiento, salto, ataques, probes, colisiones, daño y efectos principales ya no son frentes iniciales desconocidos. El borde fatal de recursos se separa ahora como familia global `$60`. | `PLATFORM_PLAYER.md`, `PLATFORM_JUMP.md`, `PLATFORM_ATTACKS.md`, `COLLISION_PROBES.md`, `COLLISION_BEHAVIOR.md`, `PLATFORM_COMBAT.md`, `PLATFORM_PRE_PLAYER_RESOURCE_ORDER.md` |
-| Plataforma: salida / reload / narrativa | HIGH | Familia normal `$02=$00-$10`, cadena especial `$11->$70-$89`, reload `$8F` y destinos normales `$00/$10/$90` cerrados semánticamente. | `PLATFORM_EXIT_GATES.md`, `PLATFORM_WARM_RELOAD_INTERACTIVE_STATE.md`, `PLATFORM_NORMAL_WARM_RELOAD_DESTINATIONS.md`, `PLATFORM_SPECIAL_NORMAL_EXITS.md`, `PLATFORM_NARRATIVE_STATES_80_89.md`, `PLATFORM_RELOAD_MODE_8F.md` |
-| Máquina global `$00/$01` | MEDIUM-HIGH | Dispatcher global promovido; familia `$11-$14` cerrada incluyendo bifurcación a reload `$3D` y pantalla terminal de password `$14`. El frente activo pasa a `$60-$6F`, entrada fatal desde plataforma. | `ENGINE_STATE_DISPATCHER.md`, `ENGINE_STATE_FAMILY_11_14.md`, `EngineStateDispatcherMap.cs`, `PROJECT_STATE.md` |
-| Combate de jefes | MEDIUM-HIGH | Recursos, daño, dodge, técnicas, AI y event dispatch tienen investigación promovida; todavía no se declara paridad global de todos los bosses/contextos. | `BOSS_BATTLE_RESOURCES.md`, `BOSS_BATTLE_DAMAGE.md`, `BOSS_DODGE.md`, `BATTLE_TECHNIQUES.md`, `BATTLE_EVENT_DISPATCH.md` |
-| Recursos Life/Cosmo/Seventh Sense | MEDIUM-HIGH | Semántica ordinaria importante ya está integrada; la transición fatal Life/Cosmo hacia engine `$60` es el borde global activo. | `RESOURCE_ECONOMY.md`, `PLATFORM_PRE_PLAYER_RESOURCE_ORDER.md` y documentos de plataforma/combate |
-| Texto / localización | MEDIUM | Corpus japonés y borrador español estructurado con IDs estables; falta integración final completa y revisión total. | `TEXT_ENGINE.md`, `docs/LOCALIZATION.md`, `docs/localization/GLOSSARY_ES.md`; corpus privado en Drive |
-| Password | MEDIUM-HIGH | Codec/documentación y fixture de compatibilidad existen; además, la rama de output runtime `$11->$12->$13->$14` está ahora promovida. | `PASSWORD_SYSTEM.md`, `ENGINE_STATE_FAMILY_11_14.md`, `tools/password/password_codec.py`, CI `Original Spec` |
-| Renderer / metasprites / CHR por escena | MEDIUM-LOW | Hay conocimiento incidental y mapa CHR de plataforma, pero no un atlas/render spec global cerrado. | `PLATFORM_CHR_MAP.md`, `BANK_MAP.md`, documentos multisprite |
-| RNG y consumidores | LOW-MEDIUM | No está cerrado como subsistema global. | investigación futura específica |
-| Audio / bank-track mapping | LOW | No hay especificación global promovida comparable a plataforma o combate. | frontera futura |
-| REBORN moderno | EARLY | La prioridad sigue siendo convertir el original en una especificación reproducible antes de expansiones estructurales grandes. | capa `REBORN` futura |
+| ROM / boot / MMC1 / bancos | HIGH | Target, vectores, wrappers y mapa de bancos ampliamente establecidos. | `CANONICAL_ROM.md`, `BOOT_AND_MAPPER.md`, `BANK_MAP.md` |
+| Índices de Saints | MEDIUM-HIGH | Canonical/internal mapping promovido y reutilizado. | `CHARACTER_INDEX_MAP.md`, `SaintId.cs` |
+| Plataforma: frame normal | HIGH | Orden persistente, entidades, hazards, interacción y timing ampliamente promovidos. | `PERSISTENT_LATE_OBJECT_FRAME.md`, `ENTITY_TYPES_0A_0B.md` |
+| Plataforma: movimiento / colisión / combate | HIGH | Movimiento, salto, ataques, probes, daño, resource drain normal y transición fatal ya tienen modelos ejecutables. | `PLATFORM_PLAYER.md`, `PLATFORM_JUMP.md`, `PLATFORM_ATTACKS.md`, `COLLISION_BEHAVIOR.md`, `PLATFORM_PRE_PLAYER_RESOURCE_ORDER.md`, `PLATFORM_RESOURCE_FAILURE_STATE_60.md` |
+| Plataforma: salida / reload / narrativa | HIGH | Exits `$02=$00-$11`, selector warm reload, destinos `$00/$10/$90`, narrativa `$70-$89`, reload `$8F` y failure reload `$FF` promovidos. | `PLATFORM_EXIT_GATES.md`, `PLATFORM_WARM_RELOAD_INTERACTIVE_STATE.md`, `PLATFORM_NORMAL_WARM_RELOAD_DESTINATIONS.md`, `PLATFORM_SPECIAL_NORMAL_EXITS.md`, `PLATFORM_NARRATIVE_STATES_80_89.md`, `PLATFORM_RELOAD_MODE_8F.md`, `PLATFORM_RESOURCE_FAILURE_STATE_60.md` |
+| Máquina global `$00/$01` | HIGH en partición / MEDIUM-HIGH global | Dispatcher superior, `$11-$14` y `$60` cerrados. Frente operativo: `$91-$99`. | `ENGINE_STATE_DISPATCHER.md`, `ENGINE_STATE_FAMILY_11_14.md`, `PLATFORM_RESOURCE_FAILURE_STATE_60.md`, `PROJECT_STATE.md` |
+| Combate de jefes | MEDIUM-HIGH | Recursos, daño, dodge, técnicas, AI y event dispatch promovidos; falta paridad global de todos los contextos. | `BOSS_BATTLE_RESOURCES.md`, `BOSS_BATTLE_DAMAGE.md`, `BOSS_DODGE.md`, `BATTLE_TECHNIQUES.md`, `BATTLE_EVENT_DISPATCH.md` |
+| Life/Cosmo/Seventh Sense | HIGH en plataforma / MEDIUM-HIGH global | Drain normal y fatal están cerrados en plataforma; quedan semánticas globales laterales. | `RESOURCE_ECONOMY.md`, `PLATFORM_PRE_PLAYER_RESOURCE_ORDER.md`, `PLATFORM_RESOURCE_FAILURE_STATE_60.md` |
+| Texto / localización | MEDIUM | Corpus JP y borrador ES estructurado; falta integración/revisión final. | `TEXT_ENGINE.md`, `docs/LOCALIZATION.md`, corpus privado Drive |
+| Password | MEDIUM-HIGH | Codec/fixture y runtime `$11->$12->$13->$14` promovidos. | `PASSWORD_SYSTEM.md`, `ENGINE_STATE_FAMILY_11_14.md`, `tools/password/password_codec.py` |
+| Renderer / metasprites / CHR | MEDIUM-LOW | Conocimiento parcial, sin render spec global. | `PLATFORM_CHR_MAP.md`, `BANK_MAP.md` |
+| RNG | LOW-MEDIUM | Subsistema global abierto. | frontera futura |
+| Audio | LOW | Sin especificación global equivalente a plataforma/combate. | frontera futura |
+| REBORN moderno | EARLY | Se prioriza ORIGINAL SPEC antes de expansiones estructurales grandes. | capa futura |
 
-## Frontera operativa actual — sólo snapshot
+## Frontera operativa actual — snapshot
 
-A la fecha de este checkpoint (`2026-10-09`), `PROJECT_STATE.md` sitúa el frente activo en:
+`PROJECT_STATE.md` sitúa el frente activo en:
 
-`ORIGINAL SPEC / engine state family $60-$6F`
+```text
+ORIGINAL SPEC / engine state family $91-$99
+```
 
-El dispatcher global y la familia baja `$11-$14` ya están promovidos. `$14` resultó ser un estado terminal absorbente de la presentación de password, no un puente hacia otra familia. El límite activo es ahora la transición fatal de recursos desde plataforma `$20`: Life o Cosmo agotados escriben `$00/$01=$60`, y el main `$60` parece terminar mediante reload mode `$04=$FF`, todavía no cerrado.
+El checkpoint previo PR #113 cerró agotamiento fatal Life/Cosmo:
 
-Este párrafo es sólo una fotografía. Si queda desactualizado, **no debe corregirse el trabajo desde aquí**: se lee `PROJECT_STATE.md` y se actualiza este mapa después.
+```text
+platform $20
+ -> underflow Life/Cosmo
+ -> $60 / $4D=$D0
+ -> sólo estado alcanzable $60
+ -> failure timer $D0-$DF
+ -> $04=$FF / $3D / $E100
+ -> defeated-Saint mask en $0673
+ -> stable $00 o $90
+    OR selector Saga ya conocido cuando $06CE!=0
+```
 
-## Checkpoints recientes que no deben reabrirse sin evidencia nueva
+El siguiente límite es el otro sucesor directo de reload promovido:
 
-- frame persistente normal de plataforma;
-- reachability de familias de entidades ya promovidas;
-- frontera post-exit inmediata y secuencia `$70->$80`;
-- narrativa NMI `$80-$89`;
-- reload narrativo `$04=$8F` hasta estado estable `$00/$00`;
-- selector warm-reload `$F025 <-> $A275`;
-- destinos warm-reload principales `$00/$10/$90`;
-- special-normal platform exits `$02=$0C-$10` y su composición con el reload existente;
-- partición estructural del dispatcher global `$00/$01` main/NMI promovida por PR #109;
-- familia `$11-$14`, incluyendo generación/presentación de password y absorción terminal en `$14`, promovida por PR #111.
+```text
+reload $90 -> bootstrap -> $91
+```
 
-La reapertura requiere fixture fallido, evidencia contradictoria o un efecto lateral nuevo demostrado que atraviese la frontera cerrada.
+Este snapshot nunca sustituye el `NEXT` de `PROJECT_STATE.md`.
 
-## Áreas todavía globalmente abiertas
+## Checkpoints que no deben reabrirse sin evidencia nueva
 
-1. familia fatal `$60-$6F` y reload mode `$04=$FF`;
-2. familia alta `$91-$99` directamente sucesora del reload `$90`;
-3. familias globales `$30-$4F` cuya arquitectura está presente pero no promovida de extremo a extremo;
-4. cobertura completa de renderer/metasprites/CHR por contexto;
-5. RNG y todos sus consumidores;
-6. cierre integral de todos los contextos de boss battle y progresión;
-7. audio y mapeo de pistas/bancos;
-8. integración final de localización española en el runtime/producto;
-9. capa REBORN moderna: presentación, expansión y contenido deliberadamente nuevo.
+- frame persistente y familias de entidades de plataforma;
+- movimiento/colisión/combate local ya promovidos;
+- exits normales y especiales `$02=$00-$11`;
+- `$70->$80` y narrativa `$80-$89`;
+- reload `$04=$8F`;
+- selector `$F025<->$A275`;
+- destinos normal warm reload `$00/$10/$90`;
+- dispatcher global main/NMI de PR #109;
+- familia `$11-$14` de PR #111;
+- fatal resource state `$60` y reload `$04=$FF` de PR #113.
 
-## Evidencia externa secundaria
+Reapertura requiere fixture fallido, ROM contradictoria o efecto lateral nuevo demostrado.
 
-Se conservan como pistas, no como autoridad automática:
+## Áreas globales abiertas
 
-- TASVideos para identificación de revisión, RAM watch y comportamiento observable;
-- traducción inglesa previa y hacks derivados como diferenciales técnicos;
-- primer **Ōgon Densetsu** de 1987 sólo para genealogía del engine;
-- WonderSwan Color Perfect Edition como referencia oficial comparativa/rediseño.
+1. engine family `$91-$99`;
+2. familias `$30-$4F` todavía no cerradas end-to-end;
+3. todos los contextos de boss battle/progresión aún no promovidos;
+4. renderer/metasprites/CHR global;
+5. RNG y consumidores;
+6. audio / bank-track mapping;
+7. integración final de localización española;
+8. capa REBORN moderna.
 
-Toda semántica promovida debe cerrarse contra nuestra ROM japonesa canónica o una evidencia reproducible equivalente.
+## Recuperación
 
-## Recuperación del proyecto
-
-Una reanudación sin memoria previa debe seguir este orden:
+Una sesión nueva debe leer, en orden:
 
 1. `docs/PROJECT_STATE.md` — checkpoint y único `NEXT`;
-2. `docs/reverse-engineering/ENGINE_STATE_DISPATCHER.md` — mapa superior vigente;
-3. `docs/reverse-engineering/ENGINE_STATE_FAMILY_11_14.md` — familia baja recién cerrada;
-4. documentos/código/tests citados por el límite activo, especialmente `PLATFORM_PRE_PLAYER_RESOURCE_ORDER.md` para `$60`;
-5. `docs/WORK_PROTOCOL.md` — reglas de ejecución y verificación;
-6. este archivo — mapa global, sólo si hace falta contexto lateral;
-7. manifiesto privado de Drive — sólo para localizar ROM, corpus, traces, save states o builds no versionados.
+2. `docs/reverse-engineering/ENGINE_STATE_DISPATCHER.md`;
+3. documentos/código/tests citados por el límite `$91-$99`;
+4. `docs/WORK_PROTOCOL.md`;
+5. este archivo sólo como mapa lateral;
+6. manifiesto privado Drive sólo para localizar ROM/corpus/traces/save states/builds.
 
-Nunca se reconstruye el `NEXT` desde una lista de `UNKNOWN` globales.
+Nunca reconstruir `NEXT` desde una lista global de incógnitas.

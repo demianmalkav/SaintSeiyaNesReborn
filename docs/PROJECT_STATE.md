@@ -6,35 +6,34 @@ Technical subsystem documents remain authoritative for evidence and semantics. T
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / engine state family $60-$6F`
+- Phase: `ORIGINAL SPEC / engine state family $91-$99`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#111` — reachable engine-state family `$11-$14` from promoted reload `$10`.
-- Merge commit: `7fa4d5c4ffc06c843bbb7e78a5e9fb3d1bfa1f2f`
-- Exact final PR head: `eb981a1c4703477278ab1a4bfeada6a98b994586`
+- Last verified technical checkpoint: PR `#113` — fatal active-platform resource exhaustion, engine state `$60`, reload mode `$04=$FF`, and direct stable destinations.
+- Merge commit: `d60c76acb12bef0fa6f59c13e387da0c5b58d55e`
+- Exact final PR head: `888058e5702edbdca95cae2f15da1524a93b17f4`
 - Verification gate on that exact head:
-  - `ORIGINAL SPEC tests` run `#292`: `SUCCESS`
-  - `Original Spec` run `#484`: `SUCCESS`
+  - `ORIGINAL SPEC tests` run `#296`: `SUCCESS`
+  - `Original Spec` run `#489`: `SUCCESS`
   - build, OriginalSpec self-test and password compatibility fixture: `SUCCESS`
+- PR `#111` closed engine family `$11-$14`.
 - PR `#109` closed the fixed-bank global `$00/$01` bootstrap/main/NMI dispatcher map.
 - PR `#107` closed special-normal platform exits `$02=$0C-$10`.
 - PR `#104` closed principal normal warm-reload destinations.
 - PR `#102` closed the interactive `$F025 <-> $A275` warm-reload selector.
-- PRs `#94/#96/#98` remain authoritative for the `$70-$89` narrative and `$04=$8F` reload path.
+- PRs `#94/#96/#98` remain authoritative for `$70-$89` narrative and `$04=$8F` reload.
 - Workflow hardening checkpoint: PR `#74` remains authoritative for continuation/anti-loop semantics.
 
 ## DONE
 
-### Complete platform exit/reload boundary
+### Platform / reload foundations
 
-The platform-local exit family `$02=$00-$11` remains closed and must not be reopened without contradictory ROM evidence or fixture failure.
+The platform-local exit family `$02=$00-$11`, warm-reload selector, stable normal reload destinations `$00/$10/$90`, special narrative `$70-$89`, and narrative `$04=$8F` reload are closed at the semantic level required by ORIGINAL SPEC.
 
-Promoted normal reload destinations include stable engine states `$00/$10/$90`, plus explicit selector reentry where already documented.
+### Global dispatcher — PR #109
 
-### Global `$00/$01` dispatcher partition — PR #109
+The fixed-bank bootstrap/main/NMI partition is closed by `EngineStateDispatcherMap` and `ENGINE_STATE_DISPATCHER.md`.
 
-The structural bootstrap/main/NMI partition is closed by `EngineStateDispatcherMap` and `ENGINE_STATE_DISPATCHER.md`.
-
-Key bootstrap successors remain:
+Key bootstrap successors:
 
 ```text
 reload $00 -> $20
@@ -42,246 +41,220 @@ reload $10 -> $11
 reload $90 -> $91
 ```
 
-Do not reopen this top-level partition unless a family trace demonstrates an omitted logical branch.
-
 ### Engine family `$11-$14` — PR #111
 
-The lower family entered from promoted reload `$10` is now closed end-to-end.
-
-Entry:
+Closed end-to-end:
 
 ```text
-stable reload $10
- -> $C180 short bootstrap
- -> $C458 stages durable snapshot
- -> $D442 INC $00
- -> dispatch-ready $00/$01=$11
+$10 bootstrap -> $11
+
+$11 upper/default Start
+ -> $3D -> already-promoted reload
+
+$11 lower Start
+ -> bank0 $AE18 password output builder
+ -> $12
+ -> first observing NMI -> $13
+ -> text stream terminator $FF at bank1 $8DDB
+ -> $14
+ -> absorbing normal-engine terminal state
 ```
 
-`$D442` additionally establishes:
+`$14` does not advance to another engine family under normal main/NMI execution.
+
+### Resource failure family `$60-$6F` — PR #113
+
+The fatal platform resource boundary is closed.
+
+#### Entry
+
+Bank-1 `$8000` executes Life before Cosmo:
 
 ```text
-$06 = min($02,$0C)
-$03AA = 0
-$58 = $BE
+$8012 JSR $927A
+$8015 JSR $930A
 ```
 
-The common reload commit left `$05=1`. State `$11` uses it as a Start-release latch: a held Start is ignored until one Start-released frame clears `$05=0`.
+Life subtracts 2. Fatal underflow occurs only when semantic Life is `0` or `1`; Life exactly `2` becomes zero without failure until another Life drain attempt.
 
-Exact logical input masks in `$3D`:
+Substate `$02=$10` also has a periodic subtract-two Life route that does not consume `$7F`:
 
-```text
-Up    = $08
-Down  = $04
-Start = $10
-```
+- internal Shun: `$3C & $07 == 0`;
+- other Saints: `$3C & $1F == 0`.
 
-When `$02!=0`, the reachable two-row cursor is:
+Cosmo subtracts 1 when `$80!=0`; fatal underflow occurs when Cosmo is already zero. Cosmo still executes on the same frame after a fatal Life subtraction.
 
-```text
-upper = $58=$BE
-lower = $58=$CE
-```
-
-State `$11` has two terminal choices after the Start latch is cleared.
-
-Upper/default route, or any Start with `$02=0`:
+Both failures converge at:
 
 ```text
-$11
- -> $C2B8 $04=0
- -> $CA94 / bank-1 $951F refresh Saint snapshot
- -> $00/$01=$3D
- -> $E100
-```
-
-This exits to the already-promoted normal reload machinery.
-
-Lower route `$58=$CE`:
-
-```text
-$11
- -> bank-0 $AE18
- -> generate password display stream at $0600 from staged $0110+ durable state
- -> $00/$01=$12
- -> $14=$08, $15=$23
-```
-
-`$AE18` is the existing password encoder/output builder documented by `PASSWORD_SYSTEM.md`; it terminates the generated `$0600` stream with `$FF`.
-
-State `$12` is one-NMI transitional:
-
-```text
-$D2A2 JSR $D543   ; presentation only
-$D2A5 INC $00
-$D2A7 INC $01
-
-$12 -> $13
-```
-
-State `$13` is text-driven, not timer-driven:
-
-```text
-NMI $D42D
- -> map bank 1
- -> A=$0D
- -> JSR $8D5A
- -> dynamic source pointer $0600
-```
-
-When the interpreter reaches generated terminator `$FF`:
-
-```text
-$8DDB INC $00
-$8DDD INC $01
-$57=$80
-$26=$80
-$27=$80
-
-$13 -> $14
-```
-
-State `$14` is an **absorbing normal-engine terminal state**:
-
-- main routes it through low generic bank-1 `$9363`, which has no `$14` writer;
-- main clears `$05=0`;
-- NMI matches no dedicated `$14` route and falls through `$D367`;
-- no normal family-local writer advances `$00/$01` from `$14`.
-
-Therefore the password-output branch ends as:
-
-```text
-$12 -> $13 -> $14 -> $14 -> ...
-```
-
-Escape requires reset/external restart rather than another engine-state transition. This disproves the earlier working assumption that `$14` necessarily had to lead to a state outside the family.
-
-Artifacts:
-
-- `src/SaintSeiyaNesReborn.OriginalSpec/EngineState11To14Machine.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/EngineState11To14MachineChecks.cs`
-- `docs/reverse-engineering/ENGINE_STATE_FAMILY_11_14.md`
-- PR `#111`
-
-Do not reopen `$11-$14` absent contradictory ROM evidence or fixture failure.
-
-## EVIDENCE
-
-### Why `$60-$6F` is selected next
-
-During the `$11-$14` trace, a stronger directly reachable open boundary was confirmed from the already-promoted active platform state `$20`.
-
-Fixed main state `$20` executes bank 1:
-
-```text
-$C319 JSR $8000
-```
-
-Bank-1 `$8000` invokes both resource consumers before ordinary player action. The already-promoted `PLATFORM_PRE_PLAYER_RESOURCE_ORDER.md` explicitly bounded its executable composition to the **non-fatal** path and left Life/Cosmo exhaustion as a separate transition boundary.
-
-Life drain `$927A+` subtracts a two-point tick from the active Saint. Fatal underflow reaches:
-
-```text
-$92DD clear active Life pair
 $92E3 LDA #$60
 $92E5 STA $00
 $92E7 STA $01
+$92E9 LDA #$D0
+$92EB STA $4D
 ```
 
-Cosmo drain `$930A+` subtracts a one-point tick. Fatal underflow reaches:
+#### Reachable family set
+
+For this subgraph:
 
 ```text
-$9357 clear active Cosmo pair
-$935F JMP $92E3
+reachable engine-state set = { $60 }
 ```
 
-Thus `$60` is not merely present in the global dispatcher: it is directly reachable from the already-closed state `$20` platform frame through a known resource-exhaustion condition.
+`$61-$6F` are structurally dispatchable by the high-nibble router but have no reachable producer/advance in this failure path.
 
-Fixed state-$20` code also checks the transition immediately after bank-1 work:
+#### State `$60` lifetime
 
-```text
-$C31C LDA $01
-$C31E CMP #$60
-$C320 BEQ $C339
-```
+Main `$C364-$C3AB` advances `$4D/$4E`, not `$00/$01`.
 
-so ordinary attack/player processing is skipped once exhaustion commits `$60`.
-
-### Structural `$60` family anchors already bounded
-
-Main high-nibble `$60` enters `$C364+`.
-
-The visible terminal gate is:
+On frames where `($3C & $0F)==0`, `$4D` increments. Starting at `$D0`, it progresses through `$DF`. When the next increment would reach `$E0`:
 
 ```text
-$C37C LDX $4D
-...
-$C384 INX
-$C385 CPX #$E0
-$C387 BCC $C38E
 $C389 LDA #$FF
 $C38B JMP $C2BA
 ```
 
-`$C2BA` stores A into `$04`, refreshes the Saint snapshot, commits `$00/$01=$3D`, and jumps `$E100`. Therefore state `$60` appears to terminate through **reload mode `$04=$FF`**, a mode intentionally left outside the earlier normal `$04=0` and narrative `$04=8F` checkpoints.
+The `$E0` value is not stored back to `$4D/$4E`.
 
-NMI high-nibble `$60` maps bank 1 and calls `$9D69`; the bounded body is presentation/resource display logic and has not yet shown a global-state writer.
+NMI `$D2F0 -> bank1 $9D69` is presentation/resource display work and does not change global engine state.
 
-This is sufficient to choose the family as the next checkpoint, but not sufficient to promote its final destination: `$04=$FF -> $E100` remains unclosed.
+#### Reload mode `$04=$FF`
 
-### Other unresolved direct families remain deferred
+`$C2BA` performs:
 
-The high `$91-$99` chain remains reachable from stable reload `$90` and is still a valid later boundary. It is not selected now because `$60` closes an explicit fatal-path hole inside the already-promoted normal platform frame and connects directly to a previously excluded reload mode `$FF`.
+```text
+$04=$FF
+refresh Saint snapshot
+$00/$01=$3D
+JMP $E100
+```
+
+`$E257` recognizes `$04=$FF`, reaches `$E3ED`, switches to bank 5, and calls `$970A`.
+
+The mode-$FF prelude:
+
+1. forces `$0670=$FF`;
+2. ORs the current canonical Saint mask from `$FFC0` into `$0673`:
+   - Seiya `$01`
+   - Hyoga `$02`
+   - Shun `$04`
+   - Shiryu `$08`
+   - Ikki `$10`;
+3. stage `$05` stores `$067E=$050E`, clears `$0525`, runs its local presentation and clears `$04=0` before returning;
+4. stage `$0A` with `$06B8!=0` redirects `$067D=$02`, swaps active work state to canonical Seiya, and sets `$0533=0`;
+5. otherwise returns with current Saint/progression intact.
+
+The new death mark then composes with the already-promoted terminal-`$FF` branch from #104.
+
+Direct stable results when `$06CE=0`:
+
+```text
+(($0673 | $06CC) & $0F) == $0F -> stable $90, $068F=$DD
+otherwise                         -> stable $00
+```
+
+Ikki's `$10` bit is outside the four-persistent-Saint completion low nibble.
+
+When reachable Saga story phase `$06CE!=0`, the fixed gate checks story phase first and hands control back to the already-promoted interactive selector rather than committing a new stable state.
+
+Artifacts:
+
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformResourceFailureTransition.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PlatformResourceFailureTransitionChecks.cs`
+- `docs/reverse-engineering/PLATFORM_RESOURCE_FAILURE_STATE_60.md`
+- PR `#113`
+
+Do not reopen `$60/$04=$FF` absent contradictory ROM evidence or fixture failure.
+
+## EVIDENCE
+
+### Why `$91-$99` is selected next
+
+The other direct unresolved successor of an already-promoted reload remains the high family:
+
+```text
+stable reload $90
+ -> $C180 short bootstrap
+ -> $D442 INC $00
+ -> engine state $91
+```
+
+The global dispatcher already bounded a finite state chain and its candidate writers:
+
+```text
+$91 -> candidate $92 through bank1 text terminator $8DDB
+$92 -> $93 through main $C3E8 INC $00
+$93 -> $94 through NMI $D55E
+$94 -> $95 through NMI
+$95 -> $96 through NMI
+$96 -> $97 through NMI
+$97 -> $98 through bank1 $9381 after local terminal counter
+$98 -> $99 through NMI $D365
+```
+
+These writer addresses are structural anchors only. Exact call-path reachability, frame lifetime and semantic effects still need family-specific proof.
+
+Known top-level ownership from #109:
+
+- `$91`: main bank-1 `$9363`; NMI `$D42D` plus `$07FC=$F0`.
+- `$92`: dedicated main `$C3C3`.
+- `$93-$98`: main bank-1 `$9363`.
+- `$93-$96`: NMI-owned state increments.
+- `$98`: dedicated NMI transition toward `$99`.
+- `$99`: no dedicated top-level dispatcher body was promoted; terminal/next behavior remains open.
+
+This is now the most direct closed-to-open control-flow boundary. Wider `$30-$4F`, renderer, RNG and audio remain later fronts.
 
 ## OPEN
 
-1. Prove whether `$60` is the only reachable member of dispatcher range `$60-$6F`, or whether any executable writer advances/sets `$61-$6F`.
-2. Close the exact fatal-Life and fatal-Cosmo entry conditions from `$927A/$930A`, including `$7F/$80`, active-Saint resource pair mutation and the special `$02=$10` periodic-Life gate only insofar as they affect entry to `$60`.
-3. Reduce main `$C364-$C3AB` to logical state/fade/timer semantics and identify the exact condition that reaches `$C389`.
-4. Confirm that NMI `$D2F0 -> bank-1 $9D69` is presentation-only with respect to global progression/state.
-5. Trace the resulting `$04=$FF`, `$00/$01=$3D`, `$E100` path through its first stable engine destination. This is a new reload mode and must not be conflated with `$04=0` or `$04=8F`.
-6. Record only persistent fields that materially survive or select the post-failure result, especially active-Saint Life/Cosmo, `$4D/$4E`, `$40`, `$04`, `$03/$0533`, `$067D/$050E`, and any resource/progression restoration.
-7. `$91-$99`, `$30-$4F`, renderer, RNG, audio and broader boss progression remain outside this checkpoint.
+1. Prove exact `$91->$92` reachability through the bank-1 text/state machinery and identify the terminator/source that reaches `$8DDB`.
+2. Reduce dedicated state `$92` main `$C3C3-$C3xx` to logical effects and prove exact `$92->$93` condition at `$C3E8`.
+3. Characterize `$93-$97` NMI/main cooperation: which states are one-NMI transitional and which wait on presentation/text/local counters.
+4. Prove the state-$97 terminal condition that reaches bank-1 `$9381` and writes `$98`.
+5. Close `$98->$99` through NMI and determine whether `$99` is absorbing, redirects to reload, or enters another already-known family.
+6. Record persistent control fields only where they select later state transitions; ignore renderer/audio bodies unless logically gating the graph.
+7. `$30-$4F`, RNG, renderer/metasprites, audio and broader boss progression remain outside this checkpoint.
 
 ## NEXT
 
-**Close the resource-exhaustion engine family `$60-$6F`, from fatal platform Life/Cosmo drain through reload mode `$04=$FF` to its first stable destination.**
+**Close engine-state family `$91-$99` from promoted reload `$90` through the first stable or already-promoted destination after `$99`.**
 
 Completion criterion:
 
-> Starting from active platform state `$20`, prove every reachable fatal resource entry into the `$60` dispatcher family, determine the reachable `$60-$6F` state set, reduce main/NMI cooperation to logical effects, and trace the family’s `$04=$FF -> $3D -> $E100` exit to the first stable engine state without modeling unrelated PPU/audio bodies.
+> Starting from confirmed `$90->$91`, prove every reachable logical transition through `$91-$99`, distinguish text/input/timer-driven states from one-NMI transitional states, identify exact writers/conditions for each advance, and terminate at the first stable state or existing promoted family without modeling unrelated rendering/audio internals.
 
 Required sequence:
 
-1. close bank-1 `$927A-$9309` Life exhaustion and `$930A-$935F` Cosmo exhaustion against existing resource semantics;
-2. prove whether any writer can produce `$61-$6F` from the reachable `$60` entry;
-3. trace main `$C364-$C3AB` and NMI `$D2F0/$9D69` only far enough to identify logical timers/fields and all `$00/$01/$04` writes;
-4. prove the exact `$C389 -> $C2BA` exit condition and persistent state carried into `$E100`;
-5. reconstruct reload mode `$04=$FF` to the first stable destination, reusing existing reload primitives where valid but not assuming equivalence to `$04=0/$8F`;
-6. implement one semantic failure-transition model plus discriminating fixtures after the graph is closed;
+1. trace `$91` through main bank-1 `$9363`, NMI `$D42D`, and the relevant text source until `$91->$92` is proved or disproved;
+2. trace dedicated main state `$92` at `$C3C3+` through exact `$93` writer;
+3. close NMI `$93->$94->$95->$96->$97`, recording any logical writes before each increment;
+4. trace state `$97` main/bank-1 logic to the `$9381` increment and prove the terminal counter/condition;
+5. trace NMI state `$98` to `$99` and classify `$99` under both main and NMI;
+6. implement the smallest semantic `$91-$99` machine plus discriminating fixtures only after the graph is closed;
 7. document the family and run both verification workflows.
 
 ## BLOCKERS
 
-- None. The canonical ROM, global dispatcher map, active-platform resource model and fatal-entry addresses are available.
+- None. Canonical ROM, dispatcher map, verified reload `$90` entry and writer anchors are available.
 
 ## RECOVERY CONTRACT
 
-A new session must be able to resume this project without chat history.
+A new session must be able to resume without chat history.
 
 Recovery order:
 
 1. read this file from `main`;
 2. reconcile `CURRENT` with newer merged Git history if any exists;
-3. inspect `ENGINE_STATE_DISPATCHER.md`, `ENGINE_STATE_FAMILY_11_14.md`, `PLATFORM_PRE_PLAYER_RESOURCE_ORDER.md` and only the code/docs/tests required by the active `$60-$6F` boundary;
-4. use `docs/REVERSE_ENGINEERING_STATUS.md` only as a global navigation/maturity map;
-5. use `docs/WORK_PROTOCOL.md` for execution rules;
-6. when private assets are required, use the private Drive `PRIVATE_WORKSPACE_MANIFEST — Saint Seiya Reborn`; private evidence is indexed under `04_REVERSE_ENGINEERING/EVIDENCE_INDEX`;
-7. Drive never overrides this file and never owns a separate `NEXT`.
+3. inspect `ENGINE_STATE_DISPATCHER.md` and only code/docs/tests required by `$91-$99`;
+4. use `PLATFORM_RESOURCE_FAILURE_STATE_60.md` only if reviewing the immediately previous checkpoint;
+5. use `docs/REVERSE_ENGINEERING_STATUS.md` as navigation only;
+6. use `docs/WORK_PROTOCOL.md` for execution rules;
+7. use the private Drive manifest only to locate private assets; Drive never owns a separate `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `engine-state-family-60-6f-resource-exhaustion`
+- `last_next_signature`: `engine-state-family-91-99`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
