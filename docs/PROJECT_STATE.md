@@ -6,15 +6,16 @@ Technical subsystem documents remain authoritative for evidence and semantics. T
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / scene-battle engine state graph $30-$4F`
+- Phase: `ORIGINAL SPEC / engine state $50 modal subsystem`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#115` — reachable engine-state family `$91-$99` from promoted reload `$90` through absorbing terminal state `$99`.
-- Merge commit: `07361dfebef8bd803d7a21950ebc865c570fcdce`
-- Exact final PR head: `8f43e2c6ead7ff4082d2431ac65af9b220ab37d2`
+- Last verified technical checkpoint: PR `#117` — reachable scene/battle engine-state graph `$30-$4F`, including entry from `$50`, exact reachable-state partition, Start handoff and terminal return to `$50`.
+- Merge commit: `1ec9af023f4f579452613ff3eddeac45570ddbbf`
+- Exact final PR head: `3cc0265e7916fae1b3fbc25b71a08972baa34f33`
 - Verification gate on that exact head:
-  - `ORIGINAL SPEC tests` run `#300`: `SUCCESS`
-  - `Original Spec` run `#493`: `SUCCESS`
+  - `ORIGINAL SPEC tests` run `#304`: `SUCCESS`
+  - `Original Spec` run `#497`: `SUCCESS`
   - build, OriginalSpec self-test and password compatibility fixture: `SUCCESS`
+- PR `#115` closed engine family `$91-$99`.
 - PR `#113` closed fatal resource state `$60` and reload `$04=$FF`.
 - PR `#111` closed engine family `$11-$14`.
 - PR `#109` closed the fixed-bank global `$00/$01` bootstrap/main/NMI dispatcher map.
@@ -49,123 +50,178 @@ Fatal Life/Cosmo drain from platform `$20` converges on the sole reachable state
 
 ### Engine family `$91-$99` — PR #115
 
-The high family entered from stable reload `$90` is closed.
+Closed from reload `$90` through text, countdown/input and NMI presentation states to absorbing `$99`.
 
-Entry/bootstrap:
+### Scene/battle graph `$30-$4F` — PR #117
 
-```text
-$90
- -> $D442 INC $00
- -> $91
- -> bank0 $AE18 builds $FF-terminated stream at $0600
- -> $14/$15=$08/$23
- -> $06=min($02,$0C)
-```
+The global outer scaffold surrounding battle/presentation is now closed.
 
-State graph:
+#### Entry
+
+Canonical scene resume is produced by exact state `$50` main mode:
 
 ```text
-$91 --$0600 terminator $FF--> $92
-
-$92 --count $57:$92 -> 0--> wait for A ($3D bit $80)
-$92 --A---------------------> $93, $57=$10
-
-$93 --next NMI--> $94
-$94 --next NMI--> $95
-$95 --next NMI--> $96
-$96 --next NMI--> $97
-
-$97 --each $57 expiry--> $57=$30, $06++
-$97 --new $06=$0D-----> $98
-
-$98 --next NMI--> $99
-$99 -------------> $99 ...
+$DA5C  LDY #$30
+$DA5E  LDA $0200
+$DA61  CMP #$06
+$DA63  BEQ $DA9D
+...
+$DA9D  STY $00
+$DA9F  STY $01
+$DAA1  JMP $C1D0
 ```
 
-Important mirror behavior:
+`$C1D0->$D5DA` immediately increments live `$00` from `$30` to `$31`; `$C220` synchronizes `$01` before the ordinary dispatcher runs. Therefore `$30` is reachable only as a bootstrap transient and paired `$31/$31` is the first dispatch-ready scene state.
 
-- `$91->$92` increments both `$00/$01` through bank-1 `$8DDB`.
-- `$92->$93`, `$93->$94->$95->$96->$97`, `$97->$98`, and `$98->$99` increment only live `$00`; `$01` catches up at the next main `$C220` mirror synchronization.
-- `$99` has no dedicated main/NMI writer and is absorbing until reset/external restart.
+#### Reachable state set
+
+```text
+$30,
+$31-$38,
+$40-$4D
+```
+
+Canonical unreachable values inside the structural dispatcher range:
+
+```text
+$39-$3F
+$4E-$4F
+```
+
+#### Main/NMI graph
+
+```text
+$50 resume ($0200=$06)
+ -> transient $30
+ -> $31
+ -> $32
+ -> $33
+ -> $34
+ -> NMI -> $35
+ -> $36
+ -> $37
+ -> $38
+ -> direct write $40
+ -> $41 -> $42 -> $43 -> $44 -> $45 -> $46
+ -> $47 -> $48 -> $49 -> $4A -> $4B -> $4C -> $4D
+ -> $50
+```
+
+Exact promoted gates:
+
+- `$31->$32`: post-decrement `$3F==0` at `$C6B0`;
+- `$32->$33`: first scene-object field 1 zero after its step at `$C6DD`;
+- `$33->$34`: second scene-object field 1 zero after its step at `$C70D`;
+- `$34->$35`: first observing NMI via `$D2C7->$D73B->$D78B`;
+- `$35->$36`: observed `$03BB==$65` at `$C8B7`;
+- `$36->$37`: post-decrement `$3F==$44` at `$C940`, seeding `$57=$10`;
+- `$37->$38`: `$57==0` and entering the frame with `$03CC >= $88` at `$C984`;
+- `$38->$40`: incremented `$3F >= $60`; `$C9A9` writes `$40` directly, proving `$39-$3F` are skipped;
+- `$40-$4C`: bank-1 `$8C19` text streams; terminal `$FF` reaches `$8DDB` and increments **both** `$00/$01`;
+- `$4D->$50`: after shared `$57/$26` delay, `$8D41` writes paired `$50`, proving `$4E/$4F` are not reached.
+
+Every `$3x/$4x` main frame checks Start first. Controller bit `$10` preempts local state logic and writes paired `$00/$01=$50` at `$C34F`.
 
 Artifacts:
 
-- `src/SaintSeiyaNesReborn.OriginalSpec/EngineState91To99Machine.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/EngineState91To99MachineChecks.cs`
-- `docs/reverse-engineering/ENGINE_STATE_FAMILY_91_99.md`
-- PR `#115`
+- `src/SaintSeiyaNesReborn.OriginalSpec/SceneBattleEngineStateGraph.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/SceneBattleEngineStateGraphChecks.cs`
+- `docs/reverse-engineering/SCENE_BATTLE_ENGINE_STATE_30_4F.md`
+- PR `#117`
 
-Do not reopen `$91-$99` absent contradictory ROM evidence or fixture failure.
+Do not reopen `$30-$4F` absent contradictory ROM evidence or fixture failure.
 
 ## EVIDENCE
 
-### Why `$30-$4F` is selected next
+### Why exact state `$50` is selected next
 
-The three direct reload successor families are now accounted for:
+PR #117 proved `$50` is a genuine modal hinge rather than a broad unresolved `$50-$5F` numeric family.
 
-```text
-$00 -> platform $20
-$10 -> $11-$14
-$90 -> $91-$99
-```
-
-The next large reachable gap in the global dispatcher is the shared scene/battle family `$30-$4F`.
-
-Top-level main structure:
+Confirmed producers into exact `$50` include:
 
 ```text
-($00 & $F0) == $30 or $40
- -> $C346 controller poll
- -> Start ($3D bit $10) writes $00/$01=$50
- -> otherwise JSR $C659
+$3x/$4x Start escape
+ -> $C34F writes $00/$01=$50
+ -> A=$05
+ -> JMP $DA15
+
+$4D terminal NMI
+ -> bank1 $8D41 writes $00/$01=$50
+ -> fixed NMI notices live $50
+ -> $D2E6 JSR $C154
+ -> $D2E9 JMP $C14B
+ -> $C14B writes paired $50 and enters $DA13
 ```
 
-The body already exposes a finite progression skeleton rather than an opaque renderer:
+Global bootstrap/reset paths can also enter `$C14B`, so the modal subsystem is not scene-exclusive.
+
+Main modal engine:
 
 ```text
-$31 -> dedicated $C659 branch; reachable INC $00 at $C6B0
-$32 -> dedicated branch; reachable INC $00 at $C6DD
-$33 -> dedicated branch; reachable INC $00 at $C70D
-...
-$37 -> timed/counter branch; $C984 INC $00 -> $38
-$38 -> phase counter $3F; terminal gate $C9A9 writes $00=$40
-$40-$4F -> same main family; NMI uses bank-1 $8C19
+$DA13/$DA15 seeds $0200
+$DA33 reads $0201
+ -> inline dispatch selects $DA3D or $DA5C
 ```
 
-Existing boss-battle documentation already describes substantial mechanics behind stage-indexed dispatchers (`BATTLE_EVENT_DISPATCH.md`, battle resources/damage/dodge/techniques). The missing layer is the **global engine-state graph that composes those mechanics**. This checkpoint should map that layer without re-reversing already-promoted combat formulas.
+NMI modal engine:
+
+```text
+$D282 sees mirror $01=$50 before all live-state dispatch
+ -> JMP $DABC
+$DABC dispatches on $0200 through a finite inline table
+```
+
+The NMI `$0200` table visibly contains only a small finite set of handlers:
+
+```text
+$00-$03 -> $DAEB
+$04     -> $DB04
+$05     -> $DB27
+$06-$07 -> $DB7C
+$08     -> $DB84
+$09     -> $DB8C
+```
+
+Known exits from the main modal path:
+
+- `$0200=$06` -> paired `$30` -> scene bootstrap `$31`;
+- `$0200=$08` -> paired `$10` -> already-promoted `$11-$14` bootstrap path;
+- another `$DA90+` fallback with `$0202==0` also selects `$10`.
+
+This is a bounded, directly reachable subsystem whose closure will explain the modal/menu bridge between scene/battle, password/low-family flows and global startup behavior.
 
 ## OPEN
 
-1. Identify every executable producer that enters the reachable `$30-$4F` family and reject static/data false positives.
-2. Determine the exact reachable state set inside `$30-$4F`; do not assume every numeric state in the range is used.
-3. Close main/NMI transition writers for the early `$31/$32/$33...` sequence, including the conditions at `$C6B0/$C6DD/$C70D`.
-4. Trace the confirmed late chain `$37->$38->$40`, including `$57`, `$03CC`, `$3F`, `$4D/$4E` only insofar as they gate global state.
-5. Classify the `$40-$4F` subgraph and its NMI bank-1 `$8C19` cooperation.
-6. Prove the `$50` handoff(s), including the top-level Start escape at `$C34F`, but do not open the entire `$50-$5F` family until the scene graph identifies a real continuation requirement.
-7. Tie global states to existing battle/event semantic documents where evidence permits; do not duplicate boss mechanics.
-8. Renderer, audio and RNG remain outside scope unless one of them directly gates `$00/$01` progression.
+1. Identify every executable producer entering exact state `$50`, distinguishing scene Start, `$4D` completion and global/bootstrap entry.
+2. Map `$DA13-$DAA4` main semantics around `$0200/$0201/$0202`, including both inline `$8960` dispatch branches.
+3. Map NMI `$DABC` dispatch states `$0200=$00-$09` and prove which values are actually reachable in each entry mode.
+4. Determine exact transitions that mutate `$0200`, `$0201` and `$0202`; avoid interpreting renderer/input helpers unless they gate modal progression.
+5. Prove all stable exits: `$50->$30`, `$50->$10`, and any additional real exit if present.
+6. Classify whether `$50` is pause/menu, boot/menu, or a shared modal shell only after the control graph is proven; labels must follow evidence.
+7. Implement one executable modal state machine plus discriminating fixtures and documentation.
+8. Renderer, audio, RNG and deeper boss mechanics remain outside this checkpoint unless they directly gate `$0200/$0201/$0202` progression.
 
 ## NEXT
 
-**Map the reachable scene/battle engine-state graph `$30-$4F`, from its real entry producer(s) through the confirmed `$37->$38->$40` progression and `$50` handoff boundary.**
+**Close exact engine state `$50` as a modal subsystem: map its `$0200/$0201/$0202` main/NMI state machine from every confirmed entry to every confirmed exit.**
 
 Completion criterion:
 
-> Produce an evidence-backed transition graph containing every reachable `$30-$4F` engine state, its main/NMI ownership, every writer that advances or leaves the family, and the first already-known or newly bounded destination, while composing with existing boss-battle semantics instead of reimplementing them.
+> Produce an evidence-backed state graph for exact global engine state `$50`, including entry mode, all reachable `$0200` substates, `$0201/$0202` control roles, main/NMI ownership, and all exits back to already-promoted engine families, without reverse-engineering unrelated rendering/audio internals.
 
 Required sequence:
 
-1. index executable `$00/$01` producers/advancers that can enter or move within `$30-$4F`;
-2. trace `$C346->$C659` as control-flow only and build a state-transition table;
-3. reconcile `$31/$32/$33...` transitions with state-local counters and existing battle/event docs;
-4. close `$37->$38->$40` and the `$40-$4F` NMI cooperation;
-5. isolate every `$50` exit/handoff condition;
-6. implement a structural scene-state graph artifact plus discriminating fixtures once reachability is closed;
+1. enumerate `$50` producers and normalize their initial `$0200/$0201/$0202` conditions;
+2. trace main `$DA13-$DAA4`, including the `$0201` inline dispatcher at `$DA33`;
+3. trace NMI `$DABC` inline `$0200` dispatcher and every handler that mutates modal control state;
+4. build a finite transition table for reachable modal substates;
+5. prove exits `$30/$10` and check for any additional real global-state writer;
+6. implement the smallest executable `$50` modal model + fixtures;
 7. document and run both verification workflows.
 
 ## BLOCKERS
 
-- None. Canonical ROM, dispatcher map, `$91-$99` checkpoint and existing battle subsystem documentation are available.
+- None. Canonical ROM, fixed dispatcher, scene/battle graph, low-family/password graph and all relevant fixed-bank anchors are available.
 
 ## RECOVERY CONTRACT
 
@@ -175,14 +231,15 @@ Recovery order:
 
 1. read this file from `main`;
 2. reconcile `CURRENT` with newer merged Git history if any exists;
-3. inspect `ENGINE_STATE_DISPATCHER.md`, `ENGINE_STATE_FAMILY_91_99.md`, and only existing battle docs relevant to the active `$30-$4F` boundary;
-4. use `docs/REVERSE_ENGINEERING_STATUS.md` as navigation only;
-5. use `docs/WORK_PROTOCOL.md` for execution rules;
-6. use the private Drive manifest only to locate private assets; Drive never owns a separate `NEXT`.
+3. inspect `SCENE_BATTLE_ENGINE_STATE_30_4F.md` and `ENGINE_STATE_DISPATCHER.md`;
+4. inspect only fixed/bank routines required by exact state `$50` (`$C14B`, `$DA13-$DB9C`, and helpers only where they gate modal control);
+5. use `docs/REVERSE_ENGINEERING_STATUS.md` as navigation only;
+6. use `docs/WORK_PROTOCOL.md` for execution rules;
+7. use the private Drive manifest only to locate private assets; Drive never owns a separate `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `scene-battle-engine-state-30-4f-graph`
+- `last_next_signature`: `engine-state-50-modal-subsystem`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
