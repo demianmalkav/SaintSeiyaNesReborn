@@ -10,7 +10,7 @@ internal static class BattleStageContextCoverageChecks
         CheckStoryProgressProvenance();
         CheckCoverageClassification();
         CheckGoldSelectorReachability();
-        CheckStage00FirstGapContract();
+        CheckStage00ClosedContract();
         CheckStage0BStructuralOnlyContract();
     }
 
@@ -81,8 +81,8 @@ internal static class BattleStageContextCoverageChecks
 
     private static void CheckCoverageClassification()
     {
-        byte[] closed = [0x01, 0x04, 0x05, 0x08, 0x09, 0x0A];
-        byte[] missing = [0x00, 0x02, 0x03, 0x06, 0x07];
+        byte[] closed = [0x00, 0x01, 0x04, 0x05, 0x08, 0x09, 0x0A];
+        byte[] missing = [0x02, 0x03, 0x06, 0x07];
 
         foreach (var stage in closed)
             Require(BattleStageContextCoverage.Get(stage).Classification == BattleStageCoverageClassification.DedicatedContextClosed,
@@ -98,8 +98,8 @@ internal static class BattleStageContextCoverageChecks
             "stage $0B is structural/transient rather than a canonical battle gap");
 
         var first = BattleStageContextCoverage.FirstMaterialGap();
-        Require(first.StageIndex == BattleStageContextCoverage.FirstMaterialGapStage && first.StageIndex == 0x00,
-            "first material uncovered context in canonical order is stage $00");
+        Require(first.StageIndex == BattleStageContextCoverage.FirstMaterialGapStage && first.StageIndex == 0x02,
+            "after Mu closure the first material uncovered context in canonical order is stage $02");
     }
 
     private static void CheckGoldSelectorReachability()
@@ -131,9 +131,12 @@ internal static class BattleStageContextCoverageChecks
             "Saga owns the phase-dispatched four-slot selector");
     }
 
-    private static void CheckStage00FirstGapContract()
+    private static void CheckStage00ClosedContract()
     {
         var mu = BattleStageContextCoverage.Get(0x00);
+        Require(mu.Classification == BattleStageCoverageClassification.DedicatedContextClosed
+            && mu.DedicatedContextArtifact == nameof(MuStage00Context),
+            "Mu is promoted as a closed dedicated special context");
         Require(mu.CanonicalBattleStoryProgress == 0x00,
             "Mu context is selected from canonical story progress $067D=$00");
         Require(mu.InitializationHandler == BattleStageContextCoverage.Stage00InitializationHandler
@@ -144,7 +147,7 @@ internal static class BattleStageContextCoverageChecks
             "Mu material state machine is Talk $9CB7");
         Require(mu.PostBronzeHandler == BattleStageContextCoverage.Stage00PostActionHandler
             && mu.PostGoldHandler == BattleStageContextCoverage.Stage00PostActionHandler,
-            "Mu structural post-action entries are the shared $A3A1 RTS");
+            "Mu structural post-action entries remain the shared $A3A1 RTS");
         Require(mu.ReachableSurfaces == (BattleStageSurface.Initialization | BattleStageSurface.Talk),
             "Mu canonical command topology reaches init/Talk but no attack/Gold post-action surface");
         Require(mu.ReachableGoldSlotMask == 0,
