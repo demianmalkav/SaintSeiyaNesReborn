@@ -14,6 +14,7 @@ internal static class BattleStageContextCoverageChecks
         CheckStage02ClosedContract();
         CheckStage03ClosedContract();
         CheckStage06ClosedContract();
+        CheckStage07ClosedContract();
         CheckStage0BStructuralOnlyContract();
     }
 
@@ -84,25 +85,22 @@ internal static class BattleStageContextCoverageChecks
 
     private static void CheckCoverageClassification()
     {
-        byte[] closed = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x08, 0x09, 0x0A];
-        byte[] missing = [0x07];
+        byte[] closed = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A];
 
         foreach (var stage in closed)
             Require(BattleStageContextCoverage.Get(stage).Classification == BattleStageCoverageClassification.DedicatedContextClosed,
                 $"stage {stage:X2} remains a closed dedicated context");
-
-        foreach (var stage in missing)
-            Require(BattleStageContextCoverage.Get(stage).Classification == BattleStageCoverageClassification.MaterialContextMissing,
-                $"stage {stage:X2} is a material uncovered context");
 
         var stage0B = BattleStageContextCoverage.Get(0x0B);
         Require(stage0B.Classification == BattleStageCoverageClassification.StructuralNoCanonicalBattle
             && stage0B.CanonicalBattleStoryProgress is null,
             "stage $0B is structural/transient rather than a canonical battle gap");
 
-        var first = BattleStageContextCoverage.FirstMaterialGap();
-        Require(first.StageIndex == BattleStageContextCoverage.FirstMaterialGapStage && first.StageIndex == 0x07,
-            "after Scorpio closure the only material uncovered context is stage $07 Capricorn");
+        Require(BattleStageContextCoverage.MaterialContextGapCount() == 0
+            && !BattleStageContextCoverage.HasMaterialContextGaps(),
+            "Capricorn closure leaves zero material stage-context gaps in $00-$0B");
+        RequireThrows(() => BattleStageContextCoverage.FirstMaterialGap(),
+            "FirstMaterialGap reports no row after full material closure");
     }
 
     private static void CheckGoldSelectorReachability()
@@ -123,6 +121,8 @@ internal static class BattleStageContextCoverageChecks
             "Cancer reuses generic parity Gold selector slots 0/1");
         Require(BattleStageContextCoverage.Get(0x06).GoldSelectorKind == BattleStageGoldSelectorKind.ScorpioStage06,
             "Scorpio owns its dodge-history Gold selector branch");
+        Require(BattleStageContextCoverage.Get(0x07).GoldSelectorKind == BattleStageGoldSelectorKind.GenericParitySlots01,
+            "Capricorn reuses generic parity Gold selector slots 0/1");
         Require(BattleStageContextCoverage.Get(0x08).GoldSelectorKind == BattleStageGoldSelectorKind.AquariusStage08,
             "Aquarius owns its phase/dodge Gold selector branch");
         Require(BattleStageContextCoverage.Get(0x0A).GoldSelectorKind == BattleStageGoldSelectorKind.SagaStage0A,
@@ -214,6 +214,26 @@ internal static class BattleStageContextCoverageChecks
             "Scorpio exposes all ordinary battle surfaces");
     }
 
+    private static void CheckStage07ClosedContract()
+    {
+        var capricorn = BattleStageContextCoverage.Get(0x07);
+        Require(capricorn.Classification == BattleStageCoverageClassification.DedicatedContextClosed
+            && capricorn.DedicatedContextArtifact == nameof(CapricornStage07Context),
+            "stage $07 is promoted as the closed Capricorn/Shura context");
+        Require(capricorn.CanonicalBattleStoryProgress == 0x09,
+            "Capricorn canonical battle provenance is story progress $09");
+        Require(capricorn.InitializationHandler == 0x9ACF
+            && capricorn.TalkHandler == 0x9ED6
+            && capricorn.PostBronzeHandler == 0xA86B
+            && capricorn.PostGoldHandler == 0xA8D8,
+            "Capricorn retains exact dispatcher owners after promotion");
+        Require(capricorn.GoldSelectorKind == BattleStageGoldSelectorKind.GenericParitySlots01
+            && capricorn.ReachableGoldSlotMask == 0x03,
+            "Capricorn uses generic parity Gold slots 0/1");
+        Require(capricorn.ReachableSurfaces == BattleStageSurface.OrdinaryBattle,
+            "Capricorn exposes all ordinary battle surfaces");
+    }
+
     private static void CheckStage0BStructuralOnlyContract()
     {
         var stage = BattleStageContextCoverage.Get(0x0B);
@@ -234,5 +254,19 @@ internal static class BattleStageContextCoverageChecks
     {
         if (!condition)
             throw new InvalidOperationException(message);
+    }
+
+    private static void RequireThrows(Action action, string message)
+    {
+        try
+        {
+            action();
+        }
+        catch (InvalidOperationException)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(message);
     }
 }
