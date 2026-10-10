@@ -56,7 +56,7 @@ public readonly record struct BattleStageCoverageRow(
 /// </summary>
 public static class BattleStageContextCoverage
 {
-    public const byte FirstMaterialGapStage = 0x02;
+    public const byte FirstMaterialGapStage = 0x03;
 
     // Closed stage $00 / Mu repair context.
     public const ushort Stage00InitializationHandler = 0x97F7;
@@ -127,7 +127,7 @@ public static class BattleStageContextCoverage
         new(
             0x02,
             "Gemini / first Camus branch",
-            BattleStageCoverageClassification.MaterialContextMissing,
+            BattleStageCoverageClassification.DedicatedContextClosed,
             0x981F,
             0x9D81,
             0xA444,
@@ -136,7 +136,7 @@ public static class BattleStageContextCoverage
             0b0000_0011,
             0x02,
             BattleStageSurface.OrdinaryBattle,
-            null),
+            nameof(GeminiStage02Context)),
         new(
             0x03,
             "Cancer / Death Mask",
