@@ -13,6 +13,7 @@ internal static class BattleStageContextCoverageChecks
         CheckStage00ClosedContract();
         CheckStage02ClosedContract();
         CheckStage03ClosedContract();
+        CheckStage06ClosedContract();
         CheckStage0BStructuralOnlyContract();
     }
 
@@ -83,8 +84,8 @@ internal static class BattleStageContextCoverageChecks
 
     private static void CheckCoverageClassification()
     {
-        byte[] closed = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x09, 0x0A];
-        byte[] missing = [0x06, 0x07];
+        byte[] closed = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x08, 0x09, 0x0A];
+        byte[] missing = [0x07];
 
         foreach (var stage in closed)
             Require(BattleStageContextCoverage.Get(stage).Classification == BattleStageCoverageClassification.DedicatedContextClosed,
@@ -100,26 +101,17 @@ internal static class BattleStageContextCoverageChecks
             "stage $0B is structural/transient rather than a canonical battle gap");
 
         var first = BattleStageContextCoverage.FirstMaterialGap();
-        Require(first.StageIndex == BattleStageContextCoverage.FirstMaterialGapStage && first.StageIndex == 0x06,
-            "after Cancer closure the first material uncovered context in canonical order is stage $06");
+        Require(first.StageIndex == BattleStageContextCoverage.FirstMaterialGapStage && first.StageIndex == 0x07,
+            "after Scorpio closure the only material uncovered context is stage $07 Capricorn");
     }
 
     private static void CheckGoldSelectorReachability()
     {
         byte[] masks =
         [
-            0x00, // $00: attack path is blocked; Gold selector unreachable
-            0x03, // $01
-            0x03, // $02
-            0x03, // $03
-            0x03, // $04
-            0x07, // $05: generic 0/1 plus Ikki-specific slot2
-            0x03, // $06: dodge-history selector 0/1
-            0x03, // $07
-            0x07, // $08
-            0x07, // $09
-            0x0F, // $0A: all four slots reachable across Saga phases
-            0x00  // $0B: no canonical stable battle entry
+            0x00, 0x03, 0x03, 0x03,
+            0x03, 0x07, 0x03, 0x03,
+            0x07, 0x07, 0x0F, 0x00
         ];
 
         for (var i = 0; i < masks.Length; i++)
@@ -200,6 +192,26 @@ internal static class BattleStageContextCoverageChecks
             "Cancer retains ordinary battle surfaces while Talk optionally detours through platform $0C");
         Require(cancer.ReachableGoldSlotMask == 0x03,
             "stage $03 canonical Gold selector exposes only slots 0/1");
+    }
+
+    private static void CheckStage06ClosedContract()
+    {
+        var scorpio = BattleStageContextCoverage.Get(0x06);
+        Require(scorpio.Classification == BattleStageCoverageClassification.DedicatedContextClosed
+            && scorpio.DedicatedContextArtifact == nameof(ScorpioStage06Context),
+            "stage $06 is promoted as a closed Scorpio/Milo context");
+        Require(scorpio.CanonicalBattleStoryProgress == 0x07,
+            "Scorpio canonical battle provenance remains story progress $07");
+        Require(scorpio.InitializationHandler == 0x9ACE
+            && scorpio.TalkHandler == 0x9E51
+            && scorpio.PostBronzeHandler == 0xA7FF
+            && scorpio.PostGoldHandler == 0xA847,
+            "Scorpio retains exact dispatcher owners after promotion");
+        Require(scorpio.GoldSelectorKind == BattleStageGoldSelectorKind.ScorpioStage06
+            && scorpio.ReachableGoldSlotMask == 0x03,
+            "Scorpio retains dedicated dodge-history selector with slots 0/1");
+        Require(scorpio.ReachableSurfaces == BattleStageSurface.OrdinaryBattle,
+            "Scorpio exposes all ordinary battle surfaces");
     }
 
     private static void CheckStage0BStructuralOnlyContract()
