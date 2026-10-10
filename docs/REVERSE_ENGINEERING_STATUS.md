@@ -37,42 +37,45 @@ Los niveles de evidencia `CONFIRMED / INFERRED / UNKNOWN / DISPROVEN` siguen apl
 | ROM / boot / MMC1 / bancos | HIGH | Target, vectores, wrappers MMC1 y mapa de bancos ampliamente establecidos. | `CANONICAL_ROM.md`, `BOOT_AND_MAPPER.md`, `BANK_MAP.md` |
 | Índices de Saints / selección interna | MEDIUM-HIGH | Mapeos internos promovidos y reutilizados por plataforma/reload. | `CHARACTER_INDEX_MAP.md` |
 | Plataforma: frame normal | HIGH | Orden persistente de frame, spawners, entidades primarias/auxiliares, hazards, interacción y timing ampliamente promovidos. | `PERSISTENT_LATE_OBJECT_FRAME.md`, `COMMON_EDGE_SPAWNER_B6D0.md`, `ENTITY_POST_INTERACTION_TIMING.md`, `ENTITY_TYPES_0A_0B.md` |
-| Plataforma: colisión | HIGH | Probes, comportamiento y efectos principales documentados; ya no es un frente inicial desconocido. | `COLLISION_PROBES.md`, `COLLISION_BEHAVIOR.md` |
-| Plataforma: salida y narrativa | HIGH | Salida normal/especial, cadena `$70-$89` y reload especial `$04=$8F` cerrados semánticamente. | `PLATFORM_POST_EXIT_STATE_MACHINE.md`, `PLATFORM_NARRATIVE_STATES_80_89.md`, `PLATFORM_RELOAD_MODE_8F.md` |
-| Reload normal / máquina global de estados | MEDIUM | El retorno especial está cerrado; el warm reload normal contiene un miniestado interactivo todavía abierto. | `PROJECT_STATE.md` + documentos de transición relacionados |
-| Combate de jefes | MEDIUM-HIGH | Recursos, daño, dodge, técnicas y event dispatch tienen investigación promovida; todavía no se declara paridad global de todos los bosses/contextos. | `BOSS_BATTLE_RESOURCES.md`, `BOSS_BATTLE_DAMAGE.md`, `BOSS_DODGE.md`, `BATTLE_TECHNIQUES.md`, `BATTLE_EVENT_DISPATCH.md` |
-| Recursos Life/Cosmo/Seventh Sense | MEDIUM-HIGH | Semántica importante ya está integrada en modelos de plataforma/combate; quedan bordes globales y conversiones/contextos por cerrar. | documentos de plataforma/combate y runtime `OriginalSpec` |
-| Texto / localización | MEDIUM | Corpus japonés y borrador español estructurado con IDs estables; falta integración final completa y revisión total. | `docs/LOCALIZATION.md`, `docs/localization/GLOSSARY_ES.md`; corpus privado en Drive |
-| Password | MEDIUM | Existe fixture de compatibilidad en CI, pero no se considera toda la superficie de formato/UX cerrada sólo por ese fixture. | tests/workflows de `OriginalSpec` |
-| Renderer / metasprites / CHR por escena | MEDIUM-LOW | Hay conocimiento incidental suficiente para varios subsistemas, pero no un atlas/render spec global cerrado. | documentos específicos y `BANK_MAP.md` |
+| Plataforma: movimiento / colisión / combate local | HIGH | Movimiento, salto, ataques, probes, colisiones, daño y efectos principales ya no son frentes iniciales desconocidos. | `PLATFORM_PLAYER.md`, `PLATFORM_JUMP.md`, `PLATFORM_ATTACKS.md`, `COLLISION_PROBES.md`, `COLLISION_BEHAVIOR.md`, `PLATFORM_COMBAT.md` |
+| Plataforma: salida / reload / narrativa | HIGH | Familia normal `$02=$00-$10`, cadena especial `$11->$70-$89`, reload `$8F` y destinos normales `$00/$10/$90` cerrados semánticamente. | `PLATFORM_EXIT_GATES.md`, `PLATFORM_WARM_RELOAD_INTERACTIVE_STATE.md`, `PLATFORM_NORMAL_WARM_RELOAD_DESTINATIONS.md`, `PLATFORM_SPECIAL_NORMAL_EXITS.md`, `PLATFORM_NARRATIVE_STATES_80_89.md`, `PLATFORM_RELOAD_MODE_8F.md` |
+| Máquina global `$00/$01` | MEDIUM | Varias familias están cerradas localmente, pero falta el mapa superior main/NMI que las particione y exponga los estados aún no modelados. | `PROJECT_STATE.md` + máquinas locales de plataforma/reload |
+| Combate de jefes | MEDIUM-HIGH | Recursos, daño, dodge, técnicas, AI y event dispatch tienen investigación promovida; todavía no se declara paridad global de todos los bosses/contextos. | `BOSS_BATTLE_RESOURCES.md`, `BOSS_BATTLE_DAMAGE.md`, `BOSS_DODGE.md`, `BATTLE_TECHNIQUES.md`, `BATTLE_EVENT_DISPATCH.md` |
+| Recursos Life/Cosmo/Seventh Sense | MEDIUM-HIGH | Semántica importante ya está integrada en modelos de plataforma/combate; quedan bordes globales y conversiones/contextos por cerrar. | `RESOURCE_ECONOMY.md` y documentos de plataforma/combate |
+| Texto / localización | MEDIUM | Corpus japonés y borrador español estructurado con IDs estables; falta integración final completa y revisión total. | `TEXT_ENGINE.md`, `docs/LOCALIZATION.md`, `docs/localization/GLOSSARY_ES.md`; corpus privado en Drive |
+| Password | MEDIUM-HIGH | Codec/documentación y fixture de compatibilidad existen y se verifican en CI; todavía no equivale a producto/UX final. | `PASSWORD_SYSTEM.md`, `tools/password/password_codec.py`, CI `Original Spec` |
+| Renderer / metasprites / CHR por escena | MEDIUM-LOW | Hay conocimiento incidental y mapa CHR de plataforma, pero no un atlas/render spec global cerrado. | `PLATFORM_CHR_MAP.md`, `BANK_MAP.md`, documentos multisprite |
 | RNG y consumidores | LOW-MEDIUM | No está cerrado como subsistema global. | investigación futura específica |
 | Audio / bank-track mapping | LOW | No hay especificación global promovida comparable a plataforma o combate. | frontera futura |
 | REBORN moderno | EARLY | La prioridad sigue siendo convertir el original en una especificación reproducible antes de expansiones estructurales grandes. | capa `REBORN` futura |
 
 ## Frontera operativa actual — sólo snapshot
 
-A la fecha de esta curación (`2026-10-09`), `PROJECT_STATE.md` sitúa el frente activo en:
+A la fecha de este checkpoint (`2026-10-09`), `PROJECT_STATE.md` sitúa el frente activo en:
 
-`ORIGINAL SPEC / normal reload interactive transition`
+`ORIGINAL SPEC / global engine state dispatcher`
 
-El límite concreto es reconstruir el miniestado cooperativo `$F025 <-> $A275` para los reloads normales principales antes de derivar los destinos finales del commit común.
+La familia de exits/reloads de plataforma ya está cerrada. El límite concreto ahora es construir el mapa superior de los dispatchers `$00/$01` de main/NMI, reconciliarlo con las familias locales ya promovidas y seleccionar **una sola familia de estado alcanzable que continúe sin modelar**.
 
 Este párrafo es sólo una fotografía. Si queda desactualizado, **no debe corregirse el trabajo desde aquí**: se lee `PROJECT_STATE.md` y se actualiza este mapa después.
 
 ## Checkpoints recientes que no deben reabrirse sin evidencia nueva
 
 - frame persistente normal de plataforma;
-- reachability de familias `$0A/$0B`;
+- reachability de familias de entidades ya promovidas;
 - frontera post-exit inmediata y secuencia `$70->$80`;
 - narrativa NMI `$80-$89`;
-- reload narrativo `$04=$8F` hasta estado estable `$00/$00`.
+- reload narrativo `$04=$8F` hasta estado estable `$00/$00`;
+- selector warm-reload `$F025 <-> $A275`;
+- destinos warm-reload principales `$00/$10/$90`;
+- special-normal platform exits `$02=$0C-$10` y su composición con el reload existente.
 
 La reapertura requiere fixture fallido, evidencia contradictoria o un efecto lateral nuevo demostrado que atraviese la frontera cerrada.
 
 ## Áreas todavía globalmente abiertas
 
-1. cierre completo del warm reload normal y sus destinos estables;
-2. máquina global `$00/$01` fuera de las ramas ya promovidas;
+1. mapa superior completo de la máquina `$00/$01` main/NMI y clasificación de familias de estado;
+2. familias globales de estado que ese mapa demuestre alcanzables pero aún no promovidas;
 3. cobertura completa de renderer/metasprites/CHR por contexto;
 4. RNG y todos sus consumidores;
 5. cierre integral de todos los contextos de boss battle y progresión;
