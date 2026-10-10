@@ -6,88 +6,29 @@ Technical subsystem documents own detailed evidence and semantics. This file rec
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / boss context stage $04 Leo`
+- Phase: `ORIGINAL SPEC / boss context stage $05 Virgo`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#123` — complete stage `$050E=$01` Taurus/Aldebaran boss context.
-- Merge commit: `446b54395ce378119e59fcc12d7a7e8174fe5b3b`
-- Exact final PR head: `ff0e0064a5a3d194bf623e51d9b785a91cefe742`
+- Last verified technical checkpoint: PR `#125` — complete stage `$050E=$04` Leo/Aioria boss context.
+- Merge commit: `b77d863ae8e26769f4f4235eb2ca1771bf03643e`
+- Exact final PR head: `5744aa1d7673c0ff0777a85e71a2a56fa2370112`
 - Verification gate on that exact head:
-  - `ORIGINAL SPEC tests` run `#316`: `SUCCESS`
-  - `Original Spec` run `#510`: `SUCCESS`
+  - `ORIGINAL SPEC tests` run `#320`: `SUCCESS`
+  - `Original Spec` run `#516`: `SUCCESS`
   - build, OriginalSpec self-test and password compatibility fixture: `SUCCESS`
+- PR `#123` closed Taurus/Aldebaran stage `$01`, the first complete boss-context template.
 - PR `#121` closed the complete global `$00/$01` namespace at exactly 59 produced values / 197 structural-but-unreachable values.
 - PR `#119` closed exact front-end/title state `$50` and the executable CHR31 -> RAM overlay mechanism.
-- PR `#117` remains structurally authoritative for `$30-$4D`, semantically superseded by #119 as the front-end attract/presentation loop.
-- PRs `#109/#111/#113/#115` own the global dispatcher, `$11-$14`, fatal `$60`, and `$91-$99`.
-- PRs `#94/#96/#98/#102/#104/#107` own platform exits, narrative chains, selector and reload destinations.
+- PRs `#109/#111/#113/#115/#117` and the promoted platform/reload checkpoints remain closed unless contradictory evidence appears.
 
 ## DONE
 
-### Global engine-state namespace — PR #121
-
-All 256 possible `$00` values are classified. Canonical execution produces exactly 59 values:
-
-```text
-transient: $00 $10 $30 $3D $90
-reachable: $11-$14, $20, $31-$38, $40-$4D, $50, $60,
-           $70-$75, $80-$89, $91-$99
-```
-
-The other 197 values have no canonical executable producer. PRG direct/indirect writers and the two confirmed CHR31 -> RAM overlays were audited. Do not reopen this namespace without contradictory executable evidence or a failing fixture.
-
 ### Taurus/Aldebaran stage `$01` — PR #123
 
+First complete boss context. Init/Talk/post-Bronze/post-Gold, weakening persistence, command-loop composition and terminal `$0670=$01/$FF` releases are closed. Use `BOSS_CONTEXT_STAGE_01_TAURUS.md` as the baseline composition template; do not reopen it without new executable evidence or a failing fixture.
+
+### Leo/Aioria stage `$04` — PR #125
+
 Stage-specific handlers are closed end-to-end:
-
-```text
-initialization       $97F8
-Talk                 $9D2C
-post-Bronze action   $A3A2
-post-Gold response   $A415
-```
-
-Promoted Taurus semantics:
-
-- common `$A973` battle-runtime reset clears `$066F/$064D/$064E/$DD/...` but deliberately preserves weakening `$0681`;
-- `$97F8/$9C3D` performs the Taurus intro, restores real stage `$01`, sets `$068E=1`, emits transient `$0670=$03`, then fixed entry flow clears `$0670` for the command loop;
-- Talk progression is exactly `$066F: 0 -> 1 -> 2`;
-- the second Talk changes `$0681:0->1` once; an already-nonzero weakening tier is not incremented;
-- third and later Talks leave `$066F=2`, raise transient `$DC`, and the fixed caller immediately consumes `$DC` by forcing a Gold counterattack;
-- `$A3A2` terminates victory when `$EB=$FF` via `$0670=$01`;
-- first surviving low-opponent condition (`$EB=$01`, `$DD!=5`) latches `$DD=5` and increments feedback `$064E` before the generic `$06BC` hit-token test;
-- otherwise `$06BC=0` increments `$064E`; landed hits with no first-low event make no Taurus-local state change;
-- `$064E` is feedback/event state in Taurus, not an AI/victory gate;
-- `$A415` terminates defeat when `$EA=$FF` via `$0670=$FF`;
-- first `$EA=$01` while `$064D=0` performs a one-time event and latches `$064D=1`;
-- weakening `$0681` survives defeat/re-entry while ephemeral encounter counters reset; normal victory progression later clears it when leaving the encounter.
-
-Turn composition is now explicit:
-
-```text
-Bronze action -> generic hit/damage -> Taurus $A3A2
-  -> victory, or
-  -> generic Gold counterattack/dodge/damage -> Taurus $A415
-     -> defeat/event/continue
-
-Talk #3+ -> forced generic Gold counterattack -> Taurus $A415
-```
-
-Artifacts:
-
-- `src/SaintSeiyaNesReborn.OriginalSpec/TaurusStage01Context.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/TaurusStage01ContextChecks.cs`
-- `docs/reverse-engineering/BOSS_CONTEXT_STAGE_01_TAURUS.md`
-- PR `#123`
-
-Do not reopen Taurus without contradictory ROM evidence or a failing fixture.
-
-## EVIDENCE FOR NEXT
-
-### Why stage `$04` Leo/Aioria is selected
-
-Taurus established the first complete encounter-context template. Leo is the next useful checkpoint because it introduces stage-local semantics not present in Taurus instead of merely repeating the same pattern.
-
-Stage `$04` handlers are:
 
 ```text
 initialization       $989D
@@ -96,58 +37,123 @@ post-Bronze action   $A5B3
 post-Gold response   $A63E
 ```
 
-Preliminary ROM anchors for the next pass:
+Promoted Leo semantics:
 
-- `$989D` seeds `$ED=1`, performs a multi-phase intro/event setup, manipulates progression/presentation flags, and contains two distinct `INC $0681` sites around `$996A` and `$9A05`; their exact reachable conditions and semantic phases must be proved rather than collapsed into a generic weakening rule;
-- `$9DD8` differs materially from Taurus: first Talk (`$066F=0`) advances conversation and raises transient `$DC`, therefore forcing a Gold counterattack; the exactly-1 branch performs character-dependent dialogue and can call `$A1F4` when `$F1==0`, then advances to 2; later Talks return to the forcing branch and continue advancing `$066F`;
-- `$A5B3` classifies opponent condition through `$ACD6`; `$EB=$FF` reaches victory `$0670=$01`, with an `$ED`-dependent presentation branch that must be resolved for reachability;
-- for surviving low-condition Aioria (`$EB=$01`), `$A5B3` distinguishes active Saint `$0533`: Seiya returns without the non-Seiya effect, while non-Seiya writes `$0690=$FF` and increments `$F1`;
-- `$0690` is already known structurally as a scripted player-hit block, but its exact Leo lifecycle and relationship to `$F1` must be closed in context;
-- `$A63E` follows the familiar post-Gold classifier shape: `$EA=$FF` -> defeat `$0670=$FF`; first low-player condition can latch a one-time `$064D` event;
-- unlike Taurus, stage `$04` has materially different Gold attack coefficient pairs by `$0680` slot:
+- fixed stage-4 battle entry re-arms scripted Bronze blocker `$0690=$FF` after common `$A973` reset;
+- nonzero `$0690` is a real invulnerability/hit gate: fixed `$FAB9+` forces generic Bronze hit token `$06BC=0`;
+- the stage intro is gated by `$068E==0` and active Saint Seiya (`$F36F[4]=$00`); a non-Seiya route can enter the ordinary loop without executing `$989D`;
+- `$989D` writes `$ED=1` and executes two unconditional `INC $0681`, so a normal first Seiya intro changes weakening `0 -> 2`; the generic damage layer interprets tier `>=2` as quarter Gold damage;
+- `$ED` selects between two victory presentation branches, but both converge on terminal `$0670=$01`; `$ED!=0` follows an executed Seiya intro, while an intro-skipped route can retain `$ED=0`;
+- Talk topology is not Taurus-like: pre `$066F=0` increments conversation and transient `$DC`, forcing a Gold response; pre `$066F=1` is the unique non-forcing branch; pre `$066F>=2` resumes `INC $066F` + forced Gold responses;
+- second Talk uses a Shun-specific text branch and, only when `$F1==0`, calls `$A1F4` to clear `$0690`, unlocking normal Bronze hits;
+- `$F1` is not cleared by ordinary battle-runtime reset. It is incremented by `$A5B3` whenever low-condition Aioria is processed with a non-Seiya active, and survives ordinary defeat/re-entry until a broader zero-page reset;
+- low-condition Aioria + Seiya leaves `$0690/$F1` unchanged; low-condition + non-Seiya writes `$0690=$FF` and increments `$F1`, re-locking Bronze hits;
+- `$A63E` gives the familiar one-time low-player `$064D` event and terminal defeat `$0670=$FF`;
+- stage-4 Gold selection has one canonical writer: `$0680=$065F&1`, so only slots `0/1` are reachable. Slots `2/3` exist in the coefficient table but are unreachable for Leo;
+- reachable Leo raw coefficient profiles are slot0 `48/32` and slot1 `32/48` (Cosmo/Life), then composed with generic weakening/dodge/damage;
+- ordinary defeat/re-entry clears local scratch and re-arms `$0690`, while preserving `$0681/$ED/$F1`.
+
+Artifacts:
+
+- `src/SaintSeiyaNesReborn.OriginalSpec/LeoStage04Context.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/LeoStage04ContextChecks.cs`
+- `docs/reverse-engineering/BOSS_CONTEXT_STAGE_04_LEO.md`
+- PR `#125`
+
+Do not reopen Leo without contradictory ROM evidence or a failing fixture.
+
+## EVIDENCE FOR NEXT
+
+### Why stage `$05` Virgo/Shaka is selected
+
+Virgo is the next context by **semantic novelty**, not numeric order. It introduces a character-substitution / special-handoff structure that Taurus and Leo do not contain, and the generic Gold selector has an explicit stage-5 + Ikki branch.
+
+Stage `$05` handlers are:
 
 ```text
-slot 0: 48/32
-slot 1: 32/48
-slot 2: 48/32
-slot 3: 32/48
+initialization       $9A28
+Talk                 $9E1B
+post-Bronze action   $A661
+post-Gold response   $A7B3
 ```
 
-Therefore Leo context closure must trace enough of `$0680` selection/forcing to determine which numeric damage profile is reachable under each stage-local branch. Generic damage arithmetic remains owned by `BOSS_BATTLE_DAMAGE.md`.
+Preliminary canonical ROM anchors already established for the next pass:
+
+### `$9A28` initialization / Ikki handoff
+
+- active Saint `$0533==4` (Ikki) is treated specially;
+- if Ikki and `$0683==0`, handler writes `$0673=$3F` and release `$0670=$DD`;
+- if Ikki and `$0683!=0`, it switches active Saint to index `0` and emits release `$0670=$FE`;
+- for non-Ikki, `$0673==$3F` enters a long transition that ultimately writes active Saint `$0533=4` (Ikki), sets `$0690=$FF`, and enters shared flow through `$9C56`;
+- this is a real substitution/handoff machine and must be composed with the already-promoted reload/platform release semantics rather than flattened as presentation.
+
+### `$9E1B` Talk
+
+- non-Ikki uses character-indexed dialogue and ends with transient `$DC++`, therefore forcing the generic Gold response;
+- Ikki + `$067C==0` takes a distinct dialogue path and returns **without** `$DC`;
+- Ikki + `$067C!=0` takes another dialogue path and does raise `$DC`, forcing the Gold response;
+- unlike Taurus/Leo, Talk behavior is therefore primarily selected by active Saint and `$067C`, not a simple `$066F` progression.
+
+### `$A661` post-Bronze
+
+- non-Ikki follows ordinary opponent classifier `$EB`: defeated -> victory `$0670=$01`; healthy/low branches use `$064E` presentation/event behavior;
+- Ikki takes a separate large state machine keyed by `$067C`, `$0683`, `$064D`, `$06E0`, `$06BC` and `$0690`;
+- Ikki + `$067C==0` reaches a special release `$0670=$02` while writing platform substate `$02=$0D`;
+- later Ikki paths can increment `$0683`, clear `$0690`, or emit release `$0670=$FE` after a substantial transition;
+- these releases must be joined to already-known handoff/reload semantics before the context can be called closed.
+
+### `$A7B3` post-Gold
+
+- non-Ikki uses the familiar classifier: `$EA=$FF` -> defeat `$0670=$FF`, with one-time low-player `$064D` event;
+- Ikki uses a distinct branch: `$EA=$FF` defeats normally, and when `$0683!=0`, `$EA=$01` is also promoted to the defeat release;
+- this special low-condition rule must be proved in the complete Ikki phase graph.
+
+### Gold attack selector `$0680`
+
+Bank-6 `$9074+` contains an explicit special case:
+
+```text
+if $050E == $05 and $0533 == $04:
+    $0680 = $02
+else:
+    fall through later selector logic
+```
+
+Thus Shaka with active Ikki can force structural Gold slot `2`; this is the first currently selected context where the stage/character pair changes reachable Gold-slot topology directly.
 
 ## OPEN
 
-1. Trace `$989D` completely and prove the reachable lifecycle of `$ED` and both `$0681` increments.
-2. Close `$9DD8` Talk reachability, including `$066F`, transient `$DC`, `$F1`, active-Saint branches and helper `$A1F4`.
-3. Trace `$A5B3` for all reachable `$EB/$0533/$ED/$F1/$0690` combinations and terminal victory.
-4. Trace `$A63E` for all reachable `$EA/$064D` branches and terminal defeat.
-5. Resolve the Leo-local lifecycle/meaning of `$F1` and `$0690`, including whether they persist/reset within encounter retries.
-6. Trace `$0680` selection/forcing sufficiently to map reachable Leo Gold attack profiles; compose existing coefficient/damage code rather than reimplement it.
-7. Produce a complete stage-4 encounter graph and executable clean-room context with discriminating fixtures.
-8. Stop terminal paths at `$0670=$01/$FF`, which remain owned by the already-promoted reload/progression machinery.
+1. Close `$9A28` as a real stage-5 substitution/handoff machine, including exact meaning/reachability of `$0673=$3F`, `$0683`, release `$DD`, release `$FE`, active-Saint swaps and shared `$9C56` return.
+2. Close `$9E1B` Talk for non-Ikki vs Ikki and both `$067C` branches, including which paths force a Gold response through transient `$DC`.
+3. Close `$A661` post-Bronze separately for non-Ikki and Ikki; resolve `$067C/$0683/$064D/$06E0/$06BC/$0690` and releases `$01/$02/$FE`.
+4. Close `$A7B3` post-Gold, including the Ikki-specific `$EA==01 && $0683!=0` defeat rule.
+5. Join special release `$0670=$02` + `$02=$0D`, `$DD`, and `$FE` to the already-promoted platform/reload/selector graph instead of treating them as terminal black boxes.
+6. Trace stage-5 `$0680` selection end-to-end: prove Ikki-forced slot2 and determine reachable non-Ikki slots/profiles.
+7. Implement one complete Virgo/Shaka context model with discriminating fixtures and a structural encounter/handoff graph.
+8. Stop only when every reachable stage-5 path has a known successor or an already-closed subsystem owner.
 
 ## NEXT
 
-**Close the complete stage `$04` Leo/Aioria boss context end-to-end, composing `$989D/$9DD8/$A5B3/$A63E` with the already-promoted generic battle mechanics.**
+**Close the complete stage `$05` Virgo/Shaka context, including the Ikki substitution/special-handoff machine, Talk branches, post-action state machines and Gold-slot reachability.**
 
 Completion criterion:
 
-> Starting from stage `$050E=$04` initialization, produce an evidence-backed executable encounter graph covering every reachable Leo Talk/event phase, `$ED/$F1/$0690/$0681` lifecycle, Bronze and Gold post-action branches, reachable `$0680` attack profiles, and terminal victory/defeat release through `$0670`, without duplicating already-closed resource, damage or dodge arithmetic.
+> Starting from stage `$050E=$05`, produce an evidence-backed executable graph covering every reachable non-Ikki and Ikki path through `$9A28/$9E1B/$A661/$A7B3`, resolve `$067C/$0683/$064D/$06E0/$0690` and releases `$01/$02/$DD/$FE/$FF`, join each nonterminal release to its already-promoted platform/reload successor, and prove reachable `$0680` Gold slots without duplicating generic damage/dodge arithmetic.
 
 Required sequence:
 
-1. close `$989D` initialization/event phases and both `$0681` writers;
-2. close `$9DD8` Talk phases, forced-counterattack behavior and `$A1F4/$F1` effects;
-3. close `$A5B3` post-Bronze branches including Seiya vs non-Seiya low-condition behavior, `$0690`, `$F1`, `$ED` and victory;
-4. close `$A63E` post-Gold low-player/defeat branches;
-5. trace reachable `$0680` selection/forcing and compose the existing stage-4 coefficient pairs;
-6. implement the smallest complete Leo context + discriminating fixtures;
-7. document the full encounter graph and retry/persistence rules;
+1. close initialization/substitution `$9A28` and all active-Saint / `$0683/$0673` branches;
+2. trace each special release (`$DD`, `$FE`, and `$02` with `$02=$0D`) into its verified successor;
+3. close Talk `$9E1B` and `$067C`-dependent forced-counterattack behavior;
+4. close post-Bronze `$A661` in non-Ikki and Ikki phases;
+5. close post-Gold `$A7B3`, including the Ikki low-condition special defeat;
+6. close stage-5 Gold selector reachability, especially forced Ikki slot2;
+7. implement the smallest complete Virgo context + discriminating fixtures and documentation;
 8. run both verification workflows and checkpoint only on exact green head.
 
 ## BLOCKERS
 
-- None. Canonical ROM, Taurus context template, generic battle primitives and stage-4 handlers are available.
+- None. Canonical ROM, Taurus/Leo context templates, generic battle primitives and the stage-5 handlers are available.
 
 ## RECOVERY CONTRACT
 
@@ -157,16 +163,16 @@ Recovery order:
 
 1. read this file from `main`;
 2. reconcile `CURRENT` with newer merged Git history if any exists;
-3. inspect `BOSS_CONTEXT_STAGE_01_TAURUS.md` as the context-composition template;
+3. inspect `BOSS_CONTEXT_STAGE_01_TAURUS.md` and `BOSS_CONTEXT_STAGE_04_LEO.md` as composition templates;
 4. inspect `BATTLE_EVENT_DISPATCH.md`, `BOSS_BATTLE_RESOURCES.md`, `BOSS_BATTLE_DAMAGE.md`, `BOSS_DODGE.md` and `BATTLE_TECHNIQUES.md`;
-5. inspect bank-5 Leo handlers `$989D`, `$9DD8`, `$A5B3`, `$A63E` and only the helpers that gate stage-local progression;
-6. reuse promoted generic battle specifications rather than reopening formulas;
+5. inspect bank-5 Virgo handlers `$9A28/$9E1B/$A661/$A7B3` and bank-6 selector `$9074+`;
+6. inspect already-promoted platform/reload release semantics when joining `$DD/$FE/$02` handoffs;
 7. use `docs/REVERSE_ENGINEERING_STATUS.md` as navigation only;
 8. use Drive only for private ROM/evidence; Drive never owns a separate `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `boss-context-stage-04-leo`
+- `last_next_signature`: `boss-context-stage-05-virgo`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
