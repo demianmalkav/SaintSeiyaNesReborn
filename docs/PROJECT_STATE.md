@@ -6,153 +6,148 @@ Technical subsystem documents own detailed evidence and semantics. This file rec
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / boss context stage $01 Taurus`
+- Phase: `ORIGINAL SPEC / boss context stage $04 Leo`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#121` — complete global engine-state `$00/$01` reachability namespace.
-- Merge commit: `ab6859986b8d62b05943b2a011e6257a5933f308`
-- Exact final PR head: `ce56bb74663748edb71ff6fe15477575bd497114`
+- Last verified technical checkpoint: PR `#123` — complete stage `$050E=$01` Taurus/Aldebaran boss context.
+- Merge commit: `446b54395ce378119e59fcc12d7a7e8174fe5b3b`
+- Exact final PR head: `ff0e0064a5a3d194bf623e51d9b785a91cefe742`
 - Verification gate on that exact head:
-  - `ORIGINAL SPEC tests` run `#312`: `SUCCESS`
-  - `Original Spec` run `#506`: `SUCCESS`
+  - `ORIGINAL SPEC tests` run `#316`: `SUCCESS`
+  - `Original Spec` run `#510`: `SUCCESS`
   - build, OriginalSpec self-test and password compatibility fixture: `SUCCESS`
+- PR `#121` closed the complete global `$00/$01` namespace at exactly 59 produced values / 197 structural-but-unreachable values.
 - PR `#119` closed exact front-end/title state `$50` and the executable CHR31 -> RAM overlay mechanism.
 - PR `#117` remains structurally authoritative for `$30-$4D`, semantically superseded by #119 as the front-end attract/presentation loop.
 - PRs `#109/#111/#113/#115` own the global dispatcher, `$11-$14`, fatal `$60`, and `$91-$99`.
-- PRs `#94/#96/#98/#102/#104/#107` remain authoritative for platform exits, narrative chains, selector and reload destinations.
+- PRs `#94/#96/#98/#102/#104/#107` own platform exits, narrative chains, selector and reload destinations.
 
 ## DONE
 
 ### Global engine-state namespace — PR #121
 
-Every possible byte value of live global state `$00` is now classified. Canonical execution produces exactly **59 values**: five bootstrap/handoff transients plus 54 ordinary reachable states.
-
-Bootstrap/handoff transients:
+All 256 possible `$00` values are classified. Canonical execution produces exactly 59 values:
 
 ```text
-$00, $10, $30, $3D, $90
+transient: $00 $10 $30 $3D $90
+reachable: $11-$14, $20, $31-$38, $40-$4D, $50, $60,
+           $70-$75, $80-$89, $91-$99
 ```
 
-Ordinary reachable states:
+The other 197 values have no canonical executable producer. PRG direct/indirect writers and the two confirmed CHR31 -> RAM overlays were audited. Do not reopen this namespace without contradictory executable evidence or a failing fixture.
 
-```text
-$11-$14
-$20
-$31-$38
-$40-$4D
-$50
-$60
-$70-$75
-$80-$89
-$91-$99
-```
+### Taurus/Aldebaran stage `$01` — PR #123
 
-The remaining **197 values are structural-but-unreachable**. Important closed gaps include:
-
-```text
-$01-$0F
-$15-$1F
-$21-$2F
-$39-$3C / $3E-$3F
-$4E-$4F
-$51-$5F
-$61-$6F
-$76-$7F
-$8A-$8F
-$9A-$FF
-```
-
-`$3D` is deliberately excluded from the `$39-$3F` dead-gap statement because it is independently reachable as the reload bridge.
-
-Binary audit against the canonical ROM:
-
-- 188 raw direct `$00/$01` writer byte-pattern candidates;
-- 54 true direct writer instructions after executable/dynamic-path reconciliation;
-- 134 rejected data/operand/inline-table false positives;
-- no reachable `DEC $00`;
-- 241 reachable indirect stores audited with no `$0000/$0001` destination;
-- CHR31 front-end/password overlays separately disassembled (77/73 reachable instructions), neither writing global `$00/$01`;
-- helper `$8023` has exactly two PRG callsites and no third promoted executable-overlay source.
-
-Artifacts:
-
-- `src/SaintSeiyaNesReborn.OriginalSpec/EngineStateReachability.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/EngineStateReachabilityChecks.cs`
-- `docs/reverse-engineering/ENGINE_STATE_REACHABILITY.md`
-- PR `#121`
-
-Do not reopen the top-level engine-state namespace without a concrete missing executable producer, contradictory ROM/trace evidence, or failing fixture.
-
-### Major gameplay foundations already promoted
-
-Platform movement, jumping, attacks, collision, entities/hazards, resource drain/failure, platform exits/reload and narrative handoffs are HIGH maturity. Boss battle primitives already promoted include:
-
-- active/persistent Life and Cosmo resources plus condition classifiers (`$EA/$EB`);
-- complete Bronze/Gold numeric damage pipeline;
-- Bronze technique slots/availability/unlocks;
-- Gold counterattack dodge window and success/failure counters;
-- stage-indexed initialization, Talk, post-Bronze and post-Gold dispatch tables.
-
-The remaining boss gap is principally **context composition**: prove each stage's event machine end-to-end instead of retaining isolated mechanics and individual handlers.
-
-## EVIDENCE FOR NEXT
-
-### Why stage `$01` Taurus is selected
-
-`BATTLE_EVENT_DISPATCH.md` explicitly identifies Taurus/Aldebaran as the simplest complete per-stage pattern. Stage `$01` has four concrete bank-5 handlers:
+Stage-specific handlers are closed end-to-end:
 
 ```text
 initialization       $97F8
-Talk/interaction     $9D2C
+Talk                 $9D2C
 post-Bronze action   $A3A2
 post-Gold response   $A415
 ```
 
-The surrounding generic battle pipeline is already promoted, making this a bounded composition problem rather than a new combat-engine excavation.
+Promoted Taurus semantics:
 
-Direct ROM anchors already established for the next pass:
+- common `$A973` battle-runtime reset clears `$066F/$064D/$064E/$DD/...` but deliberately preserves weakening `$0681`;
+- `$97F8/$9C3D` performs the Taurus intro, restores real stage `$01`, sets `$068E=1`, emits transient `$0670=$03`, then fixed entry flow clears `$0670` for the command loop;
+- Talk progression is exactly `$066F: 0 -> 1 -> 2`;
+- the second Talk changes `$0681:0->1` once; an already-nonzero weakening tier is not incremented;
+- third and later Talks leave `$066F=2`, raise transient `$DC`, and the fixed caller immediately consumes `$DC` by forcing a Gold counterattack;
+- `$A3A2` terminates victory when `$EB=$FF` via `$0670=$01`;
+- first surviving low-opponent condition (`$EB=$01`, `$DD!=5`) latches `$DD=5` and increments feedback `$064E` before the generic `$06BC` hit-token test;
+- otherwise `$06BC=0` increments `$064E`; landed hits with no first-low event make no Taurus-local state change;
+- `$064E` is feedback/event state in Taurus, not an AI/victory gate;
+- `$A415` terminates defeat when `$EA=$FF` via `$0670=$FF`;
+- first `$EA=$01` while `$064D=0` performs a one-time event and latches `$064D=1`;
+- weakening `$0681` survives defeat/re-entry while ephemeral encounter counters reset; normal victory progression later clears it when leaving the encounter.
 
-- `$97F8` clears stage-local `$064D`, runs common battle setup, initializes display/event fields and enters the shared encounter flow;
-- `$9D2C` is keyed by conversation counter `$066F`; the first two Talk phases advance it, and the second phase increments weakening tier `$0681` exactly once when it is zero;
-- `$A3A2` calls the opponent condition classifier `$ACD6`; opponent defeated (`$EB=$FF`) terminates through `$ACAA` with release/result `$0670=$01`; surviving branches update stage-local turn/event state including `$064E`;
-- `$A415` calls the player condition classifier `$AD55`; player defeated (`$EA=$FF`) terminates through `$ACAA` with `$0670=$FF`; when player condition becomes `$01` and `$064D==0`, a one-time scripted event runs and increments `$064D`;
-- stage `$01` opponent damage coefficients are identical in all four structural Gold-technique slots (`19/29`), so attack-slot identity cannot alter raw numeric damage in this stage;
-- Talk weakening `$0681=1` therefore halves the already-promoted Gold raw damage pipeline.
+Turn composition is now explicit:
 
-This stage is the correct first template for defining what “complete boss context” means before applying the same method to Leo, Virgo, Aquarius, Pisces and Saga.
+```text
+Bronze action -> generic hit/damage -> Taurus $A3A2
+  -> victory, or
+  -> generic Gold counterattack/dodge/damage -> Taurus $A415
+     -> defeat/event/continue
+
+Talk #3+ -> forced generic Gold counterattack -> Taurus $A415
+```
+
+Artifacts:
+
+- `src/SaintSeiyaNesReborn.OriginalSpec/TaurusStage01Context.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/TaurusStage01ContextChecks.cs`
+- `docs/reverse-engineering/BOSS_CONTEXT_STAGE_01_TAURUS.md`
+- PR `#123`
+
+Do not reopen Taurus without contradictory ROM evidence or a failing fixture.
+
+## EVIDENCE FOR NEXT
+
+### Why stage `$04` Leo/Aioria is selected
+
+Taurus established the first complete encounter-context template. Leo is the next useful checkpoint because it introduces stage-local semantics not present in Taurus instead of merely repeating the same pattern.
+
+Stage `$04` handlers are:
+
+```text
+initialization       $989D
+Talk                 $9DD8
+post-Bronze action   $A5B3
+post-Gold response   $A63E
+```
+
+Preliminary ROM anchors for the next pass:
+
+- `$989D` seeds `$ED=1`, performs a multi-phase intro/event setup, manipulates progression/presentation flags, and contains two distinct `INC $0681` sites around `$996A` and `$9A05`; their exact reachable conditions and semantic phases must be proved rather than collapsed into a generic weakening rule;
+- `$9DD8` differs materially from Taurus: first Talk (`$066F=0`) advances conversation and raises transient `$DC`, therefore forcing a Gold counterattack; the exactly-1 branch performs character-dependent dialogue and can call `$A1F4` when `$F1==0`, then advances to 2; later Talks return to the forcing branch and continue advancing `$066F`;
+- `$A5B3` classifies opponent condition through `$ACD6`; `$EB=$FF` reaches victory `$0670=$01`, with an `$ED`-dependent presentation branch that must be resolved for reachability;
+- for surviving low-condition Aioria (`$EB=$01`), `$A5B3` distinguishes active Saint `$0533`: Seiya returns without the non-Seiya effect, while non-Seiya writes `$0690=$FF` and increments `$F1`;
+- `$0690` is already known structurally as a scripted player-hit block, but its exact Leo lifecycle and relationship to `$F1` must be closed in context;
+- `$A63E` follows the familiar post-Gold classifier shape: `$EA=$FF` -> defeat `$0670=$FF`; first low-player condition can latch a one-time `$064D` event;
+- unlike Taurus, stage `$04` has materially different Gold attack coefficient pairs by `$0680` slot:
+
+```text
+slot 0: 48/32
+slot 1: 32/48
+slot 2: 48/32
+slot 3: 32/48
+```
+
+Therefore Leo context closure must trace enough of `$0680` selection/forcing to determine which numeric damage profile is reachable under each stage-local branch. Generic damage arithmetic remains owned by `BOSS_BATTLE_DAMAGE.md`.
 
 ## OPEN
 
-1. Close Taurus stage `$01` from initialization through every Talk phase, Bronze attack result, Gold response and terminal win/loss release.
-2. Prove how `$064D`, `$064E`, `$066F`, `$0681`, `$EA`, `$EB`, `$06BC`, `$DD` and `$0670` cooperate, distinguishing event counters from generic battle state.
-3. Compose—not duplicate—the promoted damage, technique, dodge and resource specifications.
-4. Identify all reachable Taurus turn/event paths and reject structurally present but unreachable branches.
-5. Resolve the exact effect of `$A3A2` branches around `$EB`, `$DD`, `$06BC`, and `$064E`, and the one-time `$A415` low-condition event.
-6. Prove both terminal outcomes through `$ACAA`: victory `$0670=$01` and player defeat `$0670=$FF`, then stop at the already-promoted reload/selector boundary.
-7. Implement one executable stage-1 encounter-context machine with discriminating fixtures and documentation.
-8. After Taurus becomes the template, continue remaining boss contexts stage-by-stage before renderer/RNG/audio unless new evidence requires a dependency first.
+1. Trace `$989D` completely and prove the reachable lifecycle of `$ED` and both `$0681` increments.
+2. Close `$9DD8` Talk reachability, including `$066F`, transient `$DC`, `$F1`, active-Saint branches and helper `$A1F4`.
+3. Trace `$A5B3` for all reachable `$EB/$0533/$ED/$F1/$0690` combinations and terminal victory.
+4. Trace `$A63E` for all reachable `$EA/$064D` branches and terminal defeat.
+5. Resolve the Leo-local lifecycle/meaning of `$F1` and `$0690`, including whether they persist/reset within encounter retries.
+6. Trace `$0680` selection/forcing sufficiently to map reachable Leo Gold attack profiles; compose existing coefficient/damage code rather than reimplement it.
+7. Produce a complete stage-4 encounter graph and executable clean-room context with discriminating fixtures.
+8. Stop terminal paths at `$0670=$01/$FF`, which remain owned by the already-promoted reload/progression machinery.
 
 ## NEXT
 
-**Close the complete stage `$01` Taurus/Aldebaran boss context end-to-end, composing the four stage-specific event handlers with the already-promoted generic battle mechanics.**
+**Close the complete stage `$04` Leo/Aioria boss context end-to-end, composing `$989D/$9DD8/$A5B3/$A63E` with the already-promoted generic battle mechanics.**
 
 Completion criterion:
 
-> Starting from stage `$050E=$01` initialization, produce an evidence-backed executable encounter graph that covers every reachable Taurus Talk/event phase, Bronze and Gold post-action branch, scripted weakening/condition event, and terminal victory/defeat release through `$0670`, without reimplementing already-closed numeric damage, resource, technique or dodge internals.
+> Starting from stage `$050E=$04` initialization, produce an evidence-backed executable encounter graph covering every reachable Leo Talk/event phase, `$ED/$F1/$0690/$0681` lifecycle, Bronze and Gold post-action branches, reachable `$0680` attack profiles, and terminal victory/defeat release through `$0670`, without duplicating already-closed resource, damage or dodge arithmetic.
 
 Required sequence:
 
-1. trace `$97F8` initialization and normalize the Taurus-local starting counters/flags;
-2. close `$9D2C` Talk phases and exact `$066F/$0681` effects;
-3. trace `$A3A2` after Bronze action for all reachable `$EB/$DD/$06BC` combinations and `$064E` updates;
-4. trace `$A415` after Gold response for all reachable `$EA/$064D` branches;
-5. connect terminal `$ACAA` releases to already-promoted reload semantics and stop there;
-6. compose stage-1 context with existing battle damage/resources/techniques/dodge models;
-7. implement the smallest executable Taurus context + discriminating fixtures;
-8. document and run both verification workflows.
+1. close `$989D` initialization/event phases and both `$0681` writers;
+2. close `$9DD8` Talk phases, forced-counterattack behavior and `$A1F4/$F1` effects;
+3. close `$A5B3` post-Bronze branches including Seiya vs non-Seiya low-condition behavior, `$0690`, `$F1`, `$ED` and victory;
+4. close `$A63E` post-Gold low-player/defeat branches;
+5. trace reachable `$0680` selection/forcing and compose the existing stage-4 coefficient pairs;
+6. implement the smallest complete Leo context + discriminating fixtures;
+7. document the full encounter graph and retry/persistence rules;
+8. run both verification workflows and checkpoint only on exact green head.
 
 ## BLOCKERS
 
-- None. Canonical ROM, stage dispatch tables and generic boss mechanics are available.
+- None. Canonical ROM, Taurus context template, generic battle primitives and stage-4 handlers are available.
 
 ## RECOVERY CONTRACT
 
@@ -162,16 +157,16 @@ Recovery order:
 
 1. read this file from `main`;
 2. reconcile `CURRENT` with newer merged Git history if any exists;
-3. inspect `BATTLE_EVENT_DISPATCH.md`, `BOSS_BATTLE_RESOURCES.md`, `BOSS_BATTLE_DAMAGE.md`, `BOSS_DODGE.md` and `BATTLE_TECHNIQUES.md`;
-4. inspect bank-5 Taurus handlers `$97F8`, `$9D2C`, `$A3A2`, `$A415` plus helpers only where they gate stage-local progression;
-5. reuse promoted generic battle specifications rather than reopening formulas;
-6. use `docs/REVERSE_ENGINEERING_STATUS.md` as navigation only;
-7. use `docs/WORK_PROTOCOL.md` for execution rules;
-8. use Drive only to locate private ROM/evidence; Drive never owns a separate `NEXT`.
+3. inspect `BOSS_CONTEXT_STAGE_01_TAURUS.md` as the context-composition template;
+4. inspect `BATTLE_EVENT_DISPATCH.md`, `BOSS_BATTLE_RESOURCES.md`, `BOSS_BATTLE_DAMAGE.md`, `BOSS_DODGE.md` and `BATTLE_TECHNIQUES.md`;
+5. inspect bank-5 Leo handlers `$989D`, `$9DD8`, `$A5B3`, `$A63E` and only the helpers that gate stage-local progression;
+6. reuse promoted generic battle specifications rather than reopening formulas;
+7. use `docs/REVERSE_ENGINEERING_STATUS.md` as navigation only;
+8. use Drive only for private ROM/evidence; Drive never owns a separate `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `boss-context-stage-01-taurus`
+- `last_next_signature`: `boss-context-stage-04-leo`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
