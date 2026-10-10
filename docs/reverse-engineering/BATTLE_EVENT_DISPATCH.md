@@ -2,241 +2,244 @@
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: the four stage-indexed dispatcher families are statically confirmed, the canonical `$050E=$00-$0B` namespace has been coverage-audited end-to-end, and dedicated executable contexts are now closed for `$00/$01/$02/$03/$04/$05/$08/$09/$0A`. The first remaining material gap is `$06` Scorpio / Milo.
+Status: all four stage-indexed dispatcher families are statically confirmed and the canonical `$050E=$00-$0B` namespace is coverage-audited end-to-end. Dedicated contexts are closed for `$00/$01/$02/$03/$04/$05/$06/$08/$09/$0A`; **Capricorn `$07` is the only remaining material gap**. `$0B` is structural/transient. Final-special `$0C` is closed separately.
 
-See `BATTLE_STAGE_CONTEXT_COVERAGE.md` for the numeric denominator, `BOSS_CONTEXT_STAGE_00_MU.md` for Mu, `BOSS_CONTEXT_STAGE_02_GEMINI_FIRST_CAMUS.md` for the composed stage-2 lifecycle, and `BOSS_CONTEXT_STAGE_03_CANCER.md` for Cancer.
+See `BATTLE_STAGE_CONTEXT_COVERAGE.md` for the denominator and `BOSS_CONTEXT_STAGE_06_SCORPIO.md` for the Scorpio composite and its progress-`$08` bridge.
 
 ## Stage-indexed architecture
 
 PRG bank 5 repeatedly uses:
 
-`LDA $050E -> JSR $E698 -> inline pointer table`
+```text
+LDA $050E
+JSR $E698
+<inline pointer table>
+```
 
 `$E698` is the shared indirect dispatcher.
 
-## 1. `$97DB` — battle/stage initialization dispatcher
-
-Pointer table at `$97E1`:
+## 1. Initialization `$97DB` / table `$97E1`
 
 | Stage | Handler |
 |---:|---:|
-| 0 | `$97F7` |
-| 1 | `$97F8` |
-| 2 | `$981F` |
-| 3 | `$9851` |
-| 4 | `$989D` |
-| 5 | `$9A28` |
-| 6 | `$9ACE` |
-| 7 | `$9ACF` |
-| 8 | `$9B14` |
-| 9 | `$9B5C` |
-| 10 | `$9B5D` |
-| 11 | raw pointer `$A960`; no canonical stable battle entry |
-| 12 | table overrun -> raw `$8D00`; unreachable on canonical final-special entry |
+| `$00` | `$97F7` |
+| `$01` | `$97F8` |
+| `$02` | `$981F` |
+| `$03` | `$9851` |
+| `$04` | `$989D` |
+| `$05` | `$9A28` |
+| `$06` | `$9ACE` |
+| `$07` | `$9ACF` |
+| `$08` | `$9B14` |
+| `$09` | `$9B5C` |
+| `$0A` | `$9B5D` |
+| `$0B` | raw `$A960`; structural only |
 
-Stage `$00` has a no-op initializer but material command/Talk state.
+Scorpio `$9ACE` is exactly `RTS`; there is no stage-specific intro reward, presentation or release handoff.
 
-Stage `$02` initializer `$981F` is closed: temporary presentation `$11`, +300 Seventh Sense through `#$03 -> $F31E`, then shared `$9C3D` writes `$0670=$03/$068E=1` and restores stage `$02`.
+Stage `$0B` has no stable canonical provenance: `$F016` never returns `$0B`, and `$A960` points into the real instruction beginning at `$A95F`.
 
-Stage `$03` initializer `$9851` is also closed:
-
-```text
-$9859  LDA #$0E
-$985B  JSR $F2ED         ; temporary presentation index $0E
-...
-$9895  LDA #$04
-$9897  JSR $F31E         ; +400 Seventh Sense
-$989A  JMP $9C3D
-```
-
-Shared `$9C3D` produces the normal intro handoff `$0670=$03/$068E=1` and restores real stage `$03`.
-
-Stage `$0B` remains structural only: `$F016` never selects it as a stable battle stage, and pointer `$A960` lands inside the real instruction beginning at `$A95F` (`AD 6F 06`). Relevant immediate `$0B` uses call temporary loader `$F2ED`.
-
-Saga stage `$0A` remains phase-dispatched through `$06CE`. Stage `$0C` remains the separately closed exception whose canonical entry bypasses this initializer table.
-
-## 2. `$9C95` — Talk / interaction dispatcher
-
-Pointer table at `$9C9B`:
+## 2. Talk `$9C95` / table `$9C9B`
 
 | Stage | Handler |
 |---:|---:|
-| 0 | `$9CB7` |
-| 1 | `$9D2C` |
-| 2 | `$9D81` |
-| 3 | `$9D96` |
-| 4 | `$9DD8` |
-| 5 | `$9E1B` |
-| 6 | `$9E51` |
-| 7 | `$9ED6` |
-| 8 | `$9F00` |
-| 9 | `$9F99` |
-| 10 | `$9FF4` |
-| 11 | `$9FF4` structural alias only |
-| 12 | `$A1AD` |
+| `$00` | `$9CB7` |
+| `$01` | `$9D2C` |
+| `$02` | `$9D81` |
+| `$03` | `$9D96` |
+| `$04` | `$9DD8` |
+| `$05` | `$9E1B` |
+| `$06` | `$9E51` |
+| `$07` | `$9ED6` |
+| `$08` | `$9F00` |
+| `$09` | `$9F99` |
+| `$0A` | `$9FF4` |
+| `$0B` | `$9FF4` structural alias |
+| `$0C` | `$A1AD` separate final-special handler |
 
-### Stage `$00` Talk
+### Scorpio `$9E51`
 
-Closed by `MuStage00Context`:
+Helper `$A1EC` computes the 8-bit sum `$0678+$0677`.
 
-```text
-$066F==0 -> first presentation -> $066F=1
-$066F!=0 -> second/repeated presentation -> $0670=$01
-```
-
-### Stage `$02` Talk
-
-Closed by `GeminiStage02Context`:
+With total below two:
 
 ```text
-$9D81 INC $DC
-       message $45
-       if $066F==0:
-           INC $066F
-           message $43
-       RTS
+Hyoga ($0533=$01):
+  messages $84/$85
+  if $068A==0:
+      INC $068A
+      #$03 -> $A1FF -> +300 Seventh Sense
+  else:
+      no second reward
+
+Seiya/Shun/Shiryu:
+  messages $F8/$3E
+  no reward/state mutation
 ```
 
-Every stage-2 Talk forces a Gold response through transient `$DC`; first Talk writes `$066F:0->1`.
-
-### Stage `$03` Talk
-
-Closed by `CancerStage03Context` and split by `$067C`.
-
-Phase zero:
+With total at least two and `$066F==0`:
 
 ```text
-$9D96  LDA $067C
-$9D99  BNE $9DCB
-...
-$9DBF  LDA #$0C
-$9DC1  STA $02
-$9DC3  LDA #$02
-$9DC5  STA $0670
-$9DC8  PLA
-$9DC9  PLA
-$9DCA  RTS
+per-Saint message table $9ED2 = 86 86 87 86
+message $A3
+INC $066F
+#$02 -> $A1FF -> +200 Seventh Sense
 ```
 
-This creates special platform substate `$0C`, emits release `$02` and unwinds the ordinary Talk caller. It does not increment `$DC`, so no Gold response is forced on this branch.
-
-The already-closed platform `$0C` exit requires `X >= $88 / Y=$20 / jump=0`. Its release-`$02` special resume increments `$067C:0->1` while skipping `$A973`.
-
-Phase one:
+With total at least two and `$066F!=0`:
 
 ```text
-$9DCB  message $58
-$9DD0  message $57
-$9DD5  INC $DC
-$9DD7  RTS
+repeat per-Saint message + $A3
+Hyoga -> return
+Seiya/Shun/Shiryu -> INC $DC -> fixed caller forces Gold response
 ```
 
-The fixed command owner therefore forces a Gold response after phase-one Talk.
+`$068A` and `$066F` are independent reward gates.
 
-Saga `$9FF4` and final-special `$A1AD` retain their already-closed semantics.
-
-## 3. `$A361` — post-Bronze-action dispatcher
-
-Pointer table at `$A367`:
+## 3. Post-Bronze `$A361` / table `$A367`
 
 | Stage | Handler |
 |---:|---:|
-| 0 | `$A3A1` |
-| 1 | `$A3A2` |
-| 2 | `$A444` |
-| 3 | `$A50F` |
-| 4 | `$A5B3` |
-| 5 | `$A661` |
-| 6 | `$A7FF` |
-| 7 | `$A86B` |
-| 8 | `$A8FC` |
-| 9 | `$AA57` |
-| 10 | `$AB18` |
-| 11 | `$A3A1` structural only |
-| 12 | `$A3A1` structural only; unreachable from canonical `$0C` Attack |
+| `$00` | `$A3A1` |
+| `$01` | `$A3A2` |
+| `$02` | `$A444` |
+| `$03` | `$A50F` |
+| `$04` | `$A5B3` |
+| `$05` | `$A661` |
+| `$06` | `$A7FF` |
+| `$07` | `$A86B` |
+| `$08` | `$A8FC` |
+| `$09` | `$AA57` |
+| `$0A` | `$AB18` |
+| `$0B` | `$A3A1` structural |
 
-`$A3A1` is `RTS`.
+### Scorpio `$A7FF`
 
-### Stage `$02` phase split
-
-`$A444` tests `$067C` before generic opponent classification. Phase zero therefore mandates platform `$0E/release $02`; only phase one can reach ordinary stage-2 post-Bronze victory/feedback.
-
-### Stage `$03` ordinary post-Bronze
-
-Cancer `$A50F` has **no** `$067C` gate:
+After shared helpers `$ADC4/$ACD6`:
 
 ```text
-$A50F  JSR $ACD6
-$A512  LDA $EB
-$A514  CMP #$FF
-...
-$A52C  LDA #$01
-$A52E  JMP $ACAA         ; release $01 victory
-
-$A531  LDA $EB
-$A533  CMP #$01
-...
-$A537  INC $064A
-...
-$A548  LDA $06BC
-$A54B  BNE $A547         ; hit -> continue
-...
-$A55A  LDA #$3D          ; miss feedback
+$EB=$FF -> victory presentation -> release $01
+otherwise:
+    $06BC!=0 -> message $A6 -> continue
+    $06BC==0 -> continue without Scorpio-local feedback
 ```
 
-Semantic branches:
+Only `$EB=$FF` is terminal. Scorpio does not distinguish `$EB=$00` from `$EB=$01` for a separate local terminal.
 
-```text
-$EB=$FF             -> release $01
-$EB=$01             -> INC $064A + low-opponent feedback
-$EB=$00 + hit       -> continue
-$EB=$00 + no hit    -> miss feedback
-```
-
-Because `$067C` is not consulted, **phase-zero direct victory is canonical**. Cancer does not require Talk/platform `$0C` before Death Mask can be defeated.
-
-`$064A` is classifier scratch; the stage handler increments it on each `$EB=$01` execution and does not use it as a one-shot predicate.
-
-Mu `$00`, Saga `$0A` and final-special `$0C` retain their previously closed reachability constraints.
-
-## 4. `$A381` — post-Gold-response dispatcher
-
-Pointer table at `$A387`:
+## 4. Post-Gold `$A381` / table `$A387`
 
 | Stage | Handler |
 |---:|---:|
-| 0 | `$A3A1` |
-| 1 | `$A415` |
-| 2 | `$A4CC` |
-| 3 | `$A560` |
-| 4 | `$A63E` |
-| 5 | `$A7B3` |
-| 6 | `$A847` |
-| 7 | `$A8D8` |
-| 8 | `$A9D3` |
-| 9 | `$AAF0` |
-| 10 | `$AC05` |
-| 11 | `$A3A1` structural only |
-| 12 | `$A3A1` structural only; unreachable at canonical `$0C` |
+| `$00` | `$A3A1` |
+| `$01` | `$A415` |
+| `$02` | `$A4CC` |
+| `$03` | `$A560` |
+| `$04` | `$A63E` |
+| `$05` | `$A7B3` |
+| `$06` | `$A847` |
+| `$07` | `$A8D8` |
+| `$08` | `$A9D3` |
+| `$09` | `$AAF0` |
+| `$0A` | `$AC05` |
+| `$0B` | `$A3A1` structural |
 
-Stage `$02` `$A4CC` consumes `$EA=$00/$01/$FF` as healthy/low/defeat `$FF`.
+### Scorpio `$A847`
 
-Stage `$03` `$A560` is closed as:
+After shared classifier `$AD4D`:
 
 ```text
-$EA=$FF                     -> release $FF
-$EA=$01 and $064D==0         -> first-low presentation; INC $064D
-$EA=$01 and $064D!=0         -> common/repeat feedback
-$EA=$00                      -> common/healthy feedback
+$EA=$00 -> return/continue
+$EA=$01 -> messages $A4/$91 -> continue
+$EA=$FF -> release $FF defeat
 ```
 
-`$064D` is therefore a one-time Cancer low-player latch. Normal `$FF` retry returns through `$A973`, which clears `$064D` and `$067C`; retry starts in phase zero and Talk may create platform `$0C` again.
+The low-player feedback is repeatable; no Scorpio one-shot latch is consulted.
 
-Stage `$00` cannot reach Gold response, `$0B` has no stable battle, and `$0C` bypasses ordinary Gold response entirely.
+## 5. Scorpio Gold selector `$908C+`
 
-## Canonical story-stage provenance
+Bank 6 owns a dedicated branch before the generic parity fallthrough:
 
-Fixed `$F016` maps `$067D=$00-$0E`:
+```text
+908C LDA $050E
+908F CMP #$06
+9091 BNE $90A8
+9093 LDA $0677
+9096 CLC
+9097 ADC $0678
+909A CMP #$02
+909C BCC $90A3
+909E LDA #$00
+90A0 JMP $9143
+90A3 LDA #$01
+90A5 JMP $9143
+```
+
+Therefore:
+
+```text
+8-bit dodge sum < 2  -> slot 1
+8-bit dodge sum >= 2 -> slot 0
+```
+
+Only slots `0,1` are reachable.
+
+## 6. Scorpio retry owner
+
+Generic `$FF` defeat leaves story progress `$07`. On normal re-entry common `$A973` clears, among other fields:
+
+```text
+$066F $0670 $0677 $0678 $067C $068A $068E $0690 $06B8
+```
+
+This resets the Scorpio dodge selector and rearms both one-time Talk rewards.
+
+## 7. Scorpio successor ownership
+
+Scorpio victory release `$01` does not hand directly to Capricorn.
+
+First fixed progression:
+
+```text
+$067D:07->08
+$F016[08]=$10
+$E50B[08]=$00
+$050E=$10
+$06CD=$00
+$0673=$30
+```
+
+Fixed `$E4D7` maps progress `$08` to principal platform substate:
+
+```text
+$02=$08
+```
+
+The already-closed common principal platform gate for `$02=$08` requires:
+
+```text
+X >= $D0
+Y == $40
+jump phase == 0
+```
+
+and exits through normal `State3DReload` (`$3D/$E100`).
+
+After reload, fixed `$E2DD` sees story-stage `$050E=$10`, synthesizes release `$01`, and fixed progression reaches:
+
+```text
+$067D:08->09
+$F016[09]=$07
+$E50B[09]=$00
+$050E=$07
+$06CD=$00
+$0673=$30
+```
+
+Active Seiya/Hyoga/Shun/Shiryu is preserved throughout.
+
+Namespace rule: `$050E=$10` is a story-stage value. It is not special-normal platform substate `$02=$10`; this bridge uses `$02=$08`.
+
+## 8. Canonical story-stage provenance
 
 ```text
 00->00  01->01  02->02  03->03  04->04
@@ -244,7 +247,7 @@ Fixed `$F016` maps `$067D=$00-$0E`:
 0A->08  0B->09  0C->0C  0D->0A  0E->00
 ```
 
-Canonical ordinary entries:
+Canonical ordinary battle entries:
 
 ```text
 stage 00 <- progress 00
@@ -261,32 +264,9 @@ stage 0A <- progress 0D
 stage 0B <- none
 ```
 
-Progress `$0E` reuses numeric `$00` only in the already-closed post-Saga platform tail.
+## 9. Gold-slot coverage
 
-### Stage `$02` successor ownership
-
-Ordinary stage-2 `$01` and redirected first-Camus `$FE` both converge on Cancer `$067D=$03/$050E=$03/$06CD=$02/$0673=$32`.
-
-### Stage `$03` successor ownership
-
-Cancer victory `$01` joins fixed `$E399/$E3B3`:
-
-```text
-$067D:03->04
-$F016[04]=$04
-$E50B[04]=$02
-$06CD=$02
-$0673=$32
-$050E=$04
-```
-
-The Cancer roster excludes Ikki, so active Seiya/Shun/Shiryu is preserved. Both phase-zero direct victory and post-platform phase-one victory terminate at the same already-closed Leo boundary.
-
-## Gold-selector coverage
-
-Bank 6 `$9074-$9146` proves canonical reachable opponent slots:
-
-| Stage | Reachable `$0680` slots |
+| Stage | Reachable slots |
 |---:|---|
 | `$00` | none |
 | `$01` | `0,1` |
@@ -301,28 +281,13 @@ Bank 6 `$9074-$9146` proves canonical reachable opponent slots:
 | `$0A` | `0,1,2,3` |
 | `$0B` | none |
 
-Stages `$02/$03` both use the generic parity fallthrough at `$913E`: `slot = $065F & 1`.
-
 ## Coverage classification
 
-| Stage | Context | Coverage status |
-|---:|---|---|
-| `$00` | Mu / pre-battle repair | dedicated special context closed |
-| `$01` | Taurus — Aldebaran | dedicated context closed |
-| `$02` | Gemini / first Camus composite | dedicated context closed |
-| `$03` | Cancer — Death Mask | dedicated context closed |
-| `$04` | Leo — Aioria | dedicated context closed |
-| `$05` | Virgo — Shaka | dedicated context closed |
-| `$06` | Scorpio — Milo | **material context missing; next boundary** |
-| `$07` | Capricorn — Shura | **material context missing** |
-| `$08` | Aquarius — Camus | dedicated context closed |
-| `$09` | Pisces — Aphrodite | dedicated context closed |
-| `$0A` | Pope/Saga | dedicated context closed |
-| `$0B` | transient/structural presentation index | no stable battle |
-| `$0C` | final-special rose bridge | separately closed non-boss exception |
+```text
+closed dedicated : 00 01 02 03 04 05 06 08 09 0A
+material missing : 07
+structural only  : 0B
+separate closed  : 0C
+```
 
-## Promoted contexts and next gap
-
-Dedicated executable contexts are now closed for `$00/$01/$02/$03/$04/$05/$08/$09/$0A`; final-special `$0C` is closed separately. Remaining material gaps are `$06/$07`; `$0B` remains structural only.
-
-The next checkpoint is **stage `$06` Scorpio / Milo**. Its exact owners remain `$9ACE/$9E51/$A7FF/$A847`, with stage-specific Talk/dodge-history behavior and a dedicated Gold selector branch at `$908C+`.
+The next stage-local checkpoint is **Capricorn / Shura `$07`**, owned by `$9ACF/$9ED6/$A86B/$A8D8`. Scorpio's checkpoint terminates at the exact progress `$09` / stage `$07` boundary and does not reopen those internals.
