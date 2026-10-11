@@ -4,193 +4,180 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / global pseudo-random source — $E0AC / $065F-$0660`
+- Phase: `ORIGINAL SPEC / audio scheduler architecture — $DB9C/$DBB6/$0440+`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#161` — exhaustive global NMI presentation coverage.
-- Merge commit: `96fee8a49b81dfc85818dd7dd1603f0cfdc3af4f`
-- Exact final PR head: `6158aef4700c3c986516528c9410bf8950eae5d2`
+- Last verified technical checkpoint: PR `#163` — canonical pseudo-random/phase source `$E0AC`, `$065F/$0660`.
+- Merge commit: `b89a5fb7d86e7b7b322cca1ea13a416ed9ca050f`
+- Exact final PR head: `cb003c01db8370d1195d1e8a527dfad4a40f68da`
 - Verification on that exact head:
-  - `ORIGINAL SPEC tests` #412: `SUCCESS`
-  - `Original Spec` #617: `SUCCESS`
+  - `ORIGINAL SPEC tests` #416: `SUCCESS`
+  - `Original Spec` #620: `SUCCESS`
   - build/self-test/password compatibility: `SUCCESS`
 - Canonical ROM reverified before analysis: size `262160`, SHA-1 `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`, MD5 `3B0F17C2B6EFC928B3D3FE9B1A389680`, SHA-256 `6917B31D7343A9A17170E833BACDBC3B1EBA3E02D11C51C0D44DBE436C9AD43A`, CRC32 `F8D258A3`.
-- Global engine-state namespace, platform presentation chain, front-end/modal/attract presentation, narrative text families, high `$91-$99` presentation and global NMI coverage are frozen.
+- Global presentation, platform frame/rendering, battle/event coverage and canonical RNG source are frozen.
 
 ## DONE
 
-### Global NMI presentation coverage — PR #161
+### Canonical pseudo-random / phase source — PR #163
 
-The fixed-bank NMI dispatcher rooted at `$D269` is now exhaustively composed with the already-closed global `$00/$01` reachability census.
+The source rooted at fixed `$E0AC` is now mechanically closed.
 
-Canonical namespace:
+#### Invocation and recurrence
+
+There is one executable caller:
 
 ```text
-produced global-state values : 59
-no-producer byte values      : 197
-canonical NMI route classes  : 16
-unclassified produced states : 0
-material presentation gaps   : 0
+$E09C JSR $E0AC
 ```
 
-The two mirror-first routes remain semantically prior to live `$00`:
+inside mirror-state `$01=$3D -> $E000` NMI service. The update runs only when:
 
 ```text
-$01=$50 -> $DABC  front-end/title modal NMI
-$01=$3D -> $E000  cooperative reload NMI
+$9C != 0
+($9D | $9E | $A0) == 0
 ```
 
-All remaining routes use live `$00`.
-
-#### Oracle correction found during the audit
-
-Direct canonical ROM flow is:
+The exact recurrence is:
 
 ```text
-$D297 LDA $00
-$D299 BNE $D29E
-$D29B JMP $D382
-```
-
-Therefore live state `$00=$00` does **not** enter ordinary common epilogue at `$D367`. It enters at `$D382`, skipping `$D367-$D381` (the ordinary `$77->$2000` / `$78->$2001` commit) while retaining scroll/status wait, persistent `$3B` restoration and RTI.
-
-This correction was isolated in commit:
-
-```text
-7f90041d4416021a07b7dd9017a729ec48a352af
-```
-
-before the new coverage manifest was added. Do not restore the older `$00->$D367` expectation without contradictory ROM evidence.
-
-#### Canonical presentation ownership
-
-```text
-$00                    -> $D382 tail entry
-$10/$30/$90            -> common $D367 tail
-$3D                    -> mirror $E000 reload
-$11/$14                -> common tail
-$12                    -> $D543 -> $13
-$13                    -> $D42D generated-$0600 stream
-$20                    -> $D7F2 / $D988 platform NMI
-$31-$33/$35-$38        -> common tail
-$34                    -> $D73B
-$40-$4D                -> bank1 $8C19 attract text/presentation
-$50                    -> mirror $DABC modal dispatcher
-$60                    -> bank1 $9D69 HUD/status
-$70                    -> $D3BF (terminal setup reaches $D73B)
-$71-$72/$74-$75        -> common tail
-$73                    -> bank1 $8C19 post-exit text
-$80-$89                -> bank1 $8C19 narrative text
-$91                    -> $D42D
-$92/$97/$99            -> common tail
-$93                    -> $D55E
-$94-$96                -> $D571 -> $D55E
-$98                    -> $D53D / $D511 -> $99
-```
-
-The shared `$8C19` renderer is already bounded by three closed contexts: front-end attract `$40-$4D`, post-exit `$73`, and narrative `$80-$89`. Original text/tile payloads remain private/content-layer data rather than a missing state/presentation contract.
-
-Mapper ownership is also frozen:
-
-```text
-$40-$4D / $73 / $80-$89:
-  dispatcher raw bank1 -> $8C19 -> raw bank3
-
-$60:
-  dispatcher raw bank1 -> $9D69
-  no immediate bank3 write
-  common $D393-$D395 restores persistent $3B
-
-$D42D / $20 / $DABC / $E000:
-  handler-owned mapper transactions
-```
-
-Artifacts:
-
-- `src/SaintSeiyaNesReborn.OriginalSpec/NmiPresentationCoverage.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/NmiPresentationCoverageChecks.cs`
-- `docs/reverse-engineering/NMI_PRESENTATION_COVERAGE.md`
-- corrected `EngineStateDispatcherMap` + fixture
-- PR #161
-
-The global semantic presentation surface is therefore closed. Do not create another renderer checkpoint merely from structurally dispatchable but canonically unreachable byte values.
-
-## EVIDENCE FOR NEXT
-
-With presentation closed, the next bounded global subsystem is the game's pseudo-random/phase source.
-
-Direct canonical fixed-bank evidence exposes the updater at `$E0AC`:
-
-```text
-$E0AC LDX $0660
-$E0AF LDA $94F0,X
-$E0B2 CLC
-$E0B3 ADC $065F
-$E0B6 STA $065F
-$E0B9 INC $0660
-$E0BC RTS
-```
-
-At minimum this proves the byte recurrence:
-
-```text
-$065F' = ($065F + visible_prg[$94F0 + $0660]) & $FF
+source = visible_prg[$94F0 + $0660]
+$065F' = ($065F + source) & $FF
 $0660' = ($0660 + 1) & $FF
 ```
 
-The unresolved qualifier is important: `$94F0` lies in the switchable `$8000-$BFFF` PRG window. The audit must prove which PRG bank is visible at every canonical `$E0AC` invocation before treating `$94F0-$95EF` as one fixed RNG table.
+`$0660` is therefore an update counter modulo 256, not a generic frame counter.
 
-Existing consumer reconnaissance already proves the source is gameplay-relevant:
+#### Bank-sensitive `$94F0` ownership
+
+`$94F0-$95EF` lies in switchable `$8000-$BFFF`. `$E0AC` runs before `$E0BD` restores persistent battle/reload bank `$0639`.
+
+When mapper service is available (`$063E!=$04` and `$063F!=$04`), the last serviced queue owns the visible bank at `$E09C`:
 
 ```text
-$E33D  LDA $065F ; AND #$07 -> $05AC
-$EC18/$EC20/$EC2B  LDA $065F ; AND #$01 / #$03
-$F65D/$F665        LDA $065F ; AND #$01 / #$03 -> $0531 path
-$FAC9/$FAD7        LDA $065F ; AND #$0F ; threshold comparisons -> $06BC
-bank6 $913E/$92E2  direct $065F consumers
-
-$F995  LDA $0660 ; AND #$01 -> dodge danger-direction parity
+$0641 != 0 -> bank 0 when $068F==$8F, else bank 6
+$0526 != 0 -> bank 6
+$0538 != 0 -> bank 5
+$057D != 0 -> bank 6
 ```
 
-`BOSS_DODGE.md` had already left open what drives `$0660`; this updater supplies that missing source relation.
+Later queue wins. If mapper service is blocked, the update consumes the bank already committed/visible on NMI entry.
 
-A raw direct-writer pass found no other direct writer of `$0660` beyond `INC $0660` at `$E0B9`, and no other direct writer of `$065F` beyond `$E0B6`; initialization/reset ownership still needs executable proof rather than assumption.
+The seven physical switchable-bank `$94F0-$95EF` windows have distinct hashes; a single fixed RNG table would therefore be wrong.
+
+#### Reset / seed ownership
+
+Canonical state owners now frozen:
+
+```text
+cold RESET $C13D+                  -> (00,00)
+bank0 $AD4A clear + $0648 fill    -> (01,01)
+bank1 $959D page clear            -> (00,00)
+bank0 $AF0D page clear            -> (00,00)
+```
+
+`$B38A STA $0648,Y` also has two canonical alias offsets:
+
+```text
+Y=$17 -> $065F
+Y=$18 -> $0660
+```
+
+so indirect bank-0 seeding is real and is not discarded as a false positive.
+
+#### Consumer contract
+
+Executable `$065F` consumers are frozen at:
+
+```text
+$E33D             mask $07
+$EC18/$EC20       mask $01, second half +2
+$EC2B             mask $03
+$F65D/$F665       mask $01 / $03
+$FAC9/$FAD7       mask $0F with thresholds $05 / $06
+bank6 $913E       mask $01
+bank6 $92E2       mask $03
+```
+
+`$0660` has one downstream executable consumer outside the updater:
+
+```text
+$F995: even -> $FF, odd -> $01
+```
+
+which closes the previously open parity source used by the already-closed dodge direction path.
+
+Artifacts:
+
+- `src/SaintSeiyaNesReborn.OriginalSpec/CanonicalRandomSourceE0AC.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/CanonicalRandomSourceE0ACChecks.cs`
+- `tools/reverse/audit_canonical_random_source.py`
+- `docs/reverse-engineering/CANONICAL_RANDOM_SOURCE_E0AC.md`
+- PR #163
+
+No original `$94F0` table payload is versioned.
+
+Do not reopen the RNG source without contradictory canonical-ROM evidence or a failing fixture.
+
+## EVIDENCE FOR NEXT
+
+The next bounded global subsystem is audio. Start with architecture, not full song/SFX reconstruction.
+
+Direct fixed-bank evidence:
+
+```text
+$DB9C:
+  $4015=0
+  $04F0=0
+  $04EF=0
+  eight records at $0440 + $15*N, N=0..7
+  record +0 initialized to $FF
+
+$DBB6:
+  input A selects descriptor at $DC0E + 4*A
+  descriptor byte0 selects a $15-byte slot offset
+  descriptor bytes1-3 load slot +1/+2/+3
+  slot +0 becomes 0 (active)
+  existing slot ownership can update $04F0 through mask table $DC0A
+```
+
+This proves an eight-slot scheduler/voice-command layer, but the per-frame updater, exact slot-field meanings, `$04EF/$04F0` ownership and final APU register routing remain unclosed.
+
+Known callsites already depend on this boundary (for example pause cue `$63` through `$DBB6`), so scheduler semantics should be closed before attempting full music data or soundtrack reproduction.
 
 ## OPEN
 
-1. Re-disassemble `$E0AC` in its full caller/NMI context and enumerate every canonical invocation.
-2. Prove the PRG bank visible at `$94F0,X` for each invocation; determine whether the source bytes are one stable 256-byte table or bank-context-dependent ROM data.
-3. Prove initialization/reset ownership for `$065F/$0660`, natural byte wrap behavior, and whether either field is seeded indirectly.
-4. Enumerate executable consumers of `$065F/$0660` and reject raw data/operand false positives.
-5. Classify each real consumer by gameplay owner (battle selection, dodge parity, stage/event choice, etc.) without reopening the already-closed downstream mechanics.
-6. Distinguish this source from deterministic frame counters such as `$3C`; do not label unrelated counters as RNG.
-7. Promote a clean-room `CanonicalRandomSourceE0AC` (or equivalently scoped model) with deterministic sequence/bank-context fixtures and consumer range/parity invariants.
-8. Stop after the pseudo-random source/callsite contract. Do not absorb the audio driver or redesign probability distributions.
+1. Re-disassemble `$DB9C/$DBB6` and every executable caller; freeze cue/descriptor reachability without exporting original music/SFX payloads.
+2. Identify the routine(s) that iterate `$0440 + $15*N` and classify the eight slots, lifecycle byte at `+0`, descriptor fields `+1/+2/+3`, and any shared fields used during playback.
+3. Prove `$04EF/$04F0` semantics and how slot replacement/preemption modifies them.
+4. Enumerate all direct APU writers `$4000-$4015` and assign each to initialization, per-frame synthesis, DMC, or unrelated hardware setup.
+5. Prove the scheduler-to-APU ownership chain and update cadence; distinguish music versus SFX only where callsite/table evidence supports it.
+6. Promote a clean-room `CanonicalAudioScheduler` (or equivalently scoped model) with reset/load/preemption/update fixtures.
+7. Stop after scheduler/voice/APU ownership. Do not yet reproduce full note streams, instrument envelopes, original music data or audio assets.
 
 ## NEXT
 
-**Close the canonical pseudo-random/phase source rooted at fixed `$E0AC`: prove the complete `$065F/$0660` recurrence and initialization, resolve the switchable-PRG ownership of `$94F0,X` at every reachable update, inventory every executable consumer and its mask/range semantics, and promote a deterministic clean-room source/callsite contract with fixtures without reopening the already-closed battle/platform behaviors that consume it.**
+**Close the canonical audio scheduler architecture rooted at `$DB9C/$DBB6` and the eight `$0440+$15*N` records: prove cue-descriptor loading, slot lifecycle/preemption and `$04EF/$04F0` ownership, identify the per-frame slot updater and its APU `$4000-$4015` write ownership, and promote an executable clean-room scheduler contract with fixtures without absorbing full song/SFX payload reconstruction.**
 
 Completion criterion:
 
-> Given a canonical RNG state `$065F/$0660` and the PRG-bank context visible to `$E0AC`, the model must deterministically reproduce the next source state, byte wrapping and every reachable consumer's derived selector/parity range. Every executable writer/update and consumer of `$065F/$0660` must be classified, with raw false positives rejected and zero unresolved bank-context assumptions. Downstream battle/platform semantics remain composed rather than duplicated.
+> Given reset state, a cue ID accepted by `$DBB6`, current eight-slot state and one scheduler update, the model must deterministically reproduce slot selection/initialization, lifecycle/preemption state and the semantic APU-write operations owned by the scheduler. Every executable owner of `$0440-$04EF/$04F0` and `$4000-$4015` relevant to this scheduler boundary must be classified, while original note/music/SFX payload bytes remain outside GitHub.
 
 ## BLOCKERS
 
-- None. Canonical ROM, mapper model, global NMI/presentation closure, battle consumers and clean-room test harness are available.
+- None. Canonical ROM, NMI architecture, cue callsites, clean-room harness and mapper/audio-adjacent fixed routines are available.
 
 ## RECOVERY CONTRACT
 
 1. Refresh `main`, then read this file before executing `NEXT`.
-2. Freeze PR #161 global NMI coverage, PR #159 HUD, PR #156 palette/CHR, PR #154 state-`$20` NMI, PR #151 visual resources and PR #149 battle-stage closure.
-3. Preserve Oracle correction `$00 NMI -> $D382` from commit `7f90041d...`.
-4. Treat `$94F0` as bank-sensitive until callsite evidence proves otherwise.
-5. Do not infer randomness from a masked counter merely because it looks random; classify updater and consumers mechanically.
-6. Do not commit ROM, extracted copyrighted tables/payloads, traces or captures unless private evidence is materially required.
-7. Drive is private evidence storage only and never owns an independent `NEXT`.
+2. Freeze PR #163 RNG, PR #161 global NMI coverage, PR #159 HUD, PR #156 palette/CHR, PR #154 state-$20 NMI, PR #151 visual resources and PR #149 battle-stage closure.
+3. Treat `$0440` as an eight-slot audio scheduler boundary because `$DB9C/$DBB6` prove record structure and `$4015` ownership; do not infer field names beyond evidence.
+4. Preserve original audio content separation: semantic scheduler/state belongs in GitHub; copyrighted note/instrument payloads do not.
+5. Do not merge scheduler architecture with full soundtrack reconstruction in one checkpoint.
+6. Drive remains private evidence storage only and never owns an independent `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `canonical-random-source-e0ac-065f-0660`
+- `last_next_signature`: `audio-scheduler-db9c-dbb6-0440`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
