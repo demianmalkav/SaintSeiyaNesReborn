@@ -1,0 +1,13 @@
+{
+  "schema": "saint-seiya-recovery.v1",
+  "entry_branch": "main",
+  "authorities": {
+    "operational_state": "docs/PROJECT_STATE.md",
+    "work_protocol": "docs/WORK_PROTOCOL.md",
+    "verification": "docs/VERIFY.md",
+    "bootstrap": "AGENTS.md"
+  },
+  "private_evidence_policy": "Drive may hold canonical ROM and curated private evidence, but never an independent NEXT.",
+  "dynamic_state_duplicated": false,
+  "recovery_rule": "Refresh main, read PROJECT_STATE.md, reconcile newer merged history, then execute only its current NEXT under WORK_PROTOCOL.md and VERIFY.md."
+}
