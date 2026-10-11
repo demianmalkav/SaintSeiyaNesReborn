@@ -47,7 +47,7 @@ If `$44` is aligned such that bits 1-2 are clear but `$03A3!=0`, it also perform
 
 The bank switches use raw `$C0B4`; they do not replace persistent `$3B` ownership.
 
-`$9915` belongs to the platform visual/palette/CHR refresh path. It is not entity simulation and is not duplicated by `PlatformState20NmiPhase`.
+`$9915` is now independently closed in `PLATFORM_VISUAL_REFRESH_9915.md`. Its two top gates either execute a one-shot sprite-palette/CHR0 override or transfer into the general platform palette-profile manager; a gate miss is not a no-op. The NMI model deliberately retains this as a separate semantic operation so main-thread rendering and bank-1 presentation ownership remain distinct.
 
 ### New tile-column path
 
@@ -102,6 +102,16 @@ lowN = low0 + 8*N, N=0..7
 ```
 
 Thus `$D7F2/$D844` is a deterministic background-streaming boundary: tile column first, attribute column only on the coarser boundary.
+
+## Bank-1 `$9915` presentation subphase
+
+When `$D7F2` invokes `$9915`, the bank-1 owner may write sprite palettes at `$3F10-$3F1F`, animate the substate-`$0D` background palette at `$3F00-$3F0F`, and on its one-shot special route perform a raw CHR0 mapper write selected by `$9966`.
+
+The palette helper `$9EEF/$9F29` consumes four three-byte descriptor pointers `$0392-$0399`; every descriptor is emitted as `$0F + 3 bytes`. `$9D58` then normalizes PPUADDR through the write sequence `$3F,$00,$00,$00`.
+
+This work occurs before control returns to `$D7F2` and bank 3. The common NMI epilogue below still owns the final `$77/$78/$44/$46` control/mask/scroll commit, so temporary `$9915` PPU state does not replace the NMI mirrors.
+
+The downstream `$9D69+` HUD/name-table writer remains a separate presentation owner and is not part of the `$9915` palette/CHR closure.
 
 ## `$D988` is the platform pause toggle
 
@@ -201,16 +211,18 @@ Y/X/A are restored and the handler returns with `RTI`.
 - sprite-zero-hit-clear wait;
 - persistent `$3B` restore and interrupt return boundary.
 
-The model deliberately emits `$9915`, `$CB6A`, and audio reset/cue activity as semantic operations rather than re-simulating their already-separate subsystems.
+`PlatformVisualRefresh9915` separately models the bank-1 palette/CHR subphase invoked by that semantic operation. The NMI compositor does not re-simulate it inline.
 
 ## Scope boundary
 
-Closed here:
+Closed here and in the linked `$9915` checkpoint:
 
 ```text
 platform main-thread OAM shadow
  -> NMI DMA
- -> state20 background/pause work
+ -> state20 background streamer
+ -> bank1 palette/CHR refresh when selected
+ -> pause work
  -> final PPU control/mask/scroll commit
  -> persistent mapper restore
  -> RTI
@@ -219,9 +231,9 @@ platform main-thread OAM shadow
 Not closed here:
 
 - every other `$00/$01` NMI state;
-- complete palette semantics inside bank-1 `$9915`;
+- downstream platform HUD/name-table writer `$9D69+`;
 - cycle-accurate PPU timing;
 - full audio engine semantics;
 - unrelated mapper users.
 
-No ROM, OAM dump or extracted graphics are committed.
+No ROM, OAM dump, extracted graphics or original palette payloads are committed.
