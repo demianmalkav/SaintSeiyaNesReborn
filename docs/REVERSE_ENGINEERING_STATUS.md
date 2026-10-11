@@ -15,74 +15,59 @@
 | Platform maps / CHR / metasprites | **HIGH / CLOSED** | Kits `$00-$11`, routing CHR estático/dinámico y visual resources cerrados. |
 | Platform / global presentation | **HIGH / CLOSED-SEMANTIC** | State-$20 NMI, palette/CHR, HUD y coverage NMI global con cero gaps materiales. |
 | RNG / pseudo-random source `$065F/$0660` | **HIGH / CLOSED** | PR #163: `$E0AC`, bank-sensitive `$94F0,X`, seeds/resets y consumer masks/parity cerrados. |
-| Audio scheduler `$DB9C/$DBB6/$0440+` | **HIGH / CLOSED** | PR #165: ocho slots, cue loader/preemption, `$04F0/$04EF`, `$8B50+` arbitration y ownership APU cerrados. |
-| Texto/localización | **HIGH / CLOSED-RUNTIME** | PR #167: extracción/codec + request tuple `$066A/$066B/$0672` + contrato externo JP/ES `MSG_000..MSG_250`. |
-| Auditoría integral ORIGINAL SPEC | **CLOSED / ZERO MATERIAL GAPS** | PR #169 audit: inventario integral, ownership y regresión completa; `MATERIAL_GAP=0`. |
-| ORIGINAL SPEC | **FROZEN BASELINE** | Reabrir sólo por evidencia canónica contradictoria, fixture fallida o dependencia original no modelada descubierta durante REBORN. |
-| REBORN | **READY FOR ARCHITECTURE** | Desbloqueado para planificación/arquitectura; todavía no existe implementación REBORN bajo `src/`. |
+| Audio scheduler `$DB9C/$DBB6/$0440+` | **HIGH / CLOSED** | PR #165: slots/cues/preemption, `$04F0/$04EF`, arbitration y ownership APU cerrados. |
+| Texto/localización | **HIGH / CLOSED-RUNTIME** | PR #167: extracción/codec + request tuple + contrato externo JP/ES `MSG_000..MSG_250`. |
+| Auditoría integral ORIGINAL SPEC | **CLOSED / ZERO MATERIAL GAPS** | PR #169: inventario integral, ownership y regresión completa; `MATERIAL_GAP=0`. |
+| ORIGINAL SPEC | **FROZEN BASELINE** | Oracle semántico; reabrir sólo por evidencia contradictoria, fixture fallida o dependencia original material no modelada. |
+| REBORN architecture | **CLOSED INITIAL BOUNDARY** | PR #171: Core determinista + anti-corruption bridge + ports + save schema + slice de texto sintético. |
+| REBORN gameplay | **ACTIVE / FIRST SLICE** | Próximo checkpoint: locomoción horizontal/facing del jugador con paridad semántica acotada. |
 
-## Cierre integral
+## ORIGINAL SPEC freeze
 
-`docs/reverse-engineering/ORIGINAL_SPEC_CLOSURE_AUDIT.md` clasifica cada superficie material como `CLOSED`, `INTENTIONALLY_OUT_OF_SCOPE` o `MATERIAL_GAP`.
-
-Resultado:
+`docs/reverse-engineering/ORIGINAL_SPEC_CLOSURE_AUDIT.md` sigue siendo la matriz integral. Resultado congelado:
 
 ```text
 MATERIAL_GAP = 0
 ```
 
-No se detectó comportamiento material de gameplay/runtime sin propietario entre:
+Fuera de alcance deliberado: payload musical/SFX exacto, payload íntegro JP/ES en GitHub, paridad cycle-accurate, `$050E=$0B` como batalla dedicada y decisiones propias de REBORN.
 
-- boot/mapper/bancos y máquina global;
-- front-end/password;
-- plataforma, control, objetos, hazards, exits/reload y narrativa;
-- mapas/CHR/metasprites/HUD/NMI/presentación;
-- battle/event, recursos, daño, dodge, técnicas y contextos;
-- RNG;
-- scheduler de audio;
-- motor de texto y boundary runtime de localización.
+## REBORN architecture boundary
 
-Quedan explícitamente fuera del requisito de cierre:
-
-- payload musical/SFX original exacto;
-- payload íntegro de diálogo JP/ES en GitHub;
-- paridad instrucción-a-instrucción/cycle-accurate;
-- `$050E=$0B` como batalla dedicada, porque está probado como estructural/transitorio;
-- decisiones y expansiones propias de REBORN.
-
-Estas exclusiones no son gaps materiales de ORIGINAL SPEC.
-
-## Último checkpoint técnico previo al audit
-
-PR #167 cerró la integración runtime de texto:
+`docs/reborn/ARCHITECTURE.md` define la arquitectura inicial:
 
 ```text
-E7B3 -> 066A / 0672=FF
-E7B7 -> 066A / 0672=00
-E7C3 -> 066B / 0672=FF
-E7C7 -> 066B / 0672=00
-identity  MSG_000..MSG_250
-count     251 exactos
-runtime   catálogo CSV externo JP/ES
-fallback  ES -> JP sólo bajo política explícita
+OriginalSpec --\
+               > Reborn.OriginalBridge -> Reborn.Core contracts
+Reborn.Core ---/
+
+future host/adapters -------------------> Reborn.Core
 ```
 
-`$0672` permanece metadata raw de request/presentación; no recibe una semántica más estrecha sin nueva evidencia.
+Reglas congeladas del boundary:
 
-## Política de congelado
+- `Reborn.Core` no referencia `OriginalSpec`;
+- CPU/RAM addresses, entrypoints, PRG/CHR banks y PPU/APU mechanics quedan fuera del dominio;
+- `Reborn.OriginalBridge` es el único traductor entre contratos canónicos NES-facing y DTOs REBORN;
+- `RebornRuntime.Step` usa ticks lógicos deterministas y no wall-clock time;
+- contenido/localización entra por puertos externos; los payloads protegidos siguen privados;
+- presentación/audio consumen output semántico mediante adapters;
+- saves son propiedad de REBORN y versionados, no snapshots de RAM NES.
 
-No reabrir por deuda documental histórica ni por deseo de mayor fidelidad cosmética. Un subsistema congelado sólo vuelve a ORIGINAL SPEC ante:
+Primer slice de arquitectura probado: request de texto canónico -> bridge -> `RebornTextRequest` -> runtime determinista -> resolución JP/ES -> `RebornFrameOutput`, usando sólo strings sintéticos.
 
-1. evidencia canónica contradictoria;
-2. una fixture/oracle existente que falle;
-3. una dependencia semántica original material descubierta al construir REBORN.
+Verification inicial del código de arquitectura:
 
-En ese caso se crea un checkpoint ORIGINAL SPEC acotado y se vuelve a congelar antes de propagar el cambio a REBORN.
+```text
+head                    6104ae5815b1612834e4008418024b385a77c8f7
+REBORN architecture #2  SUCCESS
+ORIGINAL SPEC tests #438 SUCCESS
+```
 
 ## Frontera operativa actual
 
-ORIGINAL SPEC deja de ser la cola principal de trabajo y pasa a funcionar como **oracle/baseline semántico**.
+El siguiente trabajo ya es gameplay REBORN, pero continúa acotado: **locomoción horizontal/facing del jugador de plataforma**.
 
-La frontera global siguiente es **REBORN architecture planning**: definir la primera arquitectura moderna consumidora de ORIGINAL SPEC, los límites entre dominio, runtime, presentación y contenido/localización, la estrategia de tests de paridad y el primer vertical slice. Esa planificación debe preceder a una migración amplia de código o gameplay.
+Debe apoyarse en los contratos/fixtures congelados de player control y horizontal motion, traduciendo sólo la semántica mínima necesaria al Core moderno. Se excluyen del mismo checkpoint collision resolution, hazards, maps/exits, attacks, salto/vertical motion, animation assets y rendering.
 
 El `NEXT` exacto y sus criterios viven exclusivamente en `docs/PROJECT_STATE.md`.
