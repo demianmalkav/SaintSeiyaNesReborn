@@ -21,7 +21,7 @@
 | ORIGINAL SPEC | **FROZEN BASELINE** | Oracle semántico; reabrir sólo por evidencia contradictoria, fixture fallida o dependencia original material no modelada. |
 | REBORN architecture | **CLOSED INITIAL BOUNDARY** | PR #171: Core determinista + anti-corruption bridge + ports + save schema + slice de texto sintético. |
 | REBORN gameplay / horizontal grounded | **CLOSED** | PR #173: world-space locomotion/facing, perfiles 1/1 y 1/2, bridge y parity fixtures. |
-| REBORN gameplay / standing vertical | **CLOSED PENDING MERGE** | PR #175: iniciación + 30-sample standing-jump trajectory, positive-up semantic Y y paridad completa. |
+| REBORN gameplay / standing vertical | **CLOSED** | PR #175: iniciación + 30-sample standing-jump trajectory, positive-up semantic Y y paridad completa. |
 | REBORN gameplay / airborne horizontal | **NEXT** | Standing-jump open-space drift: neutral/left/right + parity cadence, sin collision/landing. |
 
 ## ORIGINAL SPEC freeze
@@ -79,12 +79,14 @@ net rise at table end   +35 px
 
 El slice corta antes del terminal fixed fall, landing, collision, directional/high jumps, air control, attacks y rendering.
 
-Verification del code head del checkpoint:
+Verification del checkpoint:
 
 ```text
-head                       731a34ddf0a94aa730375b69b56bb86eea714078
-REBORN architecture #26    SUCCESS
-ORIGINAL SPEC tests #452   SUCCESS
+code head                  731a34ddf0a94aa730375b69b56bb86eea714078
+final PR head              a80436d93436f6029c5d1b890663ae30d1a6ec78
+merge                      ea2064edcafc38fc1a82d4b8d2283238d39466de
+REBORN architecture #29    SUCCESS
+ORIGINAL SPEC tests #454   SUCCESS
 ```
 
 ## Frontera operativa actual
