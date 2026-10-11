@@ -36,6 +36,19 @@ Campos actuales del catálogo privado:
 - `semantic_alias`
 - `source_text_offset`
 
+## Metadata canónica de solicitud
+
+La integración runtime conserva además la metadata que proviene de los cuatro entrypoints originales del motor de texto:
+
+```text
+$E7B3 -> $066A, $0672=$FF
+$E7B7 -> $066A, $0672=$00
+$E7C3 -> $066B, $0672=$FF
+$E7C7 -> $066B, $0672=$00
+```
+
+El contrato moderno preserva por tanto `(MSG_xxx, slot $066A/$066B, variante $0672)` sin inventar una semántica más estrecha para `$0672` que la evidencia disponible no demuestra.
+
 ## Estados de traducción
 
 - `RAW`: japonés extraído, sin traducción.
@@ -79,7 +92,13 @@ Sin embargo, el texto debe conservar ritmo y función de la escena. No se utiliz
 
 ## Modo de desarrollo
 
-Durante desarrollo debe ser posible consultar el japonés asociado a una línea española. El sistema de localización debe permitir alternar `JP` y `ES` en builds de depuración.
+Durante desarrollo debe ser posible consultar el japonés asociado a una línea española. El sistema de localización permite seleccionar `JP` o `ES` sobre el mismo `MSG_xxx` y conserva slot/variante canónicos para que la presentación moderna no mezcle identidad de contenido con lógica de escena.
+
+La política de fallback es explícita:
+
+- `ES + Japanese fallback`: si una entrada española todavía está vacía, se presenta su fuente JP y se marca que hubo fallback;
+- `ES + None`: una entrada española vacía es error;
+- `JP`: nunca se sintetiza a partir de ES ni cambia de ID.
 
 ## Fuente y trazabilidad
 
@@ -102,3 +121,16 @@ python tools/localization/validate_catalog.py <catalogo.csv>
 ```
 
 El validador comprueba cobertura exacta `0..250`, IDs estables, estados, presencia de fuente/traducción y trazabilidad de offsets sin conocer ni incorporar el contenido del guion.
+
+## Contrato runtime público
+
+`src/SaintSeiyaNesReborn.OriginalSpec/CanonicalRuntimeLocalization.cs` carga el mismo esquema CSV desde una fuente externa y aplica los invariantes necesarios en runtime:
+
+- exactamente 251 entradas;
+- IDs `0..250` sin duplicados;
+- `stable_id` coherente con el ID numérico;
+- fuente japonesa presente;
+- selección JP/ES y fallback determinista;
+- propagación de slot, variante, speaker, scene, alias y offset sin convertir metadata descriptiva en identidad primaria.
+
+Los fixtures públicos generan cadenas sintéticas; no incluyen ninguna línea del guion japonés ni de la traducción española. La especificación técnica completa de esta frontera está en `docs/reverse-engineering/CANONICAL_RUNTIME_TEXT_CONTENT.md`.
