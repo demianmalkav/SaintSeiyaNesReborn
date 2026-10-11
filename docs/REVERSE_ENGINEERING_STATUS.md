@@ -27,91 +27,99 @@
 | Stage `$0B` | CLOSED-STRUCTURAL | Sin entrada estable canónica; usos transitorios/presentación. |
 | Final-special `$0C` | HIGH | Rosas, command ownership y handoff a Saga cerrados, PR #133. |
 | Post-Saga / ending tail | HIGH | `$0E->$11->$70-$89->$8F->$BC39->$BD2F` hard terminal, PR #137. |
-| Plataforma: mapas/metatiles/CHR routing | HIGH | Kits `$00-$11`, CHR0 sprites / CHR1 background y bancos por substate establecidos. |
+| Plataforma: mapas/metatiles/CHR routing | **HIGH / CLOSED** | Kits `$00-$11`, CHR0/CHR1 estáticos y overrides CHR0 dinámicos `$9915/$9966` cerrados. |
 | Metasprites / recursos visuales platform | **HIGH / CLOSED-MECHANICAL** | Shared player/entity `$B987`, tipos `$05-$0F`, `$B647`, `$A908`, `$9B93`, auditor y renderer ROM-fed cerrados, PR #151. |
-| Platform NMI / PPU presentation boundary | **ACTIVE** | OAM DMA y NMI global conocidos; falta cerrar exactamente la rama `$00=$20`, `$D7F2/$D988` y epílogo `$D367+`. |
-| Renderer / frame composition global | MEDIUM-HIGH | Main-thread y recursos mecánicos cerrados; presentación NMI/PPU global todavía incompleta. |
+| Platform NMI `$00=$20` | **HIGH / CLOSED** | OAM DMA, streamer `$D7F2`, pause `$D988`, epílogo `$D367+` y restauración mapper cerrados, PR #154. |
+| Platform palette / CHR refresh `$9915` | **HIGH / CLOSED** | Gates/latches, `$9EEF/$9F29/$9D58`, general profile managers, `$0D` background palette y `$9966` cerrados, PR #156. |
+| Platform HUD/status NMI `$9D69+` | **ACTIVE** | Cuatro fases `$73` y helpers visibles; falta promover writer ejecutable y composición final con `$9915`. |
+| Renderer / frame composition global | HIGH-MEDIUM | Main thread, OAM DMA, map streaming, sprites y palette/CHR cerrados; HUD platform aún activo y otros estados globales quedan para auditoría. |
 | RNG | LOW-MEDIUM | Abierto. |
 | Audio | LOW | Abierto. |
 | Texto/localización | MEDIUM | Corpus JP + borrador ES; integración runtime final pendiente. |
 | Auditoría integral ORIGINAL SPEC | PENDING | Se ejecutará después de cerrar subsistemas globales restantes. |
 | REBORN | EARLY | Congelado hasta cierre integral de ORIGINAL SPEC. |
 
-## Último checkpoint técnico — PR #151
+## Último checkpoint técnico — PR #156
 
-La capa mecánica de recursos visuales platform quedó cerrada.
+La subfase bank-1 de palette/CHR invocada por el NMI de plataforma quedó cerrada.
 
 Resultado principal:
 
 ```text
-$B987 = compositor compartido
-  índice $00-$04 -> Saints internos
-  índice $05-$0F -> tipos primary entity
+$9915 top gate:
+  $07C0 == FE -> $996C fallback
+  $03A4 != FF -> $996C fallback
+  else        -> one-shot special refresh
 
-pointer-table families:
-  B671 B699 B6C1 B6E9 B711 B739
-  B761 B789 B7B1 B7D9 B801
+$03A4 arming:
+  only substates 0C-11
+  camera page $45=0A
+  low thresholds A0/E0/D0/D0/D0/A5
+  substate10 + internal Shun excluded
+  successful refresh FF -> FE, no rearm until reset
 
-direct hidden/flash:
-  B647
+sprite palette:
+  $3F10-$3F1F
+  4 pointer pairs $0392-$0399
+  each descriptor = 3 bytes
+  transfer = $0F + 3 bytes × 4
 
-canonical audit:
-  121/121 primary pointer selections válidos
-  51 definiciones primarias distintas
+special fourth descriptor:
+  non-10 -> $9960
+  10     -> $9963
 
-max sprites:
-  05=10 06=10 07=10 08=11 09=9  0A=6
-  0B=7  0C=7  0D=12 0E=4  0F=4
+dynamic CHR0 $9966:
+  0C 1D
+  0D 1D
+  0E 1B
+  0F 00
+  10 19
+  11 00
 
-0D exception:
-  B761 -> B324 -> 12 sprites
-  coincide con A647 retirando +2C/+2D extra
-
-A908 direct attached visual:
-  C0E3 tile
-  C0EF vertical/Y offset
-  visual sólo 05/06/08/09/0C
-
-9B93 direct bootstrap resources:
-  PRG bank 3
-  9B65 / 9B6C / 9B73 / 9B8F
+substate0D background palette:
+  pages02-04
+  A02B/A022 alternation by $3C bit3 + $03A7
+  exact 16-byte $3F00-$3F0F transfer
 ```
 
-El selector clean-room reproduce también la mutación de `$28` en el path dinámico `$BA62` cuando `$03B9==0`.
+General fallback `$996C+` also closes primary `$03B7`, secondary `$03B4/$03B5`, and pending `$03A9` palette selectors. `$9D58` normalizes PPUADDR via `$3F,$00,$00,$00`.
 
 Technical checkpoint:
 
 ```text
-PR    #151
-merge f0e36cf9b3f73988ac9b59b62aa93f9b269f4042
-head  fe2d0e16a3ace099be4d580c4878abf86c4ba5d6
-CI    #388 SUCCESS / #597 SUCCESS
+PR    #156
+merge a6f421289fcaf8e2e000282307edb3a7223f95e1
+head  a76b084b5e8fc3999931ec618157bcd1a4aca800
+CI    #401 SUCCESS / #609 SUCCESS
 ```
 
-No se versionó ROM, CHR extraído ni PNG generado.
+An earlier head exposed one self-test namespace-import error after the library itself built successfully; the corrected exact final head passed build, self-test, password fixture and parity.
+
+No ROM, CHR payload, palette payload, OAM dump or generated art was versioned.
 
 ## Frontera operativa actual
 
-La próxima frontera es **platform state `$20` NMI / presentación PPU**.
+La próxima frontera contigua es **platform HUD/status writer `$9D69-$9EED`**.
 
-Ya está congelado:
-
-- vector NMI `$C000 -> $D269`;
-- prologue de NMI, contrato `$3A/$3B`, reset serial MMC1;
-- OAM shadow page `$0700-$07FF` y DMA `$4014=$07`;
-- main-thread platform frame completo hasta late objects y `$3C`;
-- CHR0/CHR1 routing y definiciones de sprite;
-- epílogo común visible alrededor de `$D367+` con mirrors `$77/$78`, scroll `$44/$46` y restauración de PRG bank `$3B`.
-
-La rama platform `$00=$20` llama:
+Direct ROM reconnaissance already shows:
 
 ```text
-$D2BA JSR $D7F2
-$D2BD JSR $D988
-$D2C0 JMP $D367
+$9D69:
+  $2000=0
+  $73 = ($73 + 1) & 3
+  phase0 / phase1 / phase2 / phase3
 ```
 
-El trabajo inmediato es volver a clasificar `$D7F2/$D988` desde bytes canónicos y cerrar la frontera semántica OAM-DMA/PPU, corrigiendo cualquier etiqueta histórica que contradiga el ROM.
+The four phases update small HUD regions instead of redrawing the whole interface every invocation. Confirmed primitives include:
+
+- `$9EB8/$9EC4`: packed-BCD nibble -> digit tile `$80+nibble`;
+- `$9E73/$9E77/$9E80`: repeated fill-tile writers;
+- `$9E84`: threshold classifier producing `$A7/$B1-$B6/$BF` gauge tiles;
+- `$9ECD/$9ED8/$9EE3`: fixed PPU target setters `$22F4/$2334/$2374`.
+
+Phase0 writes active-Saint packed resources at `$22F0/$2330` and, when `$02!=0`, Seventh Sense around `$236F`. Phases1/2 update the two resource/cap gauges; phase3 updates a Seventh-Sense gauge when applicable.
+
+No current code/test artifact closes this writer, so it is the next real presentation gap rather than duplicate work.
 
 ## No reabrir sin evidencia nueva
 
@@ -135,14 +143,16 @@ El trabajo inmediato es volver a clasificar `$D7F2/$D988` desde bytes canónicos
 - `$11-$14`, `$60`, `$91-$99` — #111/#113/#115;
 - platform exits/reload/narrativa;
 - platform main-thread persistent late-object frame;
-- map kits `$00-$11` / CHR0/CHR1 routing;
+- map kits `$00-$11` / static CHR routing;
 - platform visual-resource definitions — #151;
+- platform state-`$20` NMI — #154;
+- platform palette/dynamic CHR refresh `$9915` — #156;
 - boss damage/resources/dodge/techniques genéricos.
 
 ## Áreas abiertas
 
-1. platform state `$20` NMI / OAM DMA / PPU-control-scroll commit;
-2. resto de renderer/palette/frame presentation global que quede después de esa frontera;
+1. platform HUD/status writer `$9D69-$9EED`;
+2. cualquier otro renderer/NMI global detectado por auditoría después de cerrar el HUD de plataforma;
 3. RNG;
 4. audio;
 5. texto runtime/localización final;
