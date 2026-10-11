@@ -4,180 +4,172 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / audio scheduler architecture — $DB9C/$DBB6/$0440+`
+- Phase: `ORIGINAL SPEC / runtime text-content integration`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#163` — canonical pseudo-random/phase source `$E0AC`, `$065F/$0660`.
-- Merge commit: `b89a5fb7d86e7b7b322cca1ea13a416ed9ca050f`
-- Exact final PR head: `cb003c01db8370d1195d1e8a527dfad4a40f68da`
+- Closing checkpoint in this PR: `#165` — canonical audio scheduler `$DB9C/$DBB6/$0440+`.
+- Pre-state-update verified PR head: `10482ab54cefaca61adbeaf14102176a3e87f5b6`.
 - Verification on that exact head:
-  - `ORIGINAL SPEC tests` #416: `SUCCESS`
-  - `Original Spec` #620: `SUCCESS`
-  - build/self-test/password compatibility: `SUCCESS`
+  - `Original Spec` #624: `SUCCESS`
+  - `ORIGINAL SPEC tests` #420: `SUCCESS`
 - Canonical ROM reverified before analysis: size `262160`, SHA-1 `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`, MD5 `3B0F17C2B6EFC928B3D3FE9B1A389680`, SHA-256 `6917B31D7343A9A17170E833BACDBC3B1EBA3E02D11C51C0D44DBE436C9AD43A`, CRC32 `F8D258A3`.
-- Global presentation, platform frame/rendering, battle/event coverage and canonical RNG source are frozen.
+- Global presentation, platform frame/rendering, battle/event coverage, canonical RNG and audio scheduler architecture are frozen after their verified checkpoints.
 
 ## DONE
 
-### Canonical pseudo-random / phase source — PR #163
+### Canonical audio scheduler architecture — PR #165
 
-The source rooted at fixed `$E0AC` is now mechanically closed.
+The bounded scheduler/voice/APU ownership layer rooted at fixed `$DB9C/$DBB6` and bank-0 `$8B50+` is mechanically closed without versioning original song/SFX payloads.
 
-#### Invocation and recurrence
+#### Reset and slot layout
 
-There is one executable caller:
-
-```text
-$E09C JSR $E0AC
-```
-
-inside mirror-state `$01=$3D -> $E000` NMI service. The update runs only when:
+`$DB9C` proves eight records at:
 
 ```text
-$9C != 0
-($9D | $9E | $A0) == 0
+$0440 + $15*N, N=0..7
 ```
 
-The exact recurrence is:
+Reset semantics:
 
 ```text
-source = visible_prg[$94F0 + $0660]
-$065F' = ($065F + source) & $FF
-$0660' = ($0660 + 1) & $FF
+$4015 = 00
+$04F0 = 00
+$04EF = 00
+slot[+0] = FF for all eight records
 ```
 
-`$0660` is therefore an update counter modulo 256, not a generic frame counter.
+Therefore `+0 == $FF` is inactive.
 
-#### Bank-sensitive `$94F0` ownership
+#### Cue loading and preemption
 
-`$94F0-$95EF` lies in switchable `$8000-$BFFF`. `$E0AC` runs before `$E0BD` restores persistent battle/reload bank `$0639`.
-
-When mapper service is available (`$063E!=$04` and `$063F!=$04`), the last serviced queue owns the visible bank at `$E09C`:
+`$DBB6` maps input cue ID `A` to a four-byte descriptor at `$DC0E + 4*A`:
 
 ```text
-$0641 != 0 -> bank 0 when $068F==$8F, else bank 6
-$0526 != 0 -> bank 6
-$0538 != 0 -> bank 5
-$057D != 0 -> bank 6
+descriptor[0] -> slot offset
+descriptor[1] -> slot +1
+descriptor[2] -> slot +2
+descriptor[3] -> slot +3
+slot +0       -> 00
 ```
 
-Later queue wins. If mapper service is blocked, the update consumes the bank already committed/visible on NMI entry.
+The low two bits of slot `+1` select channel class `0..3` -> pulse1, pulse2, triangle, noise.
 
-The seven physical switchable-bank `$94F0-$95EF` windows have distinct hashes; a single fixed RNG table would therefore be wrong.
+If the selected record was already active, the old record channel selects mask `$0E/$0D/$0B/$07` at `$DC0A`; that mask clears the old channel bit from `$04F0` before the new descriptor is installed.
 
-#### Reset / seed ownership
+#### `$04F0` and `$04EF`
 
-Canonical state owners now frozen:
+`$04F0` is the software shadow of the low four `$4015` channel-enable bits.
+
+Owners are frozen at:
 
 ```text
-cold RESET $C13D+                  -> (00,00)
-bank0 $AD4A clear + $0648 fill    -> (01,01)
-bank1 $959D page clear            -> (00,00)
-bank0 $AF0D page clear            -> (00,00)
+$DB9C          reset shadow
+$DBB6          clear old owner on record replacement
+$8DB0-$8DBC    OR channel bit, store shadow, write $4015
+$8DFD-$8E09    AND clear mask, store shadow, write $4015
 ```
 
-`$B38A STA $0648,Y` also has two canonical alias offsets:
+`$04EF` is not APU state. Bank-0 stream command `$A5` stores an operand to `$04EF`; fixed dispatcher `$DB40+` consumes nonzero `$04EF` by invoking visual-buffer routines `$8904/$8AF1` and then clearing the latch.
+
+#### Per-frame scheduler and arbitration
+
+Bank-0 `$8B50+`:
 
 ```text
-Y=$17 -> $065F
-Y=$18 -> $0660
+$04E8 = 0           ; per-frame claimed-channel mask
+INC $04EE           ; modulo-256 phase/update byte
+iterate 8 records in ascending slot order
+channel = slot[+1] & 3
+APU base offset = 0,4,8,12
 ```
 
-so indirect bank-0 seeding is real and is not discarded as a false positive.
+`$8E0D` suppresses a later slot when an earlier active slot already claimed the same channel. Therefore the first active slot in ascending record order owns that channel for the frame.
 
-#### Consumer contract
+A newly loaded record (`+0==0`) enters the initialization path before normal stream processing.
 
-Executable `$065F` consumers are frozen at:
+#### APU ownership
+
+Scheduler-relevant executable writers are frozen as:
 
 ```text
-$E33D             mask $07
-$EC18/$EC20       mask $01, second half +2
-$EC2B             mask $03
-$F65D/$F665       mask $01 / $03
-$FAC9/$FAD7       mask $0F with thresholds $05 / $06
-bank6 $913E       mask $01
-bank6 $92E2       mask $03
+$DB9E                 $4015 reset
+$8DBC                 $4015 enable-shadow write
+$8E06                 $4015 disable-shadow write
+$8E4D / $8E9E         $4000 + channel base
+$8DCD                 $4001 + channel base
+$8DD1 / $8F0E         $4002 + channel base
+$8DEA                 $4003 + channel base
 ```
 
-`$0660` has one downstream executable consumer outside the updater:
-
-```text
-$F995: even -> $FF, odd -> $01
-```
-
-which closes the previously open parity source used by the already-closed dodge direction path.
+with channel bases `0,4,8,12`. Cold RESET `$C12C+` separately initializes `$4010/$4015/$4017`; no scheduler-owned DMC `$4010-$4013` path was found.
 
 Artifacts:
 
-- `src/SaintSeiyaNesReborn.OriginalSpec/CanonicalRandomSourceE0AC.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/CanonicalRandomSourceE0ACChecks.cs`
-- `tools/reverse/audit_canonical_random_source.py`
-- `docs/reverse-engineering/CANONICAL_RANDOM_SOURCE_E0AC.md`
-- PR #163
+- `src/SaintSeiyaNesReborn.OriginalSpec/CanonicalAudioScheduler.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/CanonicalAudioSchedulerChecks.cs`
+- `tools/reverse/audit_canonical_audio_scheduler.py`
+- `docs/reverse-engineering/CANONICAL_AUDIO_SCHEDULER_DB9C_DBB6.md`
+- PR #165
 
-No original `$94F0` table payload is versioned.
+The clean-room contract accepts decoded semantic voice-frame operations; original note streams, instruments, envelopes, music and SFX payload bytes remain outside GitHub.
 
-Do not reopen the RNG source without contradictory canonical-ROM evidence or a failing fixture.
+Do not reopen audio scheduler architecture without contradictory canonical-ROM evidence or a failing fixture.
 
 ## EVIDENCE FOR NEXT
 
-The next bounded global subsystem is audio. Start with architecture, not full song/SFX reconstruction.
+The remaining material prerequisite before an integral ORIGINAL SPEC audit is runtime text/content integration, not soundtrack payload reconstruction.
 
-Direct fixed-bank evidence:
+Already-confirmed text architecture:
 
 ```text
-$DB9C:
-  $4015=0
-  $04F0=0
-  $04EF=0
-  eight records at $0440 + $15*N, N=0..7
-  record +0 initialized to $FF
-
-$DBB6:
-  input A selects descriptor at $DC0E + 4*A
-  descriptor byte0 selects a $15-byte slot offset
-  descriptor bytes1-3 load slot +1/+2/+3
-  slot +0 becomes 0 (active)
-  existing slot ownership can update $04F0 through mask table $DC0A
+message IDs                   0..250 (251 total)
+fixed entrypoints             $E7B3/$E7B7 -> $066A
+                              $E7C3/$E7C7 -> $066B
+variant/side byte             $0672
+pointer table                 bank6 $A47B, 251 words
+physical message storage      CHR4K $15 || CHR4K $17
+terminator                    $FF
+space                         $01
+line break                    $A4
+dakuten / handakuten          $3B / $3C
 ```
 
-This proves an eight-slot scheduler/voice-command layer, but the per-frame updater, exact slot-field meanings, `$04EF/$04F0` ownership and final APU register routing remain unclosed.
+`tools/reverse/extract_japanese_script.py` already reconstructs the private 251-message Japanese source corpus from the canonical ROM. `docs/LOCALIZATION.md` fixes stable public IDs `MSG_000..MSG_250`, and `tools/localization/validate_catalog.py` validates a private localization catalog without embedding copyrighted script content in the repository.
 
-Known callsites already depend on this boundary (for example pause cue `$63` through `$DBB6`), so scheduler semantics should be closed before attempting full music data or soundtrack reproduction.
+The missing boundary is runtime-facing integration: a content-independent executable contract that resolves stable message IDs through language selection and presentation metadata while preserving the original two-slot/variant semantics needed by canonical callsites. Full Japanese/Spanish dialogue payloads remain private.
 
 ## OPEN
 
-1. Re-disassemble `$DB9C/$DBB6` and every executable caller; freeze cue/descriptor reachability without exporting original music/SFX payloads.
-2. Identify the routine(s) that iterate `$0440 + $15*N` and classify the eight slots, lifecycle byte at `+0`, descriptor fields `+1/+2/+3`, and any shared fields used during playback.
-3. Prove `$04EF/$04F0` semantics and how slot replacement/preemption modifies them.
-4. Enumerate all direct APU writers `$4000-$4015` and assign each to initialization, per-frame synthesis, DMC, or unrelated hardware setup.
-5. Prove the scheduler-to-APU ownership chain and update cadence; distinguish music versus SFX only where callsite/table evidence supports it.
-6. Promote a clean-room `CanonicalAudioScheduler` (or equivalently scoped model) with reset/load/preemption/update fixtures.
-7. Stop after scheduler/voice/APU ownership. Do not yet reproduce full note streams, instrument envelopes, original music data or audio assets.
+1. Reconcile `TEXT_ENGINE.md`, `LOCALIZATION.md`, extractor/catalog validator and all existing message-context metadata; do not duplicate already-closed extraction work.
+2. Freeze the runtime message-request contract around `$066A/$066B/$0672` and the four `$E7Bx` entrypoints, including slot/variant semantics only where evidence supports naming them.
+3. Classify message-producing callsites by runtime context sufficiently to bridge canonical `MSG_000..MSG_250` IDs to stable semantic metadata without embedding source dialogue.
+4. Promote a clean-room runtime localization interface that accepts an external/private catalog, supports at least `JP` and `ES`, preserves stable IDs, and cleanly separates dialogue payload from game logic.
+5. Add fixtures proving deterministic message selection/fallback, slot/variant propagation, catalog coverage `0..250`, and absence of hard-coded copyrighted dialogue in the public contract.
+6. Stop after runtime text/content integration. Do not begin REBORN implementation or integral ORIGINAL SPEC closure in the same checkpoint.
 
 ## NEXT
 
-**Close the canonical audio scheduler architecture rooted at `$DB9C/$DBB6` and the eight `$0440+$15*N` records: prove cue-descriptor loading, slot lifecycle/preemption and `$04EF/$04F0` ownership, identify the per-frame slot updater and its APU `$4000-$4015` write ownership, and promote an executable clean-room scheduler contract with fixtures without absorbing full song/SFX payload reconstruction.**
+**Close runtime text/content integration around canonical `MSG_000..MSG_250`: prove the request semantics of `$E7B3/$E7B7/$E7C3/$E7C7` through `$066A/$066B/$0672`, classify the runtime metadata needed by canonical callsites, and promote a clean-room JP/ES localization contract that loads private external catalogs while keeping all original/translated dialogue payloads out of GitHub.**
 
 Completion criterion:
 
-> Given reset state, a cue ID accepted by `$DBB6`, current eight-slot state and one scheduler update, the model must deterministically reproduce slot selection/initialization, lifecycle/preemption state and the semantic APU-write operations owned by the scheduler. Every executable owner of `$0440-$04EF/$04F0` and `$4000-$4015` relevant to this scheduler boundary must be classified, while original note/music/SFX payload bytes remain outside GitHub.
+> Given a canonical message request (stable `MSG_xxx`, message slot and `$0672` variant), selected language and a valid external catalog, the public clean-room contract must deterministically resolve the requested localized entry and propagate the canonical request metadata. It must reject malformed/incomplete catalogs, preserve exact ID coverage `0..250`, provide an explicit fallback policy, and contain no copyrighted dialogue payload. Existing extraction/codec behavior must remain regression-green.
 
 ## BLOCKERS
 
-- None. Canonical ROM, NMI architecture, cue callsites, clean-room harness and mapper/audio-adjacent fixed routines are available.
+- None. Canonical ROM, text engine reconstruction, 251-message extractor, stable IDs, private-catalog validator and battle-context metadata already exist.
 
 ## RECOVERY CONTRACT
 
 1. Refresh `main`, then read this file before executing `NEXT`.
-2. Freeze PR #163 RNG, PR #161 global NMI coverage, PR #159 HUD, PR #156 palette/CHR, PR #154 state-$20 NMI, PR #151 visual resources and PR #149 battle-stage closure.
-3. Treat `$0440` as an eight-slot audio scheduler boundary because `$DB9C/$DBB6` prove record structure and `$4015` ownership; do not infer field names beyond evidence.
-4. Preserve original audio content separation: semantic scheduler/state belongs in GitHub; copyrighted note/instrument payloads do not.
-5. Do not merge scheduler architecture with full soundtrack reconstruction in one checkpoint.
-6. Drive remains private evidence storage only and never owns an independent `NEXT`.
+2. Freeze PR #165 audio scheduler architecture and all earlier closed gates unless new contradictory evidence appears.
+3. Treat the 251 message IDs as immutable localization identity; semantic aliases may improve, numeric IDs may not change.
+4. Keep full JP/ES script content private. Public GitHub receives only engine semantics, schemas/contracts, validators, synthetic fixtures and non-copyrighted metadata.
+5. Do not couple localization runtime closure to REBORN UI implementation.
+6. Drive remains private evidence/content storage only and never owns an independent `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `audio-scheduler-db9c-dbb6-0440`
+- `last_next_signature`: `runtime-text-content-msg000-250-e7bx`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
