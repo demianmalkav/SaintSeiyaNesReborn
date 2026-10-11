@@ -1,4 +1,5 @@
 using SaintSeiyaNesReborn.OriginalSpec;
+using SaintSeiyaNesReborn.OriginalSpec.Platform;
 using SaintSeiyaNesReborn.Reborn.Core;
 using SaintSeiyaNesReborn.Reborn.OriginalBridge;
 
@@ -23,6 +24,61 @@ static CanonicalRuntimeLocalization BuildSyntheticCatalog()
             $"offset_{id:000}"));
 
     return new CanonicalRuntimeLocalization(entries);
+}
+
+static PlatformStageMap BuildOpenHorizontalStage()
+{
+    var empty = new byte[PlatformStagePage.DescriptorCount];
+    return new PlatformStageMap(
+        substate: 0,
+        pages: Enumerable.Range(0, 6)
+            .Select(page => new PlatformStagePage(page, empty))
+            .ToArray());
+}
+
+static PlatformInput ToCanonicalInput(RebornHorizontalInput input) => input switch
+{
+    RebornHorizontalInput.Neutral => PlatformInput.None,
+    RebornHorizontalInput.Left => PlatformInput.Left,
+    RebornHorizontalInput.Right => PlatformInput.Right,
+    _ => throw new ArgumentOutOfRangeException(nameof(input)),
+};
+
+static void CheckHorizontalParity(
+    PlatformStageMap stage,
+    PlatformCollisionDescriptors openProbes,
+    PlatformSaintIndex saint,
+    byte frameCounter,
+    PlatformHorizontalState canonicalInitial,
+    RebornHorizontalInput input,
+    string name)
+{
+    var canonicalInput = ToCanonicalInput(input);
+    var groundedStep = PlatformMovementIncrements.FromFrame(saint, frameCounter).Grounded0387;
+    var canonical = PlatformHorizontalMotion.StepGrounded(
+        stage,
+        canonicalInitial,
+        canonicalInput,
+        openProbes,
+        groundedStep);
+
+    var rebornInitial = OriginalSpecPlatformHorizontalBridge.FromCanonicalState(
+        canonicalInitial,
+        frameCounter);
+    var profile = OriginalSpecPlatformHorizontalBridge.ProfileFor(saint);
+    var reborn = RebornPlatformPlayerHorizontalLocomotion.Step(rebornInitial, input, profile);
+    var expected = OriginalSpecPlatformHorizontalBridge.FromCanonicalState(
+        canonical.State,
+        unchecked((byte)(frameCounter + 1)),
+        isLocomoting: input != RebornHorizontalInput.Neutral);
+
+    Check(reborn.State.WorldX == expected.WorldX, $"{name}: REBORN world X diverged from canonical projection.");
+    Check(reborn.State.Facing == expected.Facing, $"{name}: REBORN facing diverged from canonical projection.");
+    Check(reborn.State.Phase == expected.Phase, $"{name}: REBORN logical phase diverged from canonical frame parity.");
+    Check(reborn.State.IsLocomoting == expected.IsLocomoting, $"{name}: locomotion semantic state diverged.");
+    Check(
+        reborn.AppliedDelta == expected.WorldX - rebornInitial.WorldX,
+        $"{name}: reported horizontal delta diverged from canonical world movement.");
 }
 
 var catalog = BuildSyntheticCatalog();
@@ -92,4 +148,97 @@ catch (InvalidOperationException)
 }
 Check(rejectedUnknownSchema, "Unknown REBORN save schema must be rejected explicitly.");
 
-Console.WriteLine("REBORN architecture self-test PASS");
+// First gameplay vertical slice: project the frozen grounded original into a
+// camera-independent world-space locomotion contract.
+var horizontalStage = BuildOpenHorizontalStage();
+var openProbes = new PlatformCollisionDescriptors(null, 0, 0, null, 0, 0, null, null);
+
+CheckHorizontalParity(
+    horizontalStage,
+    openProbes,
+    PlatformSaintIndex.Seiya,
+    frameCounter: 0,
+    new PlatformHorizontalState(0x7F, 0x00, 0x00, 0x00),
+    RebornHorizontalInput.Right,
+    "right before camera handoff");
+
+CheckHorizontalParity(
+    horizontalStage,
+    openProbes,
+    PlatformSaintIndex.Seiya,
+    frameCounter: 0,
+    new PlatformHorizontalState(0x80, 0x00, 0x00, 0x40),
+    RebornHorizontalInput.Right,
+    "right during canonical camera handoff");
+
+CheckHorizontalParity(
+    horizontalStage,
+    openProbes,
+    PlatformSaintIndex.Seiya,
+    frameCounter: 0,
+    new PlatformHorizontalState(0x40, 0x88, 0x03, 0x40),
+    RebornHorizontalInput.Left,
+    "left with nonzero canonical scroll");
+
+CheckHorizontalParity(
+    horizontalStage,
+    openProbes,
+    PlatformSaintIndex.Seiya,
+    frameCounter: 0,
+    new PlatformHorizontalState(0x40, 0x00, 0x00, 0x40),
+    RebornHorizontalInput.Neutral,
+    "neutral preserves position and facing");
+
+CheckHorizontalParity(
+    horizontalStage,
+    openProbes,
+    PlatformSaintIndex.Shun,
+    frameCounter: 0,
+    new PlatformHorizontalState(0x20, 0x00, 0x00, 0x00),
+    RebornHorizontalInput.Right,
+    "distinct profile even phase");
+
+CheckHorizontalParity(
+    horizontalStage,
+    openProbes,
+    PlatformSaintIndex.Shun,
+    frameCounter: 1,
+    new PlatformHorizontalState(0x20, 0x00, 0x00, 0x00),
+    RebornHorizontalInput.Right,
+    "distinct profile odd phase");
+
+var seiyaProfile = OriginalSpecPlatformHorizontalBridge.ProfileFor(PlatformSaintIndex.Seiya);
+var shunProfile = OriginalSpecPlatformHorizontalBridge.ProfileFor(PlatformSaintIndex.Shun);
+Check(seiyaProfile == new RebornGroundedHorizontalProfile(1, 1), "Canonical Seiya grounded profile must project to 1/1.");
+Check(shunProfile == new RebornGroundedHorizontalProfile(1, 2), "Canonical Shun grounded profile must project to 1/2.");
+Check(
+    OriginalSpecPlatformHorizontalBridge.FromCanonicalInput(PlatformInput.Left | PlatformInput.Right) == RebornHorizontalInput.Right,
+    "Canonical simultaneous directions must preserve Right priority at the bridge.");
+
+var sequence = new[]
+{
+    RebornHorizontalInput.Right,
+    RebornHorizontalInput.Right,
+    RebornHorizontalInput.Neutral,
+    RebornHorizontalInput.Left,
+    RebornHorizontalInput.Right,
+};
+var initialSemantic = new RebornPlatformPlayerHorizontalState(
+    WorldX: 100,
+    Facing: RebornFacing.Left,
+    Phase: RebornMotionPhase.Even,
+    IsLocomoting: false);
+var sequenceA = initialSemantic;
+var sequenceB = initialSemantic;
+foreach (var horizontalInput in sequence)
+{
+    sequenceA = RebornPlatformPlayerHorizontalLocomotion.Step(sequenceA, horizontalInput, shunProfile).State;
+    sequenceB = RebornPlatformPlayerHorizontalLocomotion.Step(sequenceB, horizontalInput, shunProfile).State;
+}
+Check(sequenceA == sequenceB, "Equal horizontal initial state and input sequence must be deterministic.");
+Check(sequenceA.WorldX == 102, "Distinct 1/2 cadence sequence produced the wrong final world position.");
+Check(sequenceA.Facing == RebornFacing.Right, "Final directional input must own facing.");
+Check(sequenceA.Phase == RebornMotionPhase.Odd, "Five logical horizontal ticks must end on odd phase.");
+Check(sequenceA.IsLocomoting, "Final directional input must leave locomotion active.");
+
+Console.WriteLine("REBORN architecture + horizontal locomotion self-test PASS");
