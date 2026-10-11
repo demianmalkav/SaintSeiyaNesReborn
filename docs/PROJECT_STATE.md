@@ -6,12 +6,15 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 - Phase: `REBORN / platform movement reconstruction`
 - State: `READY_FOR_NEXT`
-- Closing technical checkpoint: PR `#173` — first gameplay slice, grounded horizontal locomotion/facing.
-- Exact verified code head before this documentation-only state synchronization: `14498821d7dbe2e9473108a2bf61ce66c17aafbc`.
-- Verification on that exact code head:
-  - `REBORN architecture` #17: `SUCCESS`;
-  - `ORIGINAL SPEC tests` #446: `SUCCESS`;
+- Last merged technical checkpoint: PR `#173` — first gameplay slice, grounded horizontal locomotion/facing.
+- Merge commit: `a1f39f4ca079d977376e8efb177adec40c9e4c91`.
+- Exact final PR head: `d90699dc950243bd2329398a188e1582f47d099d`.
+- Exact locomotion code head before documentation-only state synchronization: `14498821d7dbe2e9473108a2bf61ce66c17aafbc`.
+- Verification on the exact final PR head:
+  - `REBORN architecture` #20: `SUCCESS`;
+  - `ORIGINAL SPEC tests` #448: `SUCCESS`;
   - frozen OriginalSpec build, REBORN Core build, OriginalBridge build, hardware-leak gate and REBORN self-test: `SUCCESS`.
+- The exact locomotion code head also passed `REBORN architecture` #17 and `ORIGINAL SPEC tests` #446 before documentation-only synchronization.
 - ORIGINAL SPEC remains frozen at PR #169 / `MATERIAL_GAP=0`; no OriginalSpec source or oracle semantics changed.
 - Initial REBORN architecture from PR #171 remains frozen.
 
@@ -116,7 +119,7 @@ Completion criterion:
 ## RECOVERY CONTRACT
 
 1. Refresh `main`, then read this file before executing `NEXT`.
-2. Freeze PR #171 architecture and PR #173 horizontal-locomotion contract after merge unless a failing fixture or explicit REBORN design decision requires a bounded change.
+2. Freeze PR #171 architecture and PR #173 horizontal-locomotion contract unless a failing fixture or explicit REBORN design decision requires a bounded change.
 3. Read `docs/reborn/ARCHITECTURE.md` and `docs/reborn/PLATFORM_HORIZONTAL_LOCOMOTION.md` before expanding player movement.
 4. Keep canonical-address/storage translation inside `Reborn.OriginalBridge`; gameplay/domain types remain semantic.
 5. Do not use REBORN behavior as evidence for ORIGINAL SPEC.
