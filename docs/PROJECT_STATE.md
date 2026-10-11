@@ -4,85 +4,125 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 ## CURRENT
 
-- Phase: `REBORN / architecture planning`
+- Phase: `REBORN / first gameplay vertical slice`
 - State: `READY_FOR_NEXT`
-- Last merged technical checkpoint: PR `#169` — integral ORIGINAL SPEC closure audit and baseline freeze.
-- Merge commit: `ab3950c5b1bf27c6473a5e2c4a6ab272ed2940a2`.
-- Exact final PR head: `58c14e9348c545f162d30374be94a36687f355b4`.
-- Verification on that exact final PR head:
-  - `Original Spec` #637: `SUCCESS`
-  - `ORIGINAL SPEC tests` #434: `SUCCESS`
-  - build/self-test/password compatibility: `SUCCESS`
-- Audit verdict: `MATERIAL_GAP = 0`.
-- `src/` currently contains only `SaintSeiyaNesReborn.OriginalSpec`; no REBORN implementation project has been created yet.
-- ORIGINAL SPEC is now a frozen semantic baseline/oracle. Reopen it only for contradictory canonical evidence, a failing frozen fixture, or a material original dependency discovered during REBORN.
+- Closing checkpoint in PR `#171` — initial REBORN architecture boundary and minimal text vertical slice.
+- Exact architecture code head verified before documentation-only state synchronization: `6104ae5815b1612834e4008418024b385a77c8f7`.
+- Verification on that exact head:
+  - `REBORN architecture` #2: `SUCCESS`.
+  - `ORIGINAL SPEC tests` #438: `SUCCESS`.
+  - independent OriginalSpec build, REBORN Core build, OriginalBridge build, hardware-leak gate and REBORN architecture self-test: `SUCCESS`.
+- ORIGINAL SPEC remains frozen at PR #169 / `MATERIAL_GAP=0` and was not modified semantically by this checkpoint.
 
 ## DONE
 
-### Integral ORIGINAL SPEC closure audit — PR #169
+### Initial REBORN architecture — PR #171
 
-The accumulated reconstruction was audited across all material runtime/gameplay surfaces. `docs/reverse-engineering/ORIGINAL_SPEC_CLOSURE_AUDIT.md` owns the integral inventory.
+REBORN now has an explicit clean-room implementation boundary instead of sharing implementation concepts with the NES reconstruction.
 
-Material surfaces classified `CLOSED` include:
+#### Project/module boundary
 
-- canonical ROM identity, boot, MMC1, vectors and bank architecture;
-- global `$00/$01` state namespace, dispatch and reachability;
-- front-end/title/attract/password and modal transitions;
-- platform control, motion, attacks, frame progression, objects and hazards;
-- platform maps, exits, warm reload and narrative progression;
-- CHR/metasprites/palette/HUD/NMI/global presentation;
-- battle/event dispatch, resources, damage, dodge, techniques and stable stage contexts;
-- canonical RNG `$E0AC/$065F/$0660`;
-- audio scheduler `$DB9C/$DBB6/$0440+` and APU ownership;
-- Japanese message indexing/extraction/codec;
-- runtime message request/localization contract for `MSG_000..MSG_250`.
+```text
+SaintSeiyaNesReborn.OriginalSpec
+  frozen semantic oracle
 
-Explicit `INTENTIONALLY_OUT_OF_SCOPE` items are not material gaps:
+SaintSeiyaNesReborn.Reborn.Core
+  deterministic modern domain/runtime
+  NO dependency on OriginalSpec or a graphics/audio framework
 
-- exact original music/SFX payload reconstruction;
-- full JP/ES dialogue payloads in the public repository;
-- instruction-for-instruction or cycle-accurate emulation parity;
-- dedicated battle context for `$050E=$0B`, proven structural/transient;
-- REBORN-specific design, presentation and expansion decisions.
+SaintSeiyaNesReborn.Reborn.OriginalBridge
+  anti-corruption layer
+  depends on OriginalSpec + Reborn.Core
+  owns canonical-NES -> REBORN semantic translation
 
-The stale README statement that warm reload was still the active frontier was reconciled as documentation debt, not contradictory runtime evidence.
+future host/adapters
+  platform/render/audio/input/filesystem integration
+  consume Reborn.Core semantic output
 
-The audit report is now a trigger for `.github/workflows/original-spec.yml`, so future edits to the closure claim run the complete C# OriginalSpec build/self-test/password gate as well as the Python clean-room parity workflow.
+SaintSeiyaNesReborn.Reborn.SelfTest
+  parity/architecture boundary fixtures
+```
+
+Dependency direction is frozen: ORIGINAL SPEC never depends on REBORN; Core never depends on OriginalSpec; only bridge/test infrastructure may see both.
+
+#### Deterministic runtime
+
+`RebornRuntime.Step` is the initial domain-time primitive:
+
+- one call = one logical tick;
+- equal state + equal input = equal semantic output;
+- wall-clock scheduling belongs outside Core;
+- rendering/audio consume output rather than mutating gameplay state;
+- future randomness must be deterministic/injected and covered by parity fixtures.
+
+#### Content/localization boundary
+
+The first vertical slice uses the already-closed text contract because it is stable, bounded and can be tested without copyrighted payloads.
+
+`OriginalSpecLocalizationBridge` maps canonical requests into REBORN-owned semantics:
+
+```text
+canonical message id -> RebornMessageId / MSG_xxx
+$066A/$066B          -> opaque Lane0/Lane1 inside bridge only
+$0672 $00/$FF        -> opaque Variant0/Variant1 inside bridge only
+JP/ES catalog        -> IRebornLocalizationPort
+```
+
+REBORN Core contains no `$066A`, `$066B`, `$0672`, `$E7Bx`, PRG/CHR bank, PPU/APU or other NES-facing contract.
+
+#### Presentation/audio and persistence boundaries
+
+- `IRebornPresentationAdapter` and `IRebornAudioAdapter` define platform-independent output ports; no backend has been selected yet.
+- `RebornSaveSnapshot` is REBORN-owned and schema-versioned. It does not serialize NES RAM/emulator state.
+- schema v1 currently carries deterministic tick only because gameplay progression has not yet been migrated.
+- canonical password behavior remains an ORIGINAL SPEC compatibility oracle, not the native REBORN save format.
+
+#### Architecture fixtures
+
+The public synthetic fixture proves:
+
+- all four canonical text entrypoint combinations preserve message identity and map to the expected two opaque lanes/two opaque variants;
+- JP/ES selection and explicit Japanese fallback survive the bridge;
+- lane/variant metadata is stable through runtime resolution;
+- two runtimes with identical state/input emit identical semantic frame output;
+- Core has no assembly dependency on OriginalSpec;
+- CI rejects raw NES address/entrypoint leakage into Core;
+- save capture/restore preserves deterministic tick and rejects unknown schema versions.
+
+`docs/reborn/ARCHITECTURE.md` is the architecture contract for this boundary.
+
+Do not broaden or collapse these layers without an explicit REBORN architecture decision and regression update.
 
 ## ORIGINAL SPEC FREEZE CONTRACT
 
 1. ORIGINAL SPEC remains authoritative for proven 1988 semantics.
-2. REBORN may deliberately deviate, but deviations must be recorded as REBORN design decisions and must not rewrite ORIGINAL SPEC evidence.
-3. Existing frozen fixtures/tables/state transitions are oracle material.
-4. If new canonical evidence invalidates an oracle, use the `ORACLE CHANGE` process from `docs/VERIFY.md` and repair ORIGINAL SPEC in a bounded checkpoint before propagating the change.
-5. Copyrighted ROM/audio/dialogue payloads remain private; public code consumes semantic contracts or external/private content.
+2. REBORN may deliberately deviate, but deviations are REBORN design decisions and never rewrite ORIGINAL SPEC evidence.
+3. Frozen fixtures/tables/state transitions remain oracle material.
+4. New contradictory canonical evidence uses the `ORACLE CHANGE` process in `docs/VERIFY.md` before propagation.
+5. ROM/audio/dialogue payloads remain private.
 
 ## OPEN
 
-There are no known material ORIGINAL SPEC gaps blocking implementation.
+The architecture boundary is sufficient to begin one bounded gameplay migration. No renderer, battle system, map stack, hazard layer or narrative system should be added in the same checkpoint.
 
-The open problem is now architectural: create a modern REBORN layer that consumes the frozen specification without coupling application/game code to NES addresses, bank switching, PPU tile encoding or private copyrighted payloads.
+The first gameplay slice should use already-closed platform player control/motion evidence and answer only:
 
-The first REBORN checkpoint must decide and document:
+1. which semantic player state is minimally required for horizontal locomotion and facing;
+2. how neutral/left/right input maps to the frozen canonical horizontal-motion behavior;
+3. how deterministic logical ticks advance that state;
+4. which ORIGINAL SPEC fixtures/formulas are the oracle for parity;
+5. how the bridge exposes those semantics without CPU/RAM addresses in Core;
+6. how output is represented as semantic player/frame state before collision or rendering.
 
-1. project/runtime structure under `src/` and `tests/`;
-2. dependency direction between `OriginalSpec`, REBORN domain/gameplay, presentation/platform adapters and content/localization;
-3. which ORIGINAL SPEC concepts cross the boundary as semantic DTOs/interfaces versus which remain evidence-only;
-4. deterministic update/input/time model suitable for parity fixtures;
-5. save/progression state ownership and versioning boundary;
-6. localization/content injection boundary using the existing external-catalog contract;
-7. rendering/audio adapter boundaries that avoid NES hardware leakage into domain logic;
-8. the first bounded vertical slice and its parity acceptance criteria.
-
-Do not start broad gameplay porting before these boundaries are frozen.
+Explicitly exclude collision resolution, hazards, maps/exits, attacks, jumping/vertical motion, animation assets and rendering unless a tiny dependency is proven necessary for the horizontal slice.
 
 ## NEXT
 
-**Design and checkpoint the initial REBORN architecture: define the modern project/module boundaries, dependency rules, deterministic runtime loop, semantic bridge from ORIGINAL SPEC, content/localization injection, presentation/audio adapters, save-state boundary, and one minimal vertical slice whose acceptance tests prove that REBORN can consume frozen ORIGINAL SPEC behavior without importing NES hardware details into gameplay logic.**
+**Implement the first REBORN gameplay vertical slice: canonical platform-player horizontal locomotion and facing. Reconcile the frozen player-control/horizontal-motion evidence and fixtures, expose only the minimum semantic contract through the OriginalBridge, implement deterministic neutral/left/right state evolution in Reborn.Core, and add parity tests proving the selected original behavior without leaking NES addresses or hardware concepts into Core.**
 
 Completion criterion:
 
-> The repository must contain a documented and testable REBORN architecture with explicit dependency direction and a minimal compileable skeleton. ORIGINAL SPEC must remain independently buildable and unchanged semantically. The first vertical slice must be narrowly defined with parity-preservation tests or fixtures at the semantic boundary. No large-scale gameplay migration is allowed in this checkpoint.
+> Given the same semantic initial player state and neutral/left/right input sequence, REBORN must deterministically produce the horizontal motion/facing state required by the frozen ORIGINAL SPEC fixtures. The oracle mapping must be explicit and tested. Reborn.Core must remain free of NES addresses/registers/bank concepts. OriginalSpec must remain semantically unchanged. The checkpoint stops before collision, hazards, maps, attacks, vertical motion, animation/rendering or broad gameplay migration.
 
 ## BLOCKERS
 
@@ -91,15 +131,15 @@ Completion criterion:
 ## RECOVERY CONTRACT
 
 1. Refresh `main`, then read this file before executing `NEXT`.
-2. Treat `docs/reverse-engineering/ORIGINAL_SPEC_CLOSURE_AUDIT.md` as the integral closure inventory, not as a new work queue.
-3. Freeze PR #169 audit result and all prior ORIGINAL SPEC gates unless evidence satisfies the freeze contract above.
-4. Keep ORIGINAL SPEC and REBORN as separate layers; REBORN consumes the specification but never becomes evidence for the original game.
-5. Prefer semantic interfaces over exposing raw NES RAM addresses/banks/registers to REBORN domain code.
+2. Freeze PR #171 architecture after merge unless a failing architecture fixture or explicit design decision requires a bounded change.
+3. Read `docs/reborn/ARCHITECTURE.md` before adding a new REBORN dependency or project.
+4. Keep canonical-address translation inside `Reborn.OriginalBridge`; gameplay/domain types stay semantic.
+5. Do not use REBORN behavior as evidence for ORIGINAL SPEC.
 6. Drive remains private evidence/content storage only and never owns an independent `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `reborn-initial-architecture-boundary`
+- `last_next_signature`: `reborn-platform-horizontal-locomotion-facing`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
