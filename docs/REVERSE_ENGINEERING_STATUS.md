@@ -6,12 +6,13 @@
 
 | Subsistema | Madurez | Estado resumido |
 |---|---|---|
-| ROM / boot / MMC1 / bancos | HIGH | Target, vectores, mapper y mapa PRG establecidos. |
+| ROM / boot / MMC1 / bancos | HIGH | Target, vectores, mapper, PRG mapping y contrato de interrupción MMC1 establecidos. |
 | Máquina global `$00/$01` | HIGH | Namespace completo cerrado, PR #121. |
 | Front-end/title/password | HIGH | Modal, attract, codec y overlays ejecutables cerrados. |
 | Plataforma / exits / reload / narrativa | HIGH | Main path, common/special exits, `$70-$89`, `$8F` y terminal final cerrados. |
+| Plataforma: main-thread frame / late objects | HIGH | Producers, player, `$9B93`, auxiliares, primary A/B, `$A22C` y `$3C` compuestos. |
 | Boss primitives | HIGH | Recursos, clasificadores, daño, técnicas, dodge y dispatchers. |
-| Cobertura stage-local `$00-$0B` | **CLOSED** | Todos los contextos materiales `$00-$0A` cerrados; `$0B` estructural/transitorio; PR #149 completa el denominador. |
+| Cobertura stage-local `$00-$0B` | **CLOSED** | Todos los contextos materiales `$00-$0A` cerrados; `$0B` estructural/transitorio; PR #149. |
 | Mu / repair `$00` | HIGH | Contexto especial completo, PR #141. |
 | Taurus/Aldebaran `$01` | HIGH | Contexto completo, PR #123. |
 | Gemini / first Camus `$02` | HIGH | Compuesto `$0E` + split Hyoga/ordinario cerrado, PR #143. |
@@ -19,7 +20,7 @@
 | Leo/Aioria `$04` | HIGH | Contexto completo, PR #125. |
 | Virgo/Shaka `$05` | HIGH | Contexto completo, PR #127. |
 | Scorpio/Milo `$06` | HIGH | Contexto + bridge progress `$08` / stage `$10` / platform `$08` cerrados, PR #147. |
-| Capricorn/Shura `$07` | **HIGH** | Shiryu-only init, Talk/battle, retry y `$FE`->Aquarius cerrados, PR #149. |
+| Capricorn/Shura `$07` | HIGH | Shiryu-only init, Talk/battle, retry y `$FE`->Aquarius cerrados, PR #149. |
 | Aquarius/Camus `$08` | HIGH | Dos encuentros Camus y unlocks Hyoga cerrados, PR #129. |
 | Pisces/Aphrodite `$09` | HIGH | Roster, Talk, Shun growth, selector y `$FE->$0C` cerrados, PR #131. |
 | Saga `$0A` | HIGH | Máquina `$06CE` completa y terminales cerrados, PR #135. |
@@ -27,100 +28,95 @@
 | Final-special `$0C` | HIGH | Rosas, command ownership y handoff a Saga cerrados, PR #133. |
 | Post-Saga / ending tail | HIGH | `$0E->$11->$70-$89->$8F->$BC39->$BD2F` hard terminal, PR #137. |
 | Plataforma: mapas/metatiles/CHR routing | HIGH | Kits `$00-$11`, CHR0 sprites / CHR1 background y bancos por substate establecidos. |
-| Metasprites / recursos visuales platform | ACTIVE | Tipos `$01-$04` y parser/renderer ROM-fed probados; faltan `$05-$0F` + special-object definitions. |
-| Renderer / frame composition global | MEDIUM | Varias primitivas/runtime cerradas; composición visual global todavía no promovida. |
+| Metasprites / recursos visuales platform | **HIGH / CLOSED-MECHANICAL** | Shared player/entity `$B987`, tipos `$05-$0F`, `$B647`, `$A908`, `$9B93`, auditor y renderer ROM-fed cerrados, PR #151. |
+| Platform NMI / PPU presentation boundary | **ACTIVE** | OAM DMA y NMI global conocidos; falta cerrar exactamente la rama `$00=$20`, `$D7F2/$D988` y epílogo `$D367+`. |
+| Renderer / frame composition global | MEDIUM-HIGH | Main-thread y recursos mecánicos cerrados; presentación NMI/PPU global todavía incompleta. |
 | RNG | LOW-MEDIUM | Abierto. |
 | Audio | LOW | Abierto. |
 | Texto/localización | MEDIUM | Corpus JP + borrador ES; integración runtime final pendiente. |
 | Auditoría integral ORIGINAL SPEC | PENDING | Se ejecutará después de cerrar subsistemas globales restantes. |
 | REBORN | EARLY | Congelado hasta cierre integral de ORIGINAL SPEC. |
 
-## Último checkpoint técnico — PR #149
+## Último checkpoint técnico — PR #151
 
-Stage `$07` Capricorn / Shura quedó cerrado como último contexto material de la matriz battle/event `$050E=$00-$0B`.
+La capa mecánica de recursos visuales platform quedó cerrada.
 
 Resultado principal:
 
 ```text
-seed $067D=$09 / $050E=$07 / $06CD=$00 / $0673=$30
-roster Seiya / Hyoga / Shun / Shiryu
+$B987 = compositor compartido
+  índice $00-$04 -> Saints internos
+  índice $05-$0F -> tipos primary entity
 
-fresh init gate:
-  $F36F[$07]=$03
-  -> sólo Shiryu despacha $9ACF
+pointer-table families:
+  B671 B699 B6C1 B6E9 B711 B739
+  B761 B789 B7B1 B7D9 B801
 
-Shiryu init $9ACF:
-  $058A:1->2
-  $0696:1->2
-  +600 Seventh Sense
-  release $03
+direct hidden/flash:
+  B647
 
-Talk $9ED6:
-  first -> $066F++
-  repeats -> $DC++ / $066F++ / forced Gold
+canonical audit:
+  121/121 primary pointer selections válidos
+  51 definiciones primarias distintas
 
-post-Bronze $A86B:
-  EB00 -> hit/miss $8B
-  EB01 -> no $0690 for Shiryu; $0690=FF for others
-  EBFF -> $06B1=FF / +800 / release FE
+max sprites:
+  05=10 06=10 07=10 08=11 09=9  0A=6
+  0B=7  0C=7  0D=12 0E=4  0F=4
 
-$0690 consumer $FAB9+:
-  nonzero -> force $06BC=0
+0D exception:
+  B761 -> B324 -> 12 sprites
+  coincide con A647 retirando +2C/+2D extra
 
-post-Gold $A8D8:
-  EA00 continue / EA01 repeatable $40/$91 / EAFF defeat FF
+A908 direct attached visual:
+  C0E3 tile
+  C0EF vertical/Y offset
+  visual sólo 05/06/08/09/0C
 
-FF retry:
-  progress09 -> platform $09 -> E100 -> ED57/A973 -> E33D
-  no replay of $970A/$97DB/$9ACF
-  no duplicate +600 / no duplicate technique growth
-
-victory FE:
-  fixed $E3ED-$E414
-  -> save winning record
-  -> force Seiya
-  -> $067D=$0A / $050E=$08 / $06CD=$08 / $0673=$38
+9B93 direct bootstrap resources:
+  PRG bank 3
+  9B65 / 9B6C / 9B73 / 9B8F
 ```
+
+El selector clean-room reproduce también la mutación de `$28` en el path dinámico `$BA62` cuando `$03B9==0`.
 
 Technical checkpoint:
 
 ```text
-PR    #149
-merge 28ba0a71c943d0f2ee943e8b60158a15c9d3efd5
-head  eb55de62e008d1dbb92b16a6432759a22b32b7fb
-CI    #384 SUCCESS / #593 SUCCESS
+PR    #151
+merge f0e36cf9b3f73988ac9b59b62aa93f9b269f4042
+head  fe2d0e16a3ace099be4d580c4878abf86c4ba5d6
+CI    #388 SUCCESS / #597 SUCCESS
 ```
 
-Cobertura material resultante:
-
-```text
-closed dedicated : 00 01 02 03 04 05 06 07 08 09 0A
-material missing : NONE
-structural only  : 0B
-separate closed  : 0C
-```
+No se versionó ROM, CHR extraído ni PNG generado.
 
 ## Frontera operativa actual
 
-La siguiente frontera vuelve a un subsistema global: **recursos visuales de plataforma / metasprites**.
+La próxima frontera es **platform state `$20` NMI / presentación PPU**.
 
 Ya está congelado:
 
-- `$02 -> $CACF/$CABD -> CHR0/CHR1`;
-- platform PPUCTRL `$77=$90`: CHR0 = sprites, CHR1 = backgrounds;
-- kits de mapas/metatiles para `$02=$00-$11`;
-- CHR0 efectivos `25/27/29` para los grupos que ya alimentan el parser de entidades;
-- punteros de metasprites bank-3 alrededor de `$B669/$B671/$B699/$B6C1`;
-- formato de definición con count + registros tile/Y/X y override de atributo `$FF`;
-- tipos `$01-$04` reconstruidos de forma coherente;
-- `tools/reverse/render_platform_entities.py` como herramienta ROM-fed sin arte original embebido.
+- vector NMI `$C000 -> $D269`;
+- prologue de NMI, contrato `$3A/$3B`, reset serial MMC1;
+- OAM shadow page `$0700-$07FF` y DMA `$4014=$07`;
+- main-thread platform frame completo hasta late objects y `$3C`;
+- CHR0/CHR1 routing y definiciones de sprite;
+- epílogo común visible alrededor de `$D367+` con mirrors `$77/$78`, scroll `$44/$46` y restauración de PRG bank `$3B`.
 
-El hueco inmediato es mecánico, no de naming visual: cerrar tipos `$05-$0F`, tablas de sprites de objetos especiales, selector/pointer ownership, vínculo a CHR0 e invariantes ejecutables de definiciones/OAM.
+La rama platform `$00=$20` llama:
+
+```text
+$D2BA JSR $D7F2
+$D2BD JSR $D988
+$D2C0 JMP $D367
+```
+
+El trabajo inmediato es volver a clasificar `$D7F2/$D988` desde bytes canónicos y cerrar la frontera semántica OAM-DMA/PPU, corrigiendo cualquier etiqueta histórica que contradiga el ROM.
 
 ## No reabrir sin evidencia nueva
 
 - global `$00/$01` — #121;
-- coverage battle/event `$00-$0B` — cerrado integralmente por #149;
+- coverage battle/event `$00-$0B` — #149;
 - Mu `$00` — #141;
 - Taurus `$01` — #123;
 - Gemini / first Camus `$02` — #143;
@@ -138,13 +134,15 @@ El hueco inmediato es mecánico, no de naming visual: cerrar tipos `$05-$0F`, ta
 - attract — #117/#119;
 - `$11-$14`, `$60`, `$91-$99` — #111/#113/#115;
 - platform exits/reload/narrativa;
-- map kits `$00-$11` y CHR0/CHR1 routing;
+- platform main-thread persistent late-object frame;
+- map kits `$00-$11` / CHR0/CHR1 routing;
+- platform visual-resource definitions — #151;
 - boss damage/resources/dodge/techniques genéricos.
 
 ## Áreas abiertas
 
-1. platform visual-resource definitions: metasprites `$05-$0F` + special objects + executable inventory;
-2. renderer/frame composition global restante;
+1. platform state `$20` NMI / OAM DMA / PPU-control-scroll commit;
+2. resto de renderer/palette/frame presentation global que quede después de esa frontera;
 3. RNG;
 4. audio;
 5. texto runtime/localización final;
