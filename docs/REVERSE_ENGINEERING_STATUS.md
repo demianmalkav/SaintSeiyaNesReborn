@@ -23,7 +23,7 @@
 | REBORN gameplay / horizontal grounded | **CLOSED** | PR #173: world-space locomotion/facing y perfiles de cadencia. |
 | REBORN gameplay / standing vertical | **CLOSED** | PR #175: ordinary standing 30-sample trajectory. |
 | REBORN gameplay / standing air control | **CLOSED** | PR #177: free-space 0/1 parity drift y composición vertical-first. |
-| REBORN gameplay / high standing jump | **CLOSED PENDING MERGE** | PR #179: takeoff semántico + tres familias high-jump completas. |
+| REBORN gameplay / high standing jump | **CLOSED** | PR #179: takeoff semántico + tres familias high-jump completas. |
 | REBORN gameplay / directional jump vertical | **NEXT** | Takeoff identity + perfiles verticales; sin forced horizontal trajectory/collision. |
 
 ## ORIGINAL SPEC freeze
@@ -74,12 +74,14 @@ Hyoga / Shiryu  38 ticks   peak  +71   apex 18   net +41
 
 Todas comienzan con +9 px en el tick de despegue. `RebornHighStandingJumpTakeoffIntent` exige jump + upward intent + takeoff horizontal neutral. `OriginalSpecHighStandingJumpBridge` contiene la selección canónica por Saint/input. La fixture recorre los cinco Saints contra `PlatformJumpInitiation` + `PlatformAirborneVerticalMotion`, valida las secuencias completas y corta antes del terminal fall.
 
-Verification del code head:
+Verification del checkpoint:
 
 ```text
-head                       71452b23ec179ce975b6340c58913cf753b07771
-REBORN architecture #44    SUCCESS
-ORIGINAL SPEC tests #464   SUCCESS
+code head                  71452b23ec179ce975b6340c58913cf753b07771
+final PR head              adff7cc1b107011b478c4afd0f035dd0e0f3d1b4
+merge                      d9ed0be3cdc95cbdac766ee488325666fc7e10a3
+REBORN architecture #47    SUCCESS
+ORIGINAL SPEC tests #466   SUCCESS
 ```
 
 ## Frontera operativa actual
