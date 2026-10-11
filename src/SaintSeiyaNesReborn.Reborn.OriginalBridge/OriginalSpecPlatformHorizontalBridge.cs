@@ -1,3 +1,4 @@
+using SaintSeiyaNesReborn.OriginalSpec;
 using SaintSeiyaNesReborn.OriginalSpec.Platform;
 using SaintSeiyaNesReborn.Reborn.Core;
 
