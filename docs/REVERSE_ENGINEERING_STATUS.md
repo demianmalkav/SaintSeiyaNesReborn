@@ -22,7 +22,8 @@
 | REBORN architecture | **CLOSED INITIAL BOUNDARY** | PR #171: Core determinista + anti-corruption bridge + ports + save schema + slice de texto sintético. |
 | REBORN gameplay / horizontal grounded | **CLOSED** | PR #173: world-space locomotion/facing, perfiles 1/1 y 1/2, bridge y parity fixtures. |
 | REBORN gameplay / standing vertical | **CLOSED** | PR #175: iniciación + 30-sample standing-jump trajectory, positive-up semantic Y y paridad completa. |
-| REBORN gameplay / airborne horizontal | **NEXT** | Standing-jump open-space drift: neutral/left/right + parity cadence, sin collision/landing. |
+| REBORN gameplay / standing air control | **CLOSED PENDING MERGE** | PR #177: free-space 0/1 parity drift, facing preservado, world-space X y composición vertical-first. |
+| REBORN gameplay / high standing jump | **NEXT** | Per-Saint high-jump vertical profiles, sin collision/landing/terminal fall. |
 
 ## ORIGINAL SPEC freeze
 
@@ -61,37 +62,36 @@ Reglas congeladas del boundary:
 
 `docs/reborn/PLATFORM_HORIZONTAL_LOCOMOTION.md` congela la proyección del split original `scroll + player_x` a `WorldX` semántico. Esto preserva locomoción/facing/cadencia sin atar el remake a la cámara NES.
 
-### Ordinary standing jump — PR #175
+### Ordinary standing jump vertical — PR #175
 
-`docs/reborn/PLATFORM_STANDING_JUMP.md` congela la segunda primitive de movimiento.
+`docs/reborn/PLATFORM_STANDING_JUMP.md` congela la curva ordinaria como trayectoria positive-up de 30 muestras, con same-frame initiation y paridad completa contra el oracle.
 
-La curva ordinaria se proyecta a una coordenada vertical semántica positive-up:
+### Ordinary standing jump air control — PR #177
+
+`docs/reborn/PLATFORM_STANDING_JUMP_AIR_CONTROL.md` congela el steering aéreo ordinario en espacio libre:
 
 ```text
-samples                 30
-first rise              +8 px
-peak rise               +58 px
-first apex              tick 14
-net rise at table end   +35 px
+even phase   0 px drift
+odd phase    1 px drift
+Right        +drift WorldX
+Left         -drift WorldX
+Neutral      0
+facing       se preserva desde takeoff
 ```
 
-`Initiate` consume la primera muestra en el mismo logical tick, preservando el orden observable del original. La fixture recorre las 30 muestras en paralelo con `PlatformJumpInitiation` + `PlatformAirborneVerticalMotion`, verificando delta, acumulado, phase y determinismo. Los cinco Saint indices comparten esta curva standing ordinaria.
+La composición REBORN preserva el orden observable `vertical -> horizontal -> advance phase`. La fixture recorre las 30 muestras contra `PlatformAirborneSession`, cruza el handoff original player-X/camera-scroll y verifica que `WorldX` permanece equivalente sin importar cámara al dominio.
 
-El slice corta antes del terminal fixed fall, landing, collision, directional/high jumps, air control, attacks y rendering.
-
-Verification del checkpoint:
+Verification del code head del checkpoint:
 
 ```text
-code head                  731a34ddf0a94aa730375b69b56bb86eea714078
-final PR head              a80436d93436f6029c5d1b890663ae30d1a6ec78
-merge                      ea2064edcafc38fc1a82d4b8d2283238d39466de
-REBORN architecture #29    SUCCESS
-ORIGINAL SPEC tests #454   SUCCESS
+head                       d98a7c5d5739739ee7430c7f99abc1ea954e5ba6
+REBORN architecture #35    SUCCESS
+ORIGINAL SPEC tests #458   SUCCESS
 ```
 
 ## Frontera operativa actual
 
-La siguiente pieza acotada es **standing-jump airborne horizontal control en espacio libre**. `PlatformAirborneHorizontalMotion` ya está congelado como oracle: para un salto vertical ordinario, el drift horizontal depende de la paridad lógica y mantiene prioridad Right-before-Left. REBORN debe proyectarlo a `WorldX` y componerlo con la trayectoria vertical ya cerrada, sin importar el split player-X/scroll ni collision descriptors al Core.
+La siguiente pieza acotada es **high standing jump vertical**. El oracle ya demuestra variación material por Saint en longitud/forma de la tabla high-jump. REBORN debe reutilizar la abstracción de trayectoria positive-up, proyectar cada familia canónica por bridge y probar la curva completa sin introducir collision, landing, terminal fall ni presentación.
 
 La evolución visual total del remake sigue fuera de las restricciones NES: aquí se preserva comportamiento, no limitaciones gráficas o de cámara.
 
