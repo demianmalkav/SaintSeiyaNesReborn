@@ -4,127 +4,110 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 ## CURRENT
 
-- Phase: `REBORN / first gameplay vertical slice`
+- Phase: `REBORN / platform movement reconstruction`
 - State: `READY_FOR_NEXT`
-- Last merged technical checkpoint: PR `#171` — initial REBORN architecture boundary and minimal text vertical slice.
-- Merge commit: `0913f37fd555452a52223b46bfc043b76dc9dec6`.
-- Exact final PR head: `8f5e8409efc3cd3e0a6aca55e05a813bfdf746c6`.
-- Exact architecture code head before documentation-only synchronization: `6104ae5815b1612834e4008418024b385a77c8f7`.
-- Verification on the exact final PR head:
-  - `REBORN architecture` #6: `SUCCESS`.
-  - `ORIGINAL SPEC tests` #441: `SUCCESS`.
-  - independent OriginalSpec build, REBORN Core build, OriginalBridge build, hardware-leak gate and REBORN architecture self-test: `SUCCESS`.
-- ORIGINAL SPEC remains frozen at PR #169 / `MATERIAL_GAP=0` and was not modified semantically by this checkpoint.
+- Closing technical checkpoint: PR `#173` — first gameplay slice, grounded horizontal locomotion/facing.
+- Exact verified code head before this documentation-only state synchronization: `14498821d7dbe2e9473108a2bf61ce66c17aafbc`.
+- Verification on that exact code head:
+  - `REBORN architecture` #17: `SUCCESS`;
+  - `ORIGINAL SPEC tests` #446: `SUCCESS`;
+  - frozen OriginalSpec build, REBORN Core build, OriginalBridge build, hardware-leak gate and REBORN self-test: `SUCCESS`.
+- ORIGINAL SPEC remains frozen at PR #169 / `MATERIAL_GAP=0`; no OriginalSpec source or oracle semantics changed.
+- Initial REBORN architecture from PR #171 remains frozen.
 
 ## DONE
 
 ### Initial REBORN architecture — PR #171
 
-REBORN now has an explicit clean-room implementation boundary instead of sharing implementation concepts with the NES reconstruction.
-
-#### Project/module boundary
+REBORN is split into a modern deterministic domain and an anti-corruption bridge:
 
 ```text
 SaintSeiyaNesReborn.OriginalSpec
   frozen semantic oracle
 
 SaintSeiyaNesReborn.Reborn.Core
-  deterministic modern domain/runtime
-  NO dependency on OriginalSpec or a graphics/audio framework
+  modern deterministic gameplay/domain
+  NO OriginalSpec or graphics/audio-framework dependency
 
 SaintSeiyaNesReborn.Reborn.OriginalBridge
-  anti-corruption layer
-  depends on OriginalSpec + Reborn.Core
-  owns canonical-NES -> REBORN semantic translation
+  only ORIGINAL SPEC -> REBORN semantic translator
 
 future host/adapters
-  platform/render/audio/input/filesystem integration
-  consume Reborn.Core semantic output
-
-SaintSeiyaNesReborn.Reborn.SelfTest
-  parity/architecture boundary fixtures
+  input/render/audio/filesystem integration
 ```
 
-Dependency direction is frozen: ORIGINAL SPEC never depends on REBORN; Core never depends on OriginalSpec; only bridge/test infrastructure may see both.
+`docs/reborn/ARCHITECTURE.md` owns this dependency contract. Raw NES addresses, controller masks, banks, PPU/APU state and other hardware-facing concepts do not belong in Core.
 
-#### Deterministic runtime
+### Grounded horizontal locomotion/facing — PR #173
 
-`RebornRuntime.Step` is the initial domain-time primitive:
+The first gameplay behavior now exists in REBORN as a pure semantic model.
 
-- one call = one logical tick;
-- equal state + equal input = equal semantic output;
-- wall-clock scheduling belongs outside Core;
-- rendering/audio consume output rather than mutating gameplay state;
-- future randomness must be deterministic/injected and covered by parity fixtures.
+`Reborn.Core` owns:
 
-#### Content/localization boundary
+- `RebornHorizontalInput`: Neutral / Left / Right;
+- `RebornFacing`: Left / Right;
+- `RebornMotionPhase`: deterministic even/odd logical cadence;
+- `RebornGroundedHorizontalProfile`: per-phase displacement;
+- `RebornPlatformPlayerHorizontalState`: world X, facing, phase, locomotion flag;
+- `RebornPlatformPlayerHorizontalLocomotion.Step`: deterministic free-space grounded state evolution.
 
-The first vertical slice uses the already-closed text contract because it is stable, bounded and can be tested without copyrighted payloads.
+The key modernization decision is that Core owns **world-space horizontal position**, not the NES split between screen-local player X and camera scroll. The frozen original proves `world_x = scroll_x + player_x`; parity fixtures compare REBORN against the canonical path both before and during the original camera handoff.
 
-`OriginalSpecLocalizationBridge` maps canonical requests into REBORN-owned semantics:
+`OriginalSpecPlatformHorizontalBridge` maps canonical semantics into the modern contract and is the only layer that sees the original controller/state representations.
+
+Canonical grounded cadence preserved by the bridge:
 
 ```text
-canonical message id -> RebornMessageId / MSG_xxx
-$066A/$066B          -> opaque Lane0/Lane1 inside bridge only
-$0672 $00/$FF        -> opaque Variant0/Variant1 inside bridge only
-JP/ES catalog        -> IRebornLocalizationPort
+ordinary / Seiya profile  even 1, odd 1
+Shun distinct profile     even 1, odd 2
 ```
 
-REBORN Core contains no `$066A`, `$066B`, `$0672`, `$E7Bx`, PRG/CHR bank, PPU/APU or other NES-facing contract.
+Bridge input projection also preserves the original Right priority when Left+Right are simultaneously present.
 
-#### Presentation/audio and persistence boundaries
+Parity fixtures cover:
 
-- `IRebornPresentationAdapter` and `IRebornAudioAdapter` define platform-independent output ports; no backend has been selected yet.
-- `RebornSaveSnapshot` is REBORN-owned and schema-versioned. It does not serialize NES RAM/emulator state.
-- schema v1 currently carries deterministic tick only because gameplay progression has not yet been migrated.
-- canonical password behavior remains an ORIGINAL SPEC compatibility oracle, not the native REBORN save format.
+1. Right before canonical camera handoff;
+2. Right during canonical camera handoff;
+3. Left with non-zero canonical scroll;
+4. Neutral position/facing preservation;
+5. Shun even/odd 1/2 cadence;
+6. simultaneous Left+Right -> Right projection;
+7. repeated equal state/input sequences -> identical semantic output.
 
-#### Architecture fixtures
-
-The public synthetic fixture proves:
-
-- all four canonical text entrypoint combinations preserve message identity and map to the expected two opaque lanes/two opaque variants;
-- JP/ES selection and explicit Japanese fallback survive the bridge;
-- lane/variant metadata is stable through runtime resolution;
-- two runtimes with identical state/input emit identical semantic frame output;
-- Core has no assembly dependency on OriginalSpec;
-- CI rejects raw NES address/entrypoint leakage into Core;
-- save capture/restore preserves deterministic tick and rejects unknown schema versions.
-
-`docs/reborn/ARCHITECTURE.md` is the architecture contract for this boundary.
-
-Do not broaden or collapse these layers without an explicit REBORN architecture decision and regression update.
+`docs/reborn/PLATFORM_HORIZONTAL_LOCOMOTION.md` owns this slice and its exclusions.
 
 ## ORIGINAL SPEC FREEZE CONTRACT
 
 1. ORIGINAL SPEC remains authoritative for proven 1988 semantics.
 2. REBORN may deliberately deviate, but deviations are REBORN design decisions and never rewrite ORIGINAL SPEC evidence.
 3. Frozen fixtures/tables/state transitions remain oracle material.
-4. New contradictory canonical evidence uses the `ORACLE CHANGE` process in `docs/VERIFY.md` before propagation.
+4. Contradictory canonical evidence uses `ORACLE CHANGE` from `docs/VERIFY.md` before propagation.
 5. ROM/audio/dialogue payloads remain private.
 
 ## OPEN
 
-The architecture boundary is sufficient to begin one bounded gameplay migration. No renderer, battle system, map stack, hazard layer or narrative system should be added in the same checkpoint.
+Horizontal free-space locomotion/facing is now sufficient to compose with a first vertical-motion primitive.
 
-The first gameplay slice should use already-closed platform player control/motion evidence and answer only:
+Do **not** collapse camera, collision/map descriptors, rendering or animation into the locomotion state. They remain separate systems so the remake can adopt modern camera behavior and completely redrawn pixel-art presentation without changing the semantic movement baseline.
 
-1. which semantic player state is minimally required for horizontal locomotion and facing;
-2. how neutral/left/right input maps to the frozen canonical horizontal-motion behavior;
-3. how deterministic logical ticks advance that state;
-4. which ORIGINAL SPEC fixtures/formulas are the oracle for parity;
-5. how the bridge exposes those semantics without CPU/RAM addresses in Core;
-6. how output is represented as semantic player/frame state before collision or rendering.
+The next bounded movement slice should reconstruct only the canonical standing jump trajectory:
 
-Explicitly exclude collision resolution, hazards, maps/exits, attacks, jumping/vertical motion, animation assets and rendering unless a tiny dependency is proven necessary for the horizontal slice.
+1. semantic jump state and phase required by the deterministic curve;
+2. initiation from grounded state;
+3. canonical table-shaped vertical displacement per logical tick;
+4. bridge projection from the frozen standing-jump oracle into modern semantic Y/delta state;
+5. parity from takeoff through the end of the table-controlled trajectory;
+6. no collision/landing resolution yet.
+
+Directional/high jumps, horizontal air control and terrain interaction remain later checkpoints.
 
 ## NEXT
 
-**Implement the first REBORN gameplay vertical slice: canonical platform-player horizontal locomotion and facing. Reconcile the frozen player-control/horizontal-motion evidence and fixtures, expose only the minimum semantic contract through the OriginalBridge, implement deterministic neutral/left/right state evolution in Reborn.Core, and add parity tests proving the selected original behavior without leaking NES addresses or hardware concepts into Core.**
+**Implement the next REBORN gameplay slice: canonical ordinary standing-jump initiation and table-controlled vertical trajectory. Consume the frozen standing-jump oracle through `Reborn.OriginalBridge`, model only semantic vertical position/phase in `Reborn.Core`, and prove deterministic parity for the complete canonical standing-jump curve without importing NES coordinates, addresses, jump-table pointers or hardware concepts into Core.**
 
 Completion criterion:
 
-> Given the same semantic initial player state and neutral/left/right input sequence, REBORN must deterministically produce the horizontal motion/facing state required by the frozen ORIGINAL SPEC fixtures. The oracle mapping must be explicit and tested. Reborn.Core must remain free of NES addresses/registers/bank concepts. OriginalSpec must remain semantically unchanged. The checkpoint stops before collision, hazards, maps, attacks, vertical motion, animation/rendering or broad gameplay migration.
+> Given the same semantic grounded starting Y and standing-jump initiation, REBORN must deterministically reproduce the complete frozen ordinary standing-jump displacement sequence and terminal table phase. The bridge/oracle mapping must be explicit and tested. Core remains independent of OriginalSpec and NES implementation details. Stop before landing/collision resolution, directional/high jumps, airborne horizontal control, attacks, camera, animation or rendering.
 
 ## BLOCKERS
 
@@ -133,15 +116,16 @@ Completion criterion:
 ## RECOVERY CONTRACT
 
 1. Refresh `main`, then read this file before executing `NEXT`.
-2. Freeze PR #171 architecture after merge unless a failing architecture fixture or explicit design decision requires a bounded change.
-3. Read `docs/reborn/ARCHITECTURE.md` before adding a new REBORN dependency or project.
-4. Keep canonical-address translation inside `Reborn.OriginalBridge`; gameplay/domain types stay semantic.
+2. Freeze PR #171 architecture and PR #173 horizontal-locomotion contract after merge unless a failing fixture or explicit REBORN design decision requires a bounded change.
+3. Read `docs/reborn/ARCHITECTURE.md` and `docs/reborn/PLATFORM_HORIZONTAL_LOCOMOTION.md` before expanding player movement.
+4. Keep canonical-address/storage translation inside `Reborn.OriginalBridge`; gameplay/domain types remain semantic.
 5. Do not use REBORN behavior as evidence for ORIGINAL SPEC.
-6. Drive remains private evidence/content storage only and never owns an independent `NEXT`.
+6. Modern graphics, camera, animation and presentation remain explicit REBORN layers; preserving the oracle does not require preserving NES visual limitations.
+7. Drive remains private evidence/content storage only and never owns an independent `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `reborn-platform-horizontal-locomotion-facing`
+- `last_next_signature`: `reborn-standing-jump-vertical-trajectory`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
