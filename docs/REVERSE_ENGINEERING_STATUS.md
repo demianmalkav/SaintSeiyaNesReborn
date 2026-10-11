@@ -20,8 +20,9 @@
 | Auditoría integral ORIGINAL SPEC | **CLOSED / ZERO MATERIAL GAPS** | PR #169: inventario integral, ownership y regresión completa; `MATERIAL_GAP=0`. |
 | ORIGINAL SPEC | **FROZEN BASELINE** | Oracle semántico; reabrir sólo por evidencia contradictoria, fixture fallida o dependencia original material no modelada. |
 | REBORN architecture | **CLOSED INITIAL BOUNDARY** | PR #171: Core determinista + anti-corruption bridge + ports + save schema + slice de texto sintético. |
-| REBORN gameplay / horizontal | **CLOSED FIRST SLICE** | PR #173: world-space grounded locomotion/facing, perfiles 1/1 y 1/2, bridge y parity fixtures. |
-| REBORN gameplay / vertical | **NEXT** | Standing-jump ordinario: iniciación + curva vertical table-driven, sin collision/landing. |
+| REBORN gameplay / horizontal grounded | **CLOSED** | PR #173: world-space locomotion/facing, perfiles 1/1 y 1/2, bridge y parity fixtures. |
+| REBORN gameplay / standing vertical | **CLOSED PENDING MERGE** | PR #175: iniciación + 30-sample standing-jump trajectory, positive-up semantic Y y paridad completa. |
+| REBORN gameplay / airborne horizontal | **NEXT** | Standing-jump open-space drift: neutral/left/right + parity cadence, sin collision/landing. |
 
 ## ORIGINAL SPEC freeze
 
@@ -50,42 +51,46 @@ Reglas congeladas del boundary:
 - `Reborn.Core` no referencia `OriginalSpec`;
 - CPU/RAM addresses, entrypoints, PRG/CHR banks y PPU/APU mechanics quedan fuera del dominio;
 - `Reborn.OriginalBridge` es el único traductor entre contratos canónicos NES-facing y DTOs REBORN;
-- `RebornRuntime.Step` usa ticks lógicos deterministas y no wall-clock time;
 - contenido/localización entra por puertos externos; los payloads protegidos siguen privados;
 - presentación/audio consumen output semántico mediante adapters;
 - saves son propiedad de REBORN y versionados, no snapshots de RAM NES.
 
-## Primer gameplay slice REBORN
+## Gameplay REBORN congelado
 
-`docs/reborn/PLATFORM_HORIZONTAL_LOCOMOTION.md` congela la primera migración de gameplay.
+### Grounded horizontal — PR #173
 
-La decisión central es proyectar el split original `scroll + player_x` a un `WorldX` semántico. Las fixtures prueban que el desplazamiento de mundo coincide con el oracle tanto antes como durante el handoff de cámara NES, permitiendo que la remake adopte cámara, sprites, escenarios y animación completamente modernos sin arrastrar esa implementación de presentación al dominio.
+`docs/reborn/PLATFORM_HORIZONTAL_LOCOMOTION.md` congela la proyección del split original `scroll + player_x` a `WorldX` semántico. Esto preserva locomoción/facing/cadencia sin atar el remake a la cámara NES.
 
-Semántica preservada:
+### Ordinary standing jump — PR #175
+
+`docs/reborn/PLATFORM_STANDING_JUMP.md` congela la segunda primitive de movimiento.
+
+La curva ordinaria se proyecta a una coordenada vertical semántica positive-up:
 
 ```text
-Neutral -> posición/facing estables, locomotion off
-Left    -> world X -= step, facing left
-Right   -> world X += step, facing right
-phase   -> alterna cada logical tick
-Seiya   -> grounded 1/1
-Shun    -> grounded 1/2
+samples                 30
+first rise              +8 px
+peak rise               +58 px
+first apex              tick 14
+net rise at table end   +35 px
 ```
 
-El bridge preserva además la prioridad canónica Right sobre Left cuando ambas direcciones están presentes en la entrada original.
+`Initiate` consume la primera muestra en el mismo logical tick, preservando el orden observable del original. La fixture recorre las 30 muestras en paralelo con `PlatformJumpInitiation` + `PlatformAirborneVerticalMotion`, verificando delta, acumulado, phase y determinismo. Los cinco Saint indices comparten esta curva standing ordinaria.
+
+El slice corta antes del terminal fixed fall, landing, collision, directional/high jumps, air control, attacks y rendering.
 
 Verification del code head del checkpoint:
 
 ```text
-head                       14498821d7dbe2e9473108a2bf61ce66c17aafbc
-REBORN architecture #17    SUCCESS
-ORIGINAL SPEC tests #446   SUCCESS
+head                       731a34ddf0a94aa730375b69b56bb86eea714078
+REBORN architecture #26    SUCCESS
+ORIGINAL SPEC tests #452   SUCCESS
 ```
 
 ## Frontera operativa actual
 
-La siguiente pieza acotada es **standing jump vertical**. Debe consumir la curva ordinaria congelada como oracle y representarla mediante estado vertical semántico REBORN, sin table pointers, RAM addresses, collision/landing, directional/high jump, air control ni rendering.
+La siguiente pieza acotada es **standing-jump airborne horizontal control en espacio libre**. `PlatformAirborneHorizontalMotion` ya está congelado como oracle: para un salto vertical ordinario, el drift horizontal depende de la paridad lógica y mantiene prioridad Right-before-Left. REBORN debe proyectarlo a `WorldX` y componerlo con la trayectoria vertical ya cerrada, sin importar el split player-X/scroll ni collision descriptors al Core.
 
-La evolución visual total del remake sigue fuera de las restricciones NES: el objetivo de paridad aquí es preservar comportamiento, no reproducir limitaciones gráficas o de cámara.
+La evolución visual total del remake sigue fuera de las restricciones NES: aquí se preserva comportamiento, no limitaciones gráficas o de cámara.
 
 El `NEXT` exacto y sus criterios viven exclusivamente en `docs/PROJECT_STATE.md`.
