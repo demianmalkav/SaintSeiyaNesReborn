@@ -6,11 +6,13 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 - Phase: `REBORN / first gameplay vertical slice`
 - State: `READY_FOR_NEXT`
-- Closing checkpoint in PR `#171` — initial REBORN architecture boundary and minimal text vertical slice.
-- Exact architecture code head verified before documentation-only state synchronization: `6104ae5815b1612834e4008418024b385a77c8f7`.
-- Verification on that exact head:
-  - `REBORN architecture` #2: `SUCCESS`.
-  - `ORIGINAL SPEC tests` #438: `SUCCESS`.
+- Last merged technical checkpoint: PR `#171` — initial REBORN architecture boundary and minimal text vertical slice.
+- Merge commit: `0913f37fd555452a52223b46bfc043b76dc9dec6`.
+- Exact final PR head: `8f5e8409efc3cd3e0a6aca55e05a813bfdf746c6`.
+- Exact architecture code head before documentation-only synchronization: `6104ae5815b1612834e4008418024b385a77c8f7`.
+- Verification on the exact final PR head:
+  - `REBORN architecture` #6: `SUCCESS`.
+  - `ORIGINAL SPEC tests` #441: `SUCCESS`.
   - independent OriginalSpec build, REBORN Core build, OriginalBridge build, hardware-leak gate and REBORN architecture self-test: `SUCCESS`.
 - ORIGINAL SPEC remains frozen at PR #169 / `MATERIAL_GAP=0` and was not modified semantically by this checkpoint.
 
