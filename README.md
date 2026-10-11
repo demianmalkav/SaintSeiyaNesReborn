@@ -53,7 +53,9 @@ Si README, documentos históricos, Drive o contexto de chat contradicen `docs/PR
 
 La auditoría integral de ORIGINAL SPEC clasifica los subsistemas materiales del juego original como cerrados o deliberadamente fuera de alcance y no identifica gaps materiales pendientes. El detalle y la matriz de ownership viven en `docs/reverse-engineering/ORIGINAL_SPEC_CLOSURE_AUDIT.md`.
 
-ORIGINAL SPEC funciona desde este punto como baseline semántico congelado: puede reabrirse únicamente ante evidencia canónica contradictoria, una fixture fallida o una dependencia original no modelada descubierta durante REBORN. El frente operativo pasa a la arquitectura y planificación inicial de **REBORN**, preservando explícitamente los invariantes que se decida heredar del original.
+ORIGINAL SPEC funciona como baseline semántico congelado. REBORN ya posee una arquitectura inicial separada: `Reborn.Core` contiene runtime/dominio determinista sin dependencia de NES u OriginalSpec, mientras `Reborn.OriginalBridge` actúa como anti-corruption layer para traducir contratos canónicos a DTOs modernos. La frontera completa está documentada en `docs/reborn/ARCHITECTURE.md`.
+
+El primer slice arquitectónico de texto/localización ya prueba end-to-end el bridge con fixtures sintéticos. El siguiente frente es el primer slice de gameplay: locomoción horizontal y facing del jugador de plataforma, todavía sin colisiones, hazards, mapas, ataques, movimiento vertical ni rendering.
 
 El detalle global por subsistema vive en `docs/REVERSE_ENGINEERING_STATUS.md`; el punto exacto de continuación vive exclusivamente en `docs/PROJECT_STATE.md`.
 
