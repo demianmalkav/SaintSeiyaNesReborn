@@ -6,12 +6,15 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 - Phase: `REBORN / platform movement reconstruction`
 - State: `READY_FOR_NEXT`
-- Closing technical checkpoint: PR `#175` — ordinary standing-jump initiation and bounded table-controlled vertical trajectory.
-- Exact verified code head before documentation-only state synchronization: `731a34ddf0a94aa730375b69b56bb86eea714078`.
-- Verification on that exact code head:
-  - `REBORN architecture` #26: `SUCCESS`;
-  - `ORIGINAL SPEC tests` #452: `SUCCESS`;
+- Last merged technical checkpoint: PR `#175` — ordinary standing-jump initiation and bounded table-controlled vertical trajectory.
+- Merge commit: `ea2064edcafc38fc1a82d4b8d2283238d39466de`.
+- Exact final PR head: `a80436d93436f6029c5d1b890663ae30d1a6ec78`.
+- Exact standing-jump code head before documentation-only state synchronization: `731a34ddf0a94aa730375b69b56bb86eea714078`.
+- Verification on the exact final PR head:
+  - `REBORN architecture` #29: `SUCCESS`;
+  - `ORIGINAL SPEC tests` #454: `SUCCESS`;
   - frozen OriginalSpec build, REBORN Core build, OriginalBridge build, hardware-leak gate and complete REBORN self-test: `SUCCESS`.
+- The exact standing-jump code head also passed `REBORN architecture` #26 and `ORIGINAL SPEC tests` #452 before documentation-only synchronization.
 - ORIGINAL SPEC remains frozen at PR #169 / `MATERIAL_GAP=0`; no OriginalSpec source or oracle semantics changed.
 - Initial REBORN architecture from PR #171 and grounded horizontal locomotion from PR #173 remain frozen.
 
@@ -112,7 +115,7 @@ Completion criterion:
 ## RECOVERY CONTRACT
 
 1. Refresh `main`, then read this file before executing `NEXT`.
-2. Freeze PR #171 architecture, PR #173 grounded horizontal locomotion and PR #175 standing-jump trajectory after merge unless a failing fixture or explicit REBORN design decision requires a bounded change.
+2. Freeze PR #171 architecture, PR #173 grounded horizontal locomotion and PR #175 standing-jump trajectory unless a failing fixture or explicit REBORN design decision requires a bounded change.
 3. Read `docs/reborn/ARCHITECTURE.md`, `docs/reborn/PLATFORM_HORIZONTAL_LOCOMOTION.md` and `docs/reborn/PLATFORM_STANDING_JUMP.md` before expanding player movement.
 4. Keep canonical-address/storage translation inside `Reborn.OriginalBridge`; gameplay/domain types remain semantic.
 5. Do not use REBORN behavior as evidence for ORIGINAL SPEC.
