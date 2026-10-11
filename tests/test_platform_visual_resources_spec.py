@@ -23,11 +23,8 @@ class PlatformVisualResourceToolTests(unittest.TestCase):
             start = address - 0xC000
             prg[7][start : start + len(payload)] = bytes(payload)
 
-        # Proven CHR0 selector shape: all synthetic substates use existing bank 25.
         put_fixed(0xCACF, [25] * 18)
 
-        # One valid definition per primary type; type $0D owns the required
-        # twelve-record exception so the full audit cross-invariant is exercised.
         definition_by_type = {}
         next_address = 0xA000
         for entity_type in visuals.PRIMARY_TYPES:
@@ -35,7 +32,7 @@ class PlatformVisualResourceToolTests(unittest.TestCase):
             payload = [count]
             for index in range(count):
                 if index == 0 and entity_type == 0x05:
-                    payload += [0xFF, 0x40]  # one optional attribute override
+                    payload += [0xFF, 0x40]
                 payload += [(0x20 + index) & 0xFF, 0, 0]
             put_switched(3, next_address, payload)
             definition_by_type[entity_type] = next_address
@@ -46,19 +43,17 @@ class PlatformVisualResourceToolTests(unittest.TestCase):
                 entry = table + entity_type * 2
                 put_switched(3, entry, [definition & 0xFF, definition >> 8])
 
-        # Direct $B647 hidden frame: eleven all-$FE records.
         blank = [11]
         for _ in range(11):
             blank += [0xFE, 0, 0]
         put_switched(3, visuals.DIRECT_BLANK_DEFINITION, blank)
 
-        # $A908 fixed tile/Y-offset tables. Keep one synthetic visible entry.
         put_fixed(0xC0E3, [0xB2] + [0] * 10)
         put_fixed(0xC0EF, [0xFE] + [0] * 10)
 
-        # Independent $9B93 bootstrap metadata.
-        put_switched(1, 0x9B65, [0, 0xB4, 0xB4, 0xB4, 0xB4, 0xF6, 0xDA])
-        put_switched(1, 0x9B6C, [0, 1, 4, 1, 4, 1, 3])
+        # $9B93 and its direct bootstrap tables are also in switchable bank 3.
+        put_switched(3, 0x9B65, [0, 0xB4, 0xB4, 0xB4, 0xB4, 0xF6, 0xDA])
+        put_switched(3, 0x9B6C, [0, 1, 4, 1, 4, 1, 3])
         profiles = [
             0, 0, 0, 0,
             0x14, 0, 2, 2,
@@ -68,8 +63,8 @@ class PlatformVisualResourceToolTests(unittest.TestCase):
             0x1E, 0x0A, 3, 1,
             0x28, 0x0A, 5, 4,
         ]
-        put_switched(1, 0x9B73, profiles)
-        put_switched(1, 0x9B8F, [0x1E, 5, 5, 1])
+        put_switched(3, 0x9B73, profiles)
+        put_switched(3, 0x9B8F, [0x1E, 5, 5, 1])
 
         return [bytes(bank) for bank in prg], chr4k
 
@@ -84,6 +79,7 @@ class PlatformVisualResourceToolTests(unittest.TestCase):
         self.assertEqual(1, result["shared_compositor"]["pointer_tables"]["B671"]["05"]["attribute_override_count"])
         self.assertTrue(result["attached_A908"]["entries"][0]["creates_visual"])
         self.assertEqual(-2, result["attached_A908"]["entries"][0]["y_offset"])
+        self.assertEqual(3, result["multisprite_9B93"]["prg_bank"])
         self.assertEqual(0x8C, result["multisprite_9B93"]["dedicated_substate_0D_tile"])
 
     def test_only_type_0d_gets_twelve_record_capacity(self):
