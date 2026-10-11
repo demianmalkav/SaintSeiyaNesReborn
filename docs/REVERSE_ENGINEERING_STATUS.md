@@ -7,11 +7,11 @@
 | Subsistema | Madurez | Estado resumido |
 |---|---|---|
 | ROM / boot / MMC1 / bancos | HIGH | Target, vectores, mapper, PRG mapping y contrato de interrupción MMC1 establecidos. |
-| Máquina global `$00/$01` | HIGH | Namespace completo cerrado, PR #121. |
-| Front-end/title/password | HIGH | Modal, attract, codec y overlays ejecutables cerrados. |
-| Plataforma / exits / reload / narrativa | HIGH | Main path, common/special exits, `$70-$89`, `$8F` y terminal final cerrados. |
-| Plataforma: main-thread frame / late objects | HIGH | Producers, player, `$9B93`, auxiliares, primary A/B, `$A22C` y `$3C` compuestos. |
-| Boss primitives | HIGH | Recursos, clasificadores, daño, técnicas, dodge y dispatchers. |
+| Máquina global `$00/$01` | **HIGH / CLOSED** | Namespace completo: 59 valores producidos, 197 sin productor. |
+| Front-end/title/password | **HIGH / CLOSED** | Modal, attract, codec y overlays ejecutables cerrados. |
+| Plataforma / exits / reload / narrativa | **HIGH / CLOSED** | Main path, common/special exits, `$70-$89`, `$8F` y terminal final cerrados. |
+| Plataforma: main-thread frame / late objects | **HIGH / CLOSED** | Producers, player, `$9B93`, auxiliares, primary A/B, `$A22C` y `$3C` compuestos. |
+| Boss primitives | HIGH | Recursos, clasificadores, daño, técnicas, dodge y dispatchers cerrados en sus boundaries promovidos. |
 | Cobertura stage-local `$00-$0B` | **CLOSED** | Todos los contextos materiales `$00-$0A` cerrados; `$0B` estructural/transitorio; PR #149. |
 | Mu / repair `$00` | HIGH | Contexto especial completo, PR #141. |
 | Taurus/Aldebaran `$01` | HIGH | Contexto completo, PR #123. |
@@ -32,88 +32,70 @@
 | Platform NMI `$00=$20` | **HIGH / CLOSED** | OAM DMA, streamer `$D7F2`, pause `$D988`, epílogo `$D367+` y restauración mapper cerrados, PR #154. |
 | Platform palette / CHR refresh `$9915` | **HIGH / CLOSED** | Gates/latches, `$9EEF/$9F29/$9D58`, general profile managers, `$0D` background palette y `$9966` cerrados, PR #156. |
 | Platform HUD/status NMI `$9D69+` | **HIGH / CLOSED** | Cuatro fases `$73`, dígitos BCD, gauges Life/Cosmo/Seventh Sense y helpers `$9E73-$9EED` cerrados, PR #159. |
-| Renderer / frame composition global | **ACTIVE-AUDIT** | Cadena platform completa; falta inventario de cobertura NMI de estados globales no-platform antes de declarar cierre de presentación. |
-| RNG | LOW-MEDIUM | Abierto. |
-| Audio | LOW | Abierto. |
+| Renderer / frame composition global | **HIGH / CLOSED-SEMANTIC** | PR #161: 59 estados producidos, 16 clases NMI, cero ramas producidas sin owner y cero gaps materiales. |
+| RNG / pseudo-random source `$065F/$0660` | **ACTIVE** | Updater `$E0AC` y varios consumidores confirmados; falta cerrar bank-context de `$94F0,X`, initialization y callsite inventory. |
+| Audio | LOW | Abierto; se mantiene fuera del checkpoint RNG. |
 | Texto/localización | MEDIUM | Corpus JP + borrador ES; integración runtime final pendiente. |
 | Auditoría integral ORIGINAL SPEC | PENDING | Se ejecutará después de cerrar subsistemas globales restantes. |
 | REBORN | EARLY | Congelado hasta cierre integral de ORIGINAL SPEC. |
 
-## Último checkpoint técnico — PR #159
+## Último checkpoint técnico — PR #161
 
-La subfase HUD/status bank-1 `$9D69-$9EED` quedó cerrada.
+La cobertura global del dispatcher NMI `$D269+` quedó cerrada contra el namespace canónico completo.
 
-Resultado principal:
+Resultado:
 
 ```text
-entry:
-  $2000=0
-  $73=($73+1)&3
-
-phase0:
-  $22F0 Cosmo digits
-  $2330 Life digits
-  $236F Seventh Sense digits if $02!=0
-  digit tile = $80+nibble
-
-phase1:
-  $22F4 Cosmo gauge
-  cap width = low nibble $6D+$03
-  full hundreds = $BF
-
-phase2:
-  $2334 Life gauge
-  cap width = high nibble $6D+$03
-  full hundreds = $BF
-
-partial classifier $9E84:
-  00-04 A7
-  05-24 B1
-  25-36 B2
-  37-49 B3
-  50-61 B4
-  62-74 B5
-  75-86 B6
-  87-99 BF
-
-phase3:
-  $2374 Seventh Sense gauge if $02!=0
-  ten $A7 clear tiles
-  thousands -> $BE
-  fraction uses hundreds+tens, ignores ones
-  partial family A7/B8-BD/BE
-  scratch $39 = tens digit
+produced states         59
+structural unreachable 197
+canonical NMI routes    16
+unclassified produced   0
+material renderer gaps  0
 ```
+
+Mirror priority:
+
+```text
+$01=$50 -> $DABC
+$01=$3D -> $E000
+else    -> live $00 dispatch
+```
+
+El audit encontró y corrigió un Oracle previo: live `$00=$00` ejecuta `$D29B JMP $D382`, no el entry ordinario `$D367`. La corrección se aisló en `7f90041d4416021a07b7dd9017a729ec48a352af` antes del manifest de cobertura.
+
+La familia compartida bank-1 `$8C19` queda clasificada en sus tres contextos cerrados: attract `$40-$4D`, post-exit `$73`, y narrativa `$80-$89`. El estado `$60` llama bank-1 `$9D69` y conserva ese banco hasta la restauración persistente `$3B` del tail común.
 
 Technical checkpoint:
 
 ```text
-PR    #159
-merge 0be81b3b2be10d47a20364d98b10c76f16b834f8
-head  134f7796bd1f57ae6eb961e4bcef83a013b662ee
-CI    #408 SUCCESS / #613 SUCCESS
+PR    #161
+merge 96fee8a49b81dfc85818dd7dd1603f0cfdc3af4f
+head  6158aef4700c3c986516528c9410bf8950eae5d2
+CI    #412 SUCCESS / #617 SUCCESS
 ```
 
-No ROM, CHR/palette/nametable payload, OAM dump o captura fue versionado.
+No ROM, texto/tile payload extraído, captura ni evidencia binaria privada fue versionada.
 
 ## Frontera operativa actual
 
-La cadena de presentación de plataforma está cerrada semánticamente:
+El renderer/presentation deja de ser un área abierta. La frontera siguiente es el source pseudo-random/phase de `$065F/$0660`.
+
+Direct ROM reconnaissance:
 
 ```text
-main-thread OAM
- -> NMI DMA / map streamer / pause
- -> palette + dynamic CHR `$9915`
- -> HUD/status `$9D69`
- -> common PPU commit `$D367+`
- -> mapper restore / RTI
+$E0AC LDX $0660
+$E0AF LDA $94F0,X
+$E0B3 ADC $065F
+$E0B6 STA $065F
+$E0B9 INC $0660
 ```
 
-La siguiente frontera no es otra rutina platform conocida, sino la **cobertura global del dispatcher NMI `$D269+`**. Hay que demostrar qué branches de estados globales no-platform ya quedan representados por specs existentes y cuáles, si alguno, siguen siendo materialmente desconocidos.
+Hay consumidores confirmados con máscaras `$01/$03/$07/$0F`, y `$F995` usa `$0660&1` para la dirección peligrosa del dodge. La dirección `$94F0` está en la ventana PRG bankeable; no se debe asumir una tabla fija hasta demostrar el banco visible en cada update.
 
 ## No reabrir sin evidencia nueva
 
-- global `$00/$01` — #121;
+- global `$00/$01` reachability — cerrado;
+- global NMI presentation coverage — #161;
 - coverage battle/event `$00-$0B` — #149;
 - Mu `$00` — #141;
 - Taurus `$01` — #123;
@@ -128,24 +110,21 @@ La siguiente frontera no es otra rutina platform conocida, sino la **cobertura g
 - final-special `$0C` — #133;
 - Saga `$0A` — #135;
 - post-Saga ending/hard terminal — #137;
-- front-end/title — #119;
-- attract — #117/#119;
-- `$11-$14`, `$60`, `$91-$99` — #111/#113/#115;
-- platform exits/reload/narrativa;
-- platform main-thread persistent late-object frame;
-- map kits `$00-$11` / static+dynamic CHR routing;
+- front-end/title/password — cerrado;
+- `$11-$14`, `$60`, `$91-$99` state families — cerrado;
+- platform exits/reload/narrativa — cerrado;
+- platform main-thread persistent late-object frame — cerrado;
+- map kits `$00-$11` / static+dynamic CHR routing — cerrado;
 - platform visual-resource definitions — #151;
 - platform state-`$20` NMI — #154;
 - platform palette/dynamic CHR refresh `$9915` — #156;
 - platform HUD/status `$9D69-$9EED` — #159;
-- boss damage/resources/dodge/techniques genéricos.
+- boss damage/resources/dodge/techniques genéricos — cerrados en sus promoted boundaries.
 
 ## Áreas abiertas
 
-1. auditoría global de cobertura NMI/presentation no-platform;
-2. cualquier branch de presentación material que esa auditoría demuestre realmente abierto;
-3. RNG;
-4. audio;
-5. texto runtime/localización final;
-6. auditoría integral final de ORIGINAL SPEC;
-7. REBORN sólo después del cierre integral.
+1. RNG / pseudo-random source `$E0AC`, `$065F/$0660`, bank context y consumers;
+2. audio;
+3. texto runtime/localización final;
+4. auditoría integral final de ORIGINAL SPEC;
+5. REBORN sólo después del cierre integral.
