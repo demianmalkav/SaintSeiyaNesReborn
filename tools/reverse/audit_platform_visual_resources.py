@@ -93,7 +93,6 @@ def parse_metasprite(prg: list[bytes], address: int) -> dict[str, Any]:
     if not 0x8000 <= address <= 0xBFFF:
         raise ValueError(f"metasprite pointer outside bank-3 window: ${address:04X}")
 
-    # Parsing is bounded by the physical switch-bank window; no cross-bank reads.
     available = 0xC000 - address
     raw = switched(prg, 3, address, available)
     if not raw:
@@ -117,7 +116,6 @@ def parse_metasprite(prg: list[bytes], address: int) -> dict[str, Any]:
         if p + 2 >= len(raw):
             raise ValueError(f"truncated tile/Y/X record in ${address:04X}")
         tile = raw[p]
-        # Every tile byte must resolve wholly inside one selected 4 KiB CHR bank.
         if tile * 16 + 16 > CHR4K_SIZE:
             raise ValueError(f"tile ${tile:02X} escapes 4 KiB CHR bank")
         tiles.append(tile)
@@ -200,12 +198,13 @@ def audit(prg: list[bytes], chr4k: list[bytes]) -> dict[str, Any]:
             }
         )
 
-    # Independent $9B93 multisprite bootstrap visual resources (bank 1).
-    selector_sprite_bases = list(switched(prg, 1, 0x9B65, 7))
-    selector_global_03a9 = list(switched(prg, 1, 0x9B6C, 7))
-    profile_raw = list(switched(prg, 1, 0x9B73, 7 * 4))
+    # Independent $9B93 multisprite bootstrap visual resources share PRG bank 3
+    # with the primary compositor but use direct selector tables rather than B987.
+    selector_sprite_bases = list(switched(prg, 3, 0x9B65, 7))
+    selector_global_03a9 = list(switched(prg, 3, 0x9B6C, 7))
+    profile_raw = list(switched(prg, 3, 0x9B73, 7 * 4))
     selector_profiles = [profile_raw[i : i + 4] for i in range(0, len(profile_raw), 4)]
-    dedicated_0d_profile = list(switched(prg, 1, 0x9B8F, 4))
+    dedicated_0d_profile = list(switched(prg, 3, 0x9B8F, 4))
 
     if max_count_by_type[0x0D] != 12:
         raise ValueError("type $0D must retain its proven twelve-record reachable definition")
@@ -237,6 +236,7 @@ def audit(prg: list[bytes], chr4k: list[bytes]) -> dict[str, Any]:
             "entries": attached,
         },
         "multisprite_9B93": {
+            "prg_bank": 3,
             "selector_sprite_bases_9B65": selector_sprite_bases,
             "selector_global_03A9_9B6C": selector_global_03a9,
             "selector_profiles_9B73": selector_profiles,
