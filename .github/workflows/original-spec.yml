@@ -6,12 +6,14 @@ on:
       - "src/SaintSeiyaNesReborn.OriginalSpec/**"
       - "tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/**"
       - "tools/password/password_codec.py"
+      - "docs/reverse-engineering/ORIGINAL_SPEC_CLOSURE_AUDIT.md"
       - ".github/workflows/original-spec.yml"
   pull_request:
     paths:
       - "src/SaintSeiyaNesReborn.OriginalSpec/**"
       - "tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/**"
       - "tools/password/password_codec.py"
+      - "docs/reverse-engineering/ORIGINAL_SPEC_CLOSURE_AUDIT.md"
       - ".github/workflows/original-spec.yml"
 
 jobs:
