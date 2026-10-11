@@ -31,95 +31,85 @@
 | Metasprites / recursos visuales platform | **HIGH / CLOSED-MECHANICAL** | Shared player/entity `$B987`, tipos `$05-$0F`, `$B647`, `$A908`, `$9B93`, auditor y renderer ROM-fed cerrados, PR #151. |
 | Platform NMI `$00=$20` | **HIGH / CLOSED** | OAM DMA, streamer `$D7F2`, pause `$D988`, epílogo `$D367+` y restauración mapper cerrados, PR #154. |
 | Platform palette / CHR refresh `$9915` | **HIGH / CLOSED** | Gates/latches, `$9EEF/$9F29/$9D58`, general profile managers, `$0D` background palette y `$9966` cerrados, PR #156. |
-| Platform HUD/status NMI `$9D69+` | **ACTIVE** | Cuatro fases `$73` y helpers visibles; falta promover writer ejecutable y composición final con `$9915`. |
-| Renderer / frame composition global | HIGH-MEDIUM | Main thread, OAM DMA, map streaming, sprites y palette/CHR cerrados; HUD platform aún activo y otros estados globales quedan para auditoría. |
+| Platform HUD/status NMI `$9D69+` | **HIGH / CLOSED** | Cuatro fases `$73`, dígitos BCD, gauges Life/Cosmo/Seventh Sense y helpers `$9E73-$9EED` cerrados, PR #159. |
+| Renderer / frame composition global | **ACTIVE-AUDIT** | Cadena platform completa; falta inventario de cobertura NMI de estados globales no-platform antes de declarar cierre de presentación. |
 | RNG | LOW-MEDIUM | Abierto. |
 | Audio | LOW | Abierto. |
 | Texto/localización | MEDIUM | Corpus JP + borrador ES; integración runtime final pendiente. |
 | Auditoría integral ORIGINAL SPEC | PENDING | Se ejecutará después de cerrar subsistemas globales restantes. |
 | REBORN | EARLY | Congelado hasta cierre integral de ORIGINAL SPEC. |
 
-## Último checkpoint técnico — PR #156
+## Último checkpoint técnico — PR #159
 
-La subfase bank-1 de palette/CHR invocada por el NMI de plataforma quedó cerrada.
+La subfase HUD/status bank-1 `$9D69-$9EED` quedó cerrada.
 
 Resultado principal:
 
 ```text
-$9915 top gate:
-  $07C0 == FE -> $996C fallback
-  $03A4 != FF -> $996C fallback
-  else        -> one-shot special refresh
+entry:
+  $2000=0
+  $73=($73+1)&3
 
-$03A4 arming:
-  only substates 0C-11
-  camera page $45=0A
-  low thresholds A0/E0/D0/D0/D0/A5
-  substate10 + internal Shun excluded
-  successful refresh FF -> FE, no rearm until reset
+phase0:
+  $22F0 Cosmo digits
+  $2330 Life digits
+  $236F Seventh Sense digits if $02!=0
+  digit tile = $80+nibble
 
-sprite palette:
-  $3F10-$3F1F
-  4 pointer pairs $0392-$0399
-  each descriptor = 3 bytes
-  transfer = $0F + 3 bytes × 4
+phase1:
+  $22F4 Cosmo gauge
+  cap width = low nibble $6D+$03
+  full hundreds = $BF
 
-special fourth descriptor:
-  non-10 -> $9960
-  10     -> $9963
+phase2:
+  $2334 Life gauge
+  cap width = high nibble $6D+$03
+  full hundreds = $BF
 
-dynamic CHR0 $9966:
-  0C 1D
-  0D 1D
-  0E 1B
-  0F 00
-  10 19
-  11 00
+partial classifier $9E84:
+  00-04 A7
+  05-24 B1
+  25-36 B2
+  37-49 B3
+  50-61 B4
+  62-74 B5
+  75-86 B6
+  87-99 BF
 
-substate0D background palette:
-  pages02-04
-  A02B/A022 alternation by $3C bit3 + $03A7
-  exact 16-byte $3F00-$3F0F transfer
+phase3:
+  $2374 Seventh Sense gauge if $02!=0
+  ten $A7 clear tiles
+  thousands -> $BE
+  fraction uses hundreds+tens, ignores ones
+  partial family A7/B8-BD/BE
+  scratch $39 = tens digit
 ```
-
-General fallback `$996C+` also closes primary `$03B7`, secondary `$03B4/$03B5`, and pending `$03A9` palette selectors. `$9D58` normalizes PPUADDR via `$3F,$00,$00,$00`.
 
 Technical checkpoint:
 
 ```text
-PR    #156
-merge a6f421289fcaf8e2e000282307edb3a7223f95e1
-head  a76b084b5e8fc3999931ec618157bcd1a4aca800
-CI    #401 SUCCESS / #609 SUCCESS
+PR    #159
+merge 0be81b3b2be10d47a20364d98b10c76f16b834f8
+head  134f7796bd1f57ae6eb961e4bcef83a013b662ee
+CI    #408 SUCCESS / #613 SUCCESS
 ```
 
-An earlier head exposed one self-test namespace-import error after the library itself built successfully; the corrected exact final head passed build, self-test, password fixture and parity.
-
-No ROM, CHR payload, palette payload, OAM dump or generated art was versioned.
+No ROM, CHR/palette/nametable payload, OAM dump o captura fue versionado.
 
 ## Frontera operativa actual
 
-La próxima frontera contigua es **platform HUD/status writer `$9D69-$9EED`**.
-
-Direct ROM reconnaissance already shows:
+La cadena de presentación de plataforma está cerrada semánticamente:
 
 ```text
-$9D69:
-  $2000=0
-  $73 = ($73 + 1) & 3
-  phase0 / phase1 / phase2 / phase3
+main-thread OAM
+ -> NMI DMA / map streamer / pause
+ -> palette + dynamic CHR `$9915`
+ -> HUD/status `$9D69`
+ -> common PPU commit `$D367+`
+ -> mapper restore / RTI
 ```
 
-The four phases update small HUD regions instead of redrawing the whole interface every invocation. Confirmed primitives include:
-
-- `$9EB8/$9EC4`: packed-BCD nibble -> digit tile `$80+nibble`;
-- `$9E73/$9E77/$9E80`: repeated fill-tile writers;
-- `$9E84`: threshold classifier producing `$A7/$B1-$B6/$BF` gauge tiles;
-- `$9ECD/$9ED8/$9EE3`: fixed PPU target setters `$22F4/$2334/$2374`.
-
-Phase0 writes active-Saint packed resources at `$22F0/$2330` and, when `$02!=0`, Seventh Sense around `$236F`. Phases1/2 update the two resource/cap gauges; phase3 updates a Seventh-Sense gauge when applicable.
-
-No current code/test artifact closes this writer, so it is the next real presentation gap rather than duplicate work.
+La siguiente frontera no es otra rutina platform conocida, sino la **cobertura global del dispatcher NMI `$D269+`**. Hay que demostrar qué branches de estados globales no-platform ya quedan representados por specs existentes y cuáles, si alguno, siguen siendo materialmente desconocidos.
 
 ## No reabrir sin evidencia nueva
 
@@ -143,16 +133,17 @@ No current code/test artifact closes this writer, so it is the next real present
 - `$11-$14`, `$60`, `$91-$99` — #111/#113/#115;
 - platform exits/reload/narrativa;
 - platform main-thread persistent late-object frame;
-- map kits `$00-$11` / static CHR routing;
+- map kits `$00-$11` / static+dynamic CHR routing;
 - platform visual-resource definitions — #151;
 - platform state-`$20` NMI — #154;
 - platform palette/dynamic CHR refresh `$9915` — #156;
+- platform HUD/status `$9D69-$9EED` — #159;
 - boss damage/resources/dodge/techniques genéricos.
 
 ## Áreas abiertas
 
-1. platform HUD/status writer `$9D69-$9EED`;
-2. cualquier otro renderer/NMI global detectado por auditoría después de cerrar el HUD de plataforma;
+1. auditoría global de cobertura NMI/presentation no-platform;
+2. cualquier branch de presentación material que esa auditoría demuestre realmente abierto;
 3. RNG;
 4. audio;
 5. texto runtime/localización final;
