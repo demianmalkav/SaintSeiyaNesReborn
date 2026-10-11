@@ -6,9 +6,11 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 - Phase: `ORIGINAL SPEC / runtime text-content integration`
 - State: `READY_FOR_NEXT`
-- Closing checkpoint in this PR: `#165` — canonical audio scheduler `$DB9C/$DBB6/$0440+`.
-- Pre-state-update verified PR head: `10482ab54cefaca61adbeaf14102176a3e87f5b6`.
-- Verification on that exact head:
+- Last merged technical checkpoint: PR `#165` — canonical audio scheduler `$DB9C/$DBB6/$0440+`.
+- Merge commit: `425e285a2cf2f48a5ceb920d1a6607183f14fb07`.
+- Exact final PR head: `dd9d9bb06c40520062d6252f90bce10f8d38fa9a`.
+- Exact code head verified before documentation-only state synchronization: `10482ab54cefaca61adbeaf14102176a3e87f5b6`.
+- Verification on that code head:
   - `Original Spec` #624: `SUCCESS`
   - `ORIGINAL SPEC tests` #420: `SUCCESS`
 - Canonical ROM reverified before analysis: size `262160`, SHA-1 `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`, MD5 `3B0F17C2B6EFC928B3D3FE9B1A389680`, SHA-256 `6917B31D7343A9A17170E833BACDBC3B1EBA3E02D11C51C0D44DBE436C9AD43A`, CRC32 `F8D258A3`.
