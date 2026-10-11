@@ -4,200 +4,193 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / global NMI presentation coverage audit`
+- Phase: `ORIGINAL SPEC / global pseudo-random source — $E0AC / $065F-$0660`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#159` — platform HUD/status writer `$9D69-$9EED`.
-- Merge commit: `0be81b3b2be10d47a20364d98b10c76f16b834f8`
-- Exact final PR head: `134f7796bd1f57ae6eb961e4bcef83a013b662ee`
+- Last verified technical checkpoint: PR `#161` — exhaustive global NMI presentation coverage.
+- Merge commit: `96fee8a49b81dfc85818dd7dd1603f0cfdc3af4f`
+- Exact final PR head: `6158aef4700c3c986516528c9410bf8950eae5d2`
 - Verification on that exact head:
-  - `ORIGINAL SPEC tests` #408: `SUCCESS`
-  - `Original Spec` #613: `SUCCESS`
+  - `ORIGINAL SPEC tests` #412: `SUCCESS`
+  - `Original Spec` #617: `SUCCESS`
   - build/self-test/password compatibility: `SUCCESS`
-- Canonical ROM reverified before analysis: size `262160`, SHA-1 `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`, SHA-256 `6917B31D7343A9A17170E833BACDBC3B1EBA3E02D11C51C0D44DBE436C9AD43A`.
-- Platform main-thread frame, map kits, static/dynamic CHR routing, metasprite resources, state-`$20` NMI, palette/CHR refresh and platform HUD/status presentation are frozen.
+- Canonical ROM reverified before analysis: size `262160`, SHA-1 `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`, MD5 `3B0F17C2B6EFC928B3D3FE9B1A389680`, SHA-256 `6917B31D7343A9A17170E833BACDBC3B1EBA3E02D11C51C0D44DBE436C9AD43A`, CRC32 `F8D258A3`.
+- Global engine-state namespace, platform presentation chain, front-end/modal/attract presentation, narrative text families, high `$91-$99` presentation and global NMI coverage are frozen.
 
 ## DONE
 
-### Platform HUD/status writer `$9D69-$9EED` — PR #159
+### Global NMI presentation coverage — PR #161
 
-The downstream no-palette-work presentation owner reached from `$9915` is mechanically closed.
+The fixed-bank NMI dispatcher rooted at `$D269` is now exhaustively composed with the already-closed global `$00/$01` reachability census.
 
-#### Four-phase cadence
-
-Every invocation executes:
+Canonical namespace:
 
 ```text
-$2000 = 0
-$73 = ($73 + 1) & 3
+produced global-state values : 59
+no-producer byte values      : 197
+canonical NMI route classes  : 16
+unclassified produced states : 0
+material presentation gaps   : 0
 ```
 
-The **new** `$73` value selects the phase. Cadence advances even when the selected phase later emits no HUD data.
+The two mirror-first routes remain semantically prior to live `$00`:
 
 ```text
-phase 0 -> numeric Cosmo/Life + optional Seventh Sense digits
-phase 1 -> Cosmo cap/current gauge
-phase 2 -> Life cap/current gauge
-phase 3 -> optional Seventh Sense gauge
+$01=$50 -> $DABC  front-end/title modal NMI
+$01=$3D -> $E000  cooperative reload NMI
 ```
 
-#### Phase 0 digits
+All remaining routes use live `$00`.
 
-Exact PPU targets:
+#### Oracle correction found during the audit
+
+Direct canonical ROM flow is:
 
 ```text
-Cosmo          $22F0
-Life           $2330
-Seventh Sense  $236F
+$D297 LDA $00
+$D299 BNE $D29E
+$D29B JMP $D382
 ```
 
-Current Saint resources use the already-closed RAM model:
+Therefore live state `$00=$00` does **not** enter ordinary common epilogue at `$D367`. It enters at `$D382`, skipping `$D367-$D381` (the ordinary `$77->$2000` / `$78->$2001` commit) while retaining scroll/status wait, persistent `$3B` restoration and RTI.
+
+This correction was isolated in commit:
 
 ```text
-Life  $59-$62
-Cosmo $63-$6C
-caps  $6D-$71
-Seventh Sense $05AA/$05AB
+7f90041d4416021a07b7dd9017a729ec48a352af
 ```
 
-Digit mapping is exactly:
+before the new coverage manifest was added. Do not restore the older `$00->$D367` expectation without contradictory ROM evidence.
+
+#### Canonical presentation ownership
 
 ```text
-tile = $80 + nibble
+$00                    -> $D382 tail entry
+$10/$30/$90            -> common $D367 tail
+$3D                    -> mirror $E000 reload
+$11/$14                -> common tail
+$12                    -> $D543 -> $13
+$13                    -> $D42D generated-$0600 stream
+$20                    -> $D7F2 / $D988 platform NMI
+$31-$33/$35-$38        -> common tail
+$34                    -> $D73B
+$40-$4D                -> bank1 $8C19 attract text/presentation
+$50                    -> mirror $DABC modal dispatcher
+$60                    -> bank1 $9D69 HUD/status
+$70                    -> $D3BF (terminal setup reaches $D73B)
+$71-$72/$74-$75        -> common tail
+$73                    -> bank1 $8C19 post-exit text
+$80-$89                -> bank1 $8C19 narrative text
+$91                    -> $D42D
+$92/$97/$99            -> common tail
+$93                    -> $D55E
+$94-$96                -> $D571 -> $D55E
+$98                    -> $D53D / $D511 -> $99
 ```
 
-`$9EB8` emits high then low packed-BCD nibble; `$9EC4` emits the low nibble only. The `$236F` address is set unconditionally, but `$02=0` suppresses Seventh Sense digit bytes.
+The shared `$8C19` renderer is already bounded by three closed contexts: front-end attract `$40-$4D`, post-exit `$73`, and narrative `$80-$89`. Original text/tile payloads remain private/content-layer data rather than a missing state/presentation contract.
 
-#### Phase 1 / 2 resource gauges
-
-Fixed targets:
+Mapper ownership is also frozen:
 
 ```text
-Cosmo $22F4
-Life  $2334
-```
+$40-$4D / $73 / $80-$89:
+  dispatcher raw bank1 -> $8C19 -> raw bank3
 
-The relevant cap nibble determines total width and is first cleared with `$A7`. Completed hundreds overwrite from the start with `$BF`; one partial segment follows from the packed low-two-digit byte.
+$60:
+  dispatcher raw bank1 -> $9D69
+  no immediate bank3 write
+  common $D393-$D395 restores persistent $3B
 
-Exact `$9E84` classifier:
-
-```text
-00-04 -> A7
-05-24 -> B1
-25-36 -> B2
-37-49 -> B3
-50-61 -> B4
-62-74 -> B5
-75-86 -> B6
-87-99 -> BF
-```
-
-Threshold bytes are `$05/$25/$37/$50/$62/$75/$87`.
-
-#### Phase 3 Seventh Sense gauge
-
-`$02=0` suppresses the entire gauge write after cadence advance.
-
-For `$02!=0`, `$2374` is first cleared with ten `$A7` tiles, then reset to `$2374`. One `$BE` is emitted per thousands digit (`high nibble of $05AB`). The partial fraction intentionally ignores the ones digit:
-
-```text
-fraction = ((low nibble $05AB) << 4) | (high nibble $05AA)
-```
-
-The high nibble of `$05AA` is also written to scratch `$39`.
-
-Partial tile transform:
-
-```text
-A7 -> A7
-B1 -> B8
-B2 -> B9
-B3 -> BA
-B4 -> BB
-B5 -> BC
-B6 -> BD
-BF -> BE
-```
-
-`$BE` is therefore the full Seventh Sense segment tile.
-
-#### Bounded helpers
-
-```text
-$9E73 -> repeat $A7 Y times
-$9E77 -> repeat $BF Y times
-$9E80 -> repeat $BE Y times
-$9E84 -> gauge threshold classifier
-$9EB8/$9EC4 -> packed-BCD digit emitters
-$9ECD -> PPUADDR $22F4
-$9ED8 -> PPUADDR $2334
-$9EE3 -> PPUADDR $2374
+$D42D / $20 / $DABC / $E000:
+  handler-owned mapper transactions
 ```
 
 Artifacts:
 
-- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformHudRefresh9D69.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PlatformHudRefresh9D69Checks.cs`
-- `docs/reverse-engineering/PLATFORM_HUD_REFRESH_9D69.md`
-- PR #159
+- `src/SaintSeiyaNesReborn.OriginalSpec/NmiPresentationCoverage.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/NmiPresentationCoverageChecks.cs`
+- `docs/reverse-engineering/NMI_PRESENTATION_COVERAGE.md`
+- corrected `EngineStateDispatcherMap` + fixture
+- PR #161
 
-No ROM bytes, extracted nametable/CHR payloads or gameplay captures were committed.
-
-Do not reopen `$9D69-$9EED` without contradictory canonical-ROM evidence or a failing fixture.
+The global semantic presentation surface is therefore closed. Do not create another renderer checkpoint merely from structurally dispatchable but canonically unreachable byte values.
 
 ## EVIDENCE FOR NEXT
 
-The contiguous platform presentation chain is now closed end-to-end at the semantic level:
+With presentation closed, the next bounded global subsystem is the game's pseudo-random/phase source.
+
+Direct canonical fixed-bank evidence exposes the updater at `$E0AC`:
 
 ```text
-platform main-thread OAM shadow
- -> state-$20 NMI OAM DMA / background streamer / pause
- -> $9915 palette + dynamic CHR refresh
- -> $9D69 HUD/status writer when no palette work owns the slot
- -> common $D367+ control/mask/scroll commit
- -> persistent mapper restore / RTI
+$E0AC LDX $0660
+$E0AF LDA $94F0,X
+$E0B2 CLC
+$E0B3 ADC $065F
+$E0B6 STA $065F
+$E0B9 INC $0660
+$E0BC RTS
 ```
 
-The remaining renderer/NMI uncertainty is **global coverage**, not a known platform-local routine. The fixed NMI entry `$D269+` dispatches additional `$00/$01` engine states outside platform state `$20`; many of those modes are already semantically closed elsewhere (front-end, transitions, battle/ending), but there is no executable coverage inventory proving which NMI presentation branches are already represented and which remain materially unresolved.
+At minimum this proves the byte recurrence:
 
-This audit must happen before jumping to RNG/audio so ORIGINAL SPEC does not leave an unclassified presentation gap.
+```text
+$065F' = ($065F + visible_prg[$94F0 + $0660]) & $FF
+$0660' = ($0660 + 1) & $FF
+```
+
+The unresolved qualifier is important: `$94F0` lies in the switchable `$8000-$BFFF` PRG window. The audit must prove which PRG bank is visible at every canonical `$E0AC` invocation before treating `$94F0-$95EF` as one fixed RNG table.
+
+Existing consumer reconnaissance already proves the source is gameplay-relevant:
+
+```text
+$E33D  LDA $065F ; AND #$07 -> $05AC
+$EC18/$EC20/$EC2B  LDA $065F ; AND #$01 / #$03
+$F65D/$F665        LDA $065F ; AND #$01 / #$03 -> $0531 path
+$FAC9/$FAD7        LDA $065F ; AND #$0F ; threshold comparisons -> $06BC
+bank6 $913E/$92E2  direct $065F consumers
+
+$F995  LDA $0660 ; AND #$01 -> dodge danger-direction parity
+```
+
+`BOSS_DODGE.md` had already left open what drives `$0660`; this updater supplies that missing source relation.
+
+A raw direct-writer pass found no other direct writer of `$0660` beyond `INC $0660` at `$E0B9`, and no other direct writer of `$065F` beyond `$E0B6`; initialization/reset ownership still needs executable proof rather than assumption.
 
 ## OPEN
 
-1. Re-disassemble fixed-bank NMI dispatcher `$D269+` far enough to enumerate every canonically reachable global `$00/$01` presentation branch and its direct subroutine owners.
-2. Cross-reference each branch against the already-closed global-state namespace and existing front-end/platform/battle/ending specifications.
-3. Produce a coverage matrix classifying each branch as:
-   - closed by an existing semantic model;
-   - common/structural epilogue only;
-   - materially unresolved presentation owner.
-4. Add an executable `NmiPresentationCoverage` (or equivalently scoped manifest) with invariants that every known reachable global state has an evidence-backed classification and no platform state reopens closed `$D7F2/$D988/$9915/$9D69` work.
-5. For any unresolved branch, trace only far enough to define one bounded next checkpoint with exact entry, owner and closure criterion; do not absorb all branches into the audit.
-6. Reconcile global reverse-engineering status documentation with the coverage result.
-7. Stop after the coverage audit. RNG, audio and runtime localization remain separate later checkpoints.
+1. Re-disassemble `$E0AC` in its full caller/NMI context and enumerate every canonical invocation.
+2. Prove the PRG bank visible at `$94F0,X` for each invocation; determine whether the source bytes are one stable 256-byte table or bank-context-dependent ROM data.
+3. Prove initialization/reset ownership for `$065F/$0660`, natural byte wrap behavior, and whether either field is seeded indirectly.
+4. Enumerate executable consumers of `$065F/$0660` and reject raw data/operand false positives.
+5. Classify each real consumer by gameplay owner (battle selection, dodge parity, stage/event choice, etc.) without reopening the already-closed downstream mechanics.
+6. Distinguish this source from deterministic frame counters such as `$3C`; do not label unrelated counters as RNG.
+7. Promote a clean-room `CanonicalRandomSourceE0AC` (or equivalently scoped model) with deterministic sequence/bank-context fixtures and consumer range/parity invariants.
+8. Stop after the pseudo-random source/callsite contract. Do not absorb the audio driver or redesign probability distributions.
 
 ## NEXT
 
-**Close the global NMI presentation coverage audit: enumerate the fixed-bank `$D269+` dispatch across the already-closed global `$00/$01` namespace, map every canonically reachable presentation branch to its existing semantic owner or mark it materially unresolved, and promote an executable coverage manifest whose zero-gap result determines the next bounded renderer checkpoint (if any) before ORIGINAL SPEC moves to RNG/audio.**
+**Close the canonical pseudo-random/phase source rooted at fixed `$E0AC`: prove the complete `$065F/$0660` recurrence and initialization, resolve the switchable-PRG ownership of `$94F0,X` at every reachable update, inventory every executable consumer and its mask/range semantics, and promote a deterministic clean-room source/callsite contract with fixtures without reopening the already-closed battle/platform behaviors that consume it.**
 
 Completion criterion:
 
-> Starting from the canonical NMI entry and the already-closed global state namespace, every reachable NMI presentation branch must have a deterministic evidence-backed classification with entry address, temporary PRG-bank ownership where applicable, and owning specification/model. The audit must report zero **unclassified** reachable branches. Existing closed platform, front-end, battle and ending semantics must not be duplicated. If one or more materially unresolved branches remain, the audit must choose exactly one bounded branch as the next executable checkpoint rather than implementing all of them at once.
+> Given a canonical RNG state `$065F/$0660` and the PRG-bank context visible to `$E0AC`, the model must deterministically reproduce the next source state, byte wrapping and every reachable consumer's derived selector/parity range. Every executable writer/update and consumer of `$065F/$0660` must be classified, with raw false positives rejected and zero unresolved bank-context assumptions. Downstream battle/platform semantics remain composed rather than duplicated.
 
 ## BLOCKERS
 
-- None. Canonical ROM, global `$00/$01` namespace, fixed NMI entry, platform presentation chain and clean-room test harness are available.
+- None. Canonical ROM, mapper model, global NMI/presentation closure, battle consumers and clean-room test harness are available.
 
 ## RECOVERY CONTRACT
 
-1. Read this file from `main` and reconcile it with newer merged history before executing `NEXT`.
-2. Freeze PR #159 HUD writer, PR #156 palette/CHR refresh, PR #154 state-`$20` NMI, PR #151 visual resources and PR #149 battle-stage closure.
-3. Treat canonical ROM bytes and live Git history as authority over historical labels or chat context.
-4. Audit coverage before adding new renderer behavior; classification is not permission to reopen already-closed branches.
-5. Do not commit ROM, extracted CHR/palette/nametable payloads, OAM dumps or gameplay captures.
-6. Drive remains private ROM/evidence storage and never owns an independent `NEXT`.
+1. Refresh `main`, then read this file before executing `NEXT`.
+2. Freeze PR #161 global NMI coverage, PR #159 HUD, PR #156 palette/CHR, PR #154 state-`$20` NMI, PR #151 visual resources and PR #149 battle-stage closure.
+3. Preserve Oracle correction `$00 NMI -> $D382` from commit `7f90041d...`.
+4. Treat `$94F0` as bank-sensitive until callsite evidence proves otherwise.
+5. Do not infer randomness from a masked counter merely because it looks random; classify updater and consumers mechanically.
+6. Do not commit ROM, extracted copyrighted tables/payloads, traces or captures unless private evidence is materially required.
+7. Drive is private evidence storage only and never owns an independent `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `global-nmi-presentation-coverage-audit`
+- `last_next_signature`: `canonical-random-source-e0ac-065f-0660`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
