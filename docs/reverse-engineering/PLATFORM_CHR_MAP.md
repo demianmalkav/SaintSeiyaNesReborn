@@ -1,8 +1,8 @@
-# Platform CHR bank selection and entity metasprites
+# Platform CHR bank selection and shared metasprite resources
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: static mapping confirmed from fixed-bank MMC1 callsites. Visual identity labels remain separate from the proven bank linkage.
+Status: **static mapping confirmed from fixed-bank MMC1 callsites; shared player/primary-entity metasprite domain mechanically closed.** Visual identity labels remain separate from the proven resource linkage.
 
 ## Platform CHR setup
 
@@ -36,51 +36,109 @@ MMC1 is in 4 KiB CHR mode, so these are 4 KiB bank numbers, not the original iNE
 | `$10` | 25 | 15 |
 | `$11` | 25 | 30 |
 
-This strongly groups platform substates `$00-$0B/$0F-$10`, `$0C-$0D`, `$0E`, and `$11` into different visual-resource sets.
+This groups platform substates `$00-$0B/$0F-$10`, `$0C-$0D`, `$0E`, and `$11` into distinct visual-resource sets.
 
-## Why this closes the metasprite ambiguity
+## CHR0 versus CHR1
 
-Entity rendering in bank 3 selects metasprite definitions through pointer tables around `$B669/$B671/$B699/$B6C1`.
+Platform initialization sets PPUCTRL shadow `$77=$90`.
 
-Before the CHR selection table was found, those definitions could be combined with any of 32 possible 4 KiB CHR banks and many accidental patterns appeared plausible.
+On the NES this selects:
 
-Using the actual platform CHR0 banks from `$CACF` — 25, 27 and 29 — the type-1 through type-4 definitions consistently assemble into coherent multi-tile humanoid figures across their animation variants.
+```text
+sprite pattern table     = $0000 -> MMC1 CHR0
+background pattern table = $1000 -> MMC1 CHR1
+NMI enabled
+```
 
-Therefore the following chain is now statically grounded:
+Therefore the `$CACF` values are the sprite-resource banks consumed by platform OAM/metasprite code, while `$CABD` supplies background/metatile graphics.
 
-`platform substate $02 -> CHR bank -> metasprite pointer table -> entity type -> coherent sprite`
+## Corrected ownership of the bank-3 metasprite tables
 
-This is enough to trust our metasprite parser and to use it for visual cross-identification, while still keeping character/enemy names separate until the art is unambiguous.
+Earlier notes described the pointer tables around `$B669/$B671/$B699/$B6C1` as though their low entries were ordinary entity types. Direct caller tracing corrects that wording.
 
-## Base entity render definitions
+`$B987` is a **shared player/primary-entity compositor**:
 
-For one common animation table (`$B699`), entity types 1–4 resolve to metasprite definitions:
+- player call `$B94B+` puts internal Saint index `$03` in `$26`, so table indices `$00-$04` are Seiya/Shun/Hyoga/Shiryu/Ikki;
+- primary-entity call `$A8DC-$A907` puts logical entity type `+$09` in `$26`, so table indices `$05-$0F` are the canonical primary entity-type domain.
 
-- type 1 -> `$ACC4`, 7 hardware sprites;
-- type 2 -> `$AD0F`, 6 hardware sprites;
-- type 3 -> `$AD54`, 6 hardware sprites;
-- type 4 -> `$AD9C`, 7 hardware sprites.
+This is why the same 16-entry pointer tables legitimately contain both namespaces.
 
-Other animation phases use sibling definitions selected from `$B671/$B6C1`.
+## Complete shared pointer family
 
-The definitions contain tile index, Y offset and X offset triples, with optional attribute overrides marked by `$FF`.
+The compositor can select eleven 16-entry bank-3 pointer tables:
 
-## Original hardware implication
+```text
+$B671 $B699 $B6C1 $B6E9 $B711 $B739
+$B761 $B789 $B7B1 $B7D9 $B801
+```
 
-A single ordinary entity can consume 6–7 of the NES's 64 hardware sprites, before counting the player, projectiles, UI and other objects. This helps explain why the engine uses tightly bounded entity/object slots and aggressive OAM reuse.
+The dynamic four-phase table at `$B669` maps:
 
-REBORN should preserve the animation/pose semantics, not the original sprite-count scarcity.
+```text
+0 -> $B699
+1 -> $B671
+2 -> $B699
+3 -> $B6C1
+```
 
-## Reproducible renderer
+A direct hidden/flash definition also exists at `$B647`.
 
-`tools/reverse/render_platform_entities.py` reads a user-provided canonical ROM and reconstructs entity types 1–4 against the actual platform CHR0 banks 25/27/29.
+`PLATFORM_VISUAL_RESOURCE_DEFINITIONS.md` freezes the exact `$B987-$BACF` selector rules, primary type `$05-$0F` record inventory, dynamic action mutation and special direct resources.
 
-The script contains no original graphics; all tile bytes are read from the supplied ROM at runtime. Generated PNGs are reference artifacts and should stay outside the public repository.
+## Metasprite format and verified primary capacity
 
-## Remaining visual work
+A selected definition is:
 
-1. join `$02` to named scenario/House states;
-2. compare the reconstructed type-1..4 figures with in-game captures to assign visual identities;
-3. decode type `$05-$0F` metasprite definitions and special-object sprite tables;
-4. map CHR1 usage to backgrounds/UI versus sprite pattern-table selection in each state;
-5. preserve only semantic descriptions and clean-room tools in GitHub, not extracted original art.
+```text
+count
+[count × (optional $FF attribute-OR, tile, signed Y, signed X)]
+```
+
+All 121 combinations of:
+
+```text
+11 pointer-table families × 11 primary types $05-$0F
+```
+
+are parsed by the ROM-fed auditor and satisfy bank/pointer/tile/record invariants.
+
+Maximum reachable hardware-sprite counts are:
+
+```text
+05 10   06 10   07 10   08 11   09 9   0A 6
+0B 7    0C 7    0D 12   0E 4    0F 4
+```
+
+Type `$0D` is the sole 12-record exception; this matches the independent `$A647` lifecycle evidence that explicitly retires one extra visual record at `+$2C/+2D` only for `$0D`.
+
+## Separately selected direct resources
+
+The mechanical visual inventory also includes:
+
+- `$B647`: direct 11-record all-`$FE` hidden/flash definition;
+- `$A908`: attached single-sprite resource selected by type through fixed `$C0E3/$C0EF` tile/vertical-offset tables;
+- independent `$9B93` multisprite bootstrap resources at `$9B65/$9B6C/$9B73/$9B8F`, including dedicated substate-`$0D` tile `$8C`.
+
+These do not need to be misrepresented as ordinary entries in the shared `$B987` pointer tables.
+
+## Reproducible tools
+
+`tools/reverse/audit_platform_visual_resources.py` reads a user-provided canonical ROM and audits the complete primary pointer domain plus direct special-resource metadata. It emits addresses/counts/selector metadata only; no original graphics are written into the repository.
+
+`tools/reverse/render_platform_entities.py` now distinguishes:
+
+```text
+--domain player   shared indices $00-$04
+--domain primary  shared indices $05-$0F
+--domain all      shared indices $00-$0F
+--include-special direct $B647 / $A908 / $9B93 resources
+```
+
+All pixel data are read from the supplied ROM at runtime. Generated PNG contact sheets remain private/reference artifacts and must not be committed.
+
+## Remaining visual work outside this closure
+
+1. optional screenshot/capture correlation for visual/narrative names;
+2. palette semantics beyond the already-proven selector plumbing;
+3. complete PPU/NMI/OAM transfer scheduling and final renderer integration;
+4. preserve only semantic descriptions and clean-room tools in GitHub, never extracted original art.
