@@ -4,138 +4,101 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / integral closure audit`
+- Phase: `REBORN / architecture planning`
 - State: `READY_FOR_NEXT`
-- Last merged technical checkpoint: PR `#167` — canonical runtime text-content integration for `MSG_000..MSG_250`.
-- Merge commit: `c129a08387604a183ad18d9a76b9c13e8efa7c11`.
-- Exact final PR head: `39d41d9e8d57e8b11a1506a89443f60516e96196`.
-- Exact code head verified before documentation-only state synchronization: `1fe8ba3c352f02ba345b4861fc5ee7650011df15`.
-- Verification on the exact final PR head:
-  - `Original Spec` #632: `SUCCESS`
-  - `ORIGINAL SPEC tests` #428: `SUCCESS`
+- Integral ORIGINAL SPEC closure checkpoint: PR `#169` — zero-material-gap audit and baseline freeze.
+- Exact audit regression head before documentation-only closure synchronization: `4f4f107dc874a60ad53a116f0fe3e7d12003c87f`.
+- Verification on that exact head:
+  - `Original Spec` #635: `SUCCESS`
+  - `ORIGINAL SPEC tests` #432: `SUCCESS`
   - build/self-test/password compatibility: `SUCCESS`
-- Canonical ROM identity remains: size `262160`, SHA-1 `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`, MD5 `3B0F17C2B6EFC928B3D3FE9B1A389680`, SHA-256 `6917B31D7343A9A17170E833BACDBC3B1EBA3E02D11C51C0D44DBE436C9AD43A`, CRC32 `F8D258A3`.
-- Global presentation, platform frame/rendering, battle/event coverage, canonical RNG, audio scheduler architecture and runtime text/content integration are frozen after their verified checkpoints.
+- Audit verdict: `MATERIAL_GAP = 0`.
+- `src/` currently contains only `SaintSeiyaNesReborn.OriginalSpec`; no REBORN implementation project has been created yet.
+- ORIGINAL SPEC is now a frozen semantic baseline/oracle. Reopen it only for contradictory canonical evidence, a failing frozen fixture, or a material original dependency discovered during REBORN.
 
 ## DONE
 
-### Canonical runtime text-content integration — PR #167
+### Integral ORIGINAL SPEC closure audit — PR #169
 
-The bounded runtime localization boundary around fixed `$E7B3/$E7B7/$E7C3/$E7C7`, `$066A/$066B/$0672` and stable `MSG_000..MSG_250` identity is closed without versioning original or translated dialogue payloads.
+The accumulated reconstruction was audited across all material runtime/gameplay surfaces. `docs/reverse-engineering/ORIGINAL_SPEC_CLOSURE_AUDIT.md` owns the integral inventory.
 
-#### Canonical request tuple
+Material surfaces classified `CLOSED` include:
 
-The four entrypoints are frozen as:
-
-```text
-$E7B3 -> message id in $066A ; $0672=$FF ; dispatch $EC6D
-$E7B7 -> message id in $066A ; $0672=$00 ; dispatch $EC6D
-$E7C3 -> message id in $066B ; $0672=$FF ; dispatch $ECB8
-$E7C7 -> message id in $066B ; $0672=$00 ; dispatch $ECB8
-```
-
-The runtime request identity is therefore:
-
-```text
-(message id, canonical slot $066A/$066B, raw $0672 variant)
-```
-
-`$0672` remains deliberately unnamed beyond raw request/presentation metadata. Current evidence does not justify interpreting it as speaker side, portrait side, player/opponent, or any narrower semantic concept.
-
-#### Stable localization identity
-
-Canonical identity remains immutable:
-
-```text
-numeric ids  0..250
-stable ids   MSG_000..MSG_250
-count        251 exactly
-```
-
-Descriptive `speaker`, `scene` and `semantic_alias` metadata may improve as context is confirmed, but cannot replace or renumber the stable ID.
-
-#### External/private catalog contract
-
-`CanonicalRuntimeLocalization` accepts the existing external CSV schema and enforces:
-
-```text
-exactly 251 entries
-ids exactly 0..250
-no duplicate ids
-stable_id must match MSG_xxx
-Japanese source must exist for every entry
-JP / ES selection is explicit
-missing ES may fall back to JP only under explicit Japanese fallback policy
-fallback never changes message id
-slot and $0672 metadata propagate unchanged
-```
-
-Full JP/ES payloads remain private. The public repository contains only schema/engine semantics, synthetic fixtures and descriptive traceability fields.
-
-#### Public artifacts
-
-- `src/SaintSeiyaNesReborn.OriginalSpec/CanonicalRuntimeLocalization.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/CanonicalRuntimeLocalizationChecks.cs`
-- `docs/reverse-engineering/CANONICAL_RUNTIME_TEXT_CONTENT.md`
-- reconciled `docs/reverse-engineering/TEXT_ENGINE.md`
-- reconciled `docs/LOCALIZATION.md`
-- PR #167
-
-Fixtures use generated `JP_SYNTH_xxx` / `ES_SYNTH_xxx` strings only and prove entrypoint mapping, deterministic selection/fallback, slot/variant propagation, exact catalog coverage, duplicate/stable-ID rejection, external CSV quoting behavior and absence of embedded dialogue resources.
-
-Do not reopen runtime text-content integration without contradictory canonical evidence, a changed catalog invariant or a failing fixture.
-
-## EVIDENCE FOR NEXT
-
-All material bounded ORIGINAL SPEC subsystems now have executable or mechanically documented closure points:
-
-- ROM / boot / mapper / bank architecture;
-- global `$00/$01` state namespace and interruption contracts;
-- front-end/title/password;
-- platform frame, exits/reload, object layers and presentation;
-- maps / CHR / visual resources / HUD;
-- battle/event dispatch, resources, damage, dodge, techniques and stage contexts;
+- canonical ROM identity, boot, MMC1, vectors and bank architecture;
+- global `$00/$01` state namespace, dispatch and reachability;
+- front-end/title/attract/password and modal transitions;
+- platform control, motion, attacks, frame progression, objects and hazards;
+- platform maps, exits, warm reload and narrative progression;
+- CHR/metasprites/palette/HUD/NMI/global presentation;
+- battle/event dispatch, resources, damage, dodge, techniques and stable stage contexts;
 - canonical RNG `$E0AC/$065F/$0660`;
-- canonical audio scheduler `$DB9C/$DBB6/$0440+`;
-- Japanese message extraction/codec and runtime localization boundary `MSG_000..MSG_250`.
+- audio scheduler `$DB9C/$DBB6/$0440+` and APU ownership;
+- Japanese message indexing/extraction/codec;
+- runtime message request/localization contract for `MSG_000..MSG_250`.
 
-The next boundary is not another subsystem reconstruction. It is an **integral closure audit**: prove that the accumulated ORIGINAL SPEC has no material unowned gameplay/runtime surfaces, contradictory contracts, stale open items or missing regression links before REBORN implementation is unfrozen.
+Explicit `INTENTIONALLY_OUT_OF_SCOPE` items are not material gaps:
+
+- exact original music/SFX payload reconstruction;
+- full JP/ES dialogue payloads in the public repository;
+- instruction-for-instruction or cycle-accurate emulation parity;
+- dedicated battle context for `$050E=$0B`, proven structural/transient;
+- REBORN-specific design, presentation and expansion decisions.
+
+The stale README statement that warm reload was still the active frontier was reconciled as documentation debt, not contradictory runtime evidence.
+
+The audit report is now a trigger for `.github/workflows/original-spec.yml`, so future edits to the closure claim run the complete C# OriginalSpec build/self-test/password gate as well as the Python clean-room parity workflow.
+
+## ORIGINAL SPEC FREEZE CONTRACT
+
+1. ORIGINAL SPEC remains authoritative for proven 1988 semantics.
+2. REBORN may deliberately deviate, but deviations must be recorded as REBORN design decisions and must not rewrite ORIGINAL SPEC evidence.
+3. Existing frozen fixtures/tables/state transitions are oracle material.
+4. If new canonical evidence invalidates an oracle, use the `ORACLE CHANGE` process from `docs/VERIFY.md` and repair ORIGINAL SPEC in a bounded checkpoint before propagating the change.
+5. Copyrighted ROM/audio/dialogue payloads remain private; public code consumes semantic contracts or external/private content.
 
 ## OPEN
 
-1. Build a subsystem inventory from the authoritative docs/code/tests and classify each as `CLOSED`, `INTENTIONALLY_OUT_OF_SCOPE`, or `MATERIAL_GAP`.
-2. Reconcile stale `TODO`, `OPEN`, `NEXT`, uncertainty markers and historical status text against the latest closed checkpoints; do not reopen a subsystem merely because an old document still contains historical language.
-3. Audit executable ownership for the major runtime surfaces already modeled: state dispatch, NMI/main-thread presentation, platform objects/exits, battle/events, RNG, audio scheduler and text requests.
-4. Cross-check clean-room contracts against their canonical evidence documents and fixtures; identify contradictions or duplicated semantics.
-5. Run the complete existing ORIGINAL SPEC regression suite and record exact verified head/workflows.
-6. Produce one integral closure report with any residual `MATERIAL_GAP` items ranked by impact and evidence. Zero material gaps is the criterion for freezing ORIGINAL SPEC and unblocking REBORN.
-7. Stop after the closure audit. If gaps exist, NEXT must be the highest-impact bounded gap. If none exist, NEXT may transition to REBORN architecture/implementation planning.
+There are no known material ORIGINAL SPEC gaps blocking implementation.
+
+The open problem is now architectural: create a modern REBORN layer that consumes the frozen specification without coupling application/game code to NES addresses, bank switching, PPU tile encoding or private copyrighted payloads.
+
+The first REBORN checkpoint must decide and document:
+
+1. project/runtime structure under `src/` and `tests/`;
+2. dependency direction between `OriginalSpec`, REBORN domain/gameplay, presentation/platform adapters and content/localization;
+3. which ORIGINAL SPEC concepts cross the boundary as semantic DTOs/interfaces versus which remain evidence-only;
+4. deterministic update/input/time model suitable for parity fixtures;
+5. save/progression state ownership and versioning boundary;
+6. localization/content injection boundary using the existing external-catalog contract;
+7. rendering/audio adapter boundaries that avoid NES hardware leakage into domain logic;
+8. the first bounded vertical slice and its parity acceptance criteria.
+
+Do not start broad gameplay porting before these boundaries are frozen.
 
 ## NEXT
 
-**Perform the integral ORIGINAL SPEC closure audit: inventory every reconstructed runtime/gameplay subsystem, reconcile stale open markers against verified checkpoints, cross-check evidence ↔ clean-room contracts ↔ fixtures, run the complete regression suite, and determine whether any material unowned or contradictory behavior remains before REBORN is unfrozen.**
+**Design and checkpoint the initial REBORN architecture: define the modern project/module boundaries, dependency rules, deterministic runtime loop, semantic bridge from ORIGINAL SPEC, content/localization injection, presentation/audio adapters, save-state boundary, and one minimal vertical slice whose acceptance tests prove that REBORN can consume frozen ORIGINAL SPEC behavior without importing NES hardware details into gameplay logic.**
 
 Completion criterion:
 
-> Every material ORIGINAL SPEC subsystem must have an explicit owner/status and traceable evidence path. Historical TODOs must be either resolved by a later checkpoint, explicitly out of scope, or promoted to a concrete material gap. All clean-room contracts and regression fixtures must be green on one exact head. The audit must end with either (a) a finite ranked list of material gaps and a single bounded NEXT, or (b) zero material gaps and an evidence-backed declaration that ORIGINAL SPEC is closed enough to begin REBORN implementation.
+> The repository must contain a documented and testable REBORN architecture with explicit dependency direction and a minimal compileable skeleton. ORIGINAL SPEC must remain independently buildable and unchanged semantically. The first vertical slice must be narrowly defined with parity-preservation tests or fixtures at the semantic boundary. No large-scale gameplay migration is allowed in this checkpoint.
 
 ## BLOCKERS
 
-- None. All known prerequisite subsystem checkpoints, public clean-room contracts, regression fixtures and private canonical ROM/localization sources are available.
+- None known.
 
 ## RECOVERY CONTRACT
 
 1. Refresh `main`, then read this file before executing `NEXT`.
-2. Freeze PR #167 runtime text-content integration, PR #165 audio scheduler, PR #163 RNG and all earlier closed gates unless new contradictory evidence appears.
-3. The audit may discover a gap, but discovery alone does not authorize broad rework: promote only evidence-backed material gaps to a new bounded checkpoint.
-4. Treat historical `TODO`/`OPEN` prose as suspect until reconciled against newer checkpoints and tests.
-5. Preserve content separation: ROM/audio/dialogue payloads remain private; public GitHub stores semantic results, tests and evidence summaries.
-6. Do not begin REBORN implementation inside the integral audit checkpoint.
-7. Drive remains private evidence/content storage only and never owns an independent `NEXT`.
+2. Treat `docs/reverse-engineering/ORIGINAL_SPEC_CLOSURE_AUDIT.md` as the integral closure inventory, not as a new work queue.
+3. Freeze PR #169 audit result and all prior ORIGINAL SPEC gates unless evidence satisfies the freeze contract above.
+4. Keep ORIGINAL SPEC and REBORN as separate layers; REBORN consumes the specification but never becomes evidence for the original game.
+5. Prefer semantic interfaces over exposing raw NES RAM addresses/banks/registers to REBORN domain code.
+6. Drive remains private evidence/content storage only and never owns an independent `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `original-spec-integral-closure-audit`
+- `last_next_signature`: `reborn-initial-architecture-boundary`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
