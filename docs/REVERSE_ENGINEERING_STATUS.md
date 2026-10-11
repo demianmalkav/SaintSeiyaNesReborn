@@ -16,67 +16,50 @@
 | Platform / global presentation | **HIGH / CLOSED-SEMANTIC** | State-$20 NMI, palette/CHR, HUD y coverage NMI global con cero gaps materiales. |
 | RNG / pseudo-random source `$065F/$0660` | **HIGH / CLOSED** | PR #163: `$E0AC`, bank-sensitive `$94F0,X`, seeds/resets y consumer masks/parity cerrados. |
 | Audio scheduler `$DB9C/$DBB6/$0440+` | **HIGH / CLOSED** | PR #165: ocho slots, cue loader/preemption, `$04F0/$04EF`, `$8B50+` arbitration y ownership APU cerrados. |
-| Texto/localización | **MEDIUM / ACTIVE** | Motor/corpus de 251 mensajes cerrado estáticamente; falta contrato runtime JP/ES con catálogo privado externo. |
-| Auditoría integral ORIGINAL SPEC | PENDING | Después de cerrar runtime text/content integration. |
-| REBORN | EARLY | Congelado hasta cierre integral de ORIGINAL SPEC. |
+| Texto/localización | **HIGH / CLOSED-RUNTIME** | PR #167: extracción/codec + request tuple `$066A/$066B/$0672` + contrato externo JP/ES `MSG_000..MSG_250`. |
+| Auditoría integral ORIGINAL SPEC | **ACTIVE** | Inventario, reconciliación de gaps históricos y verificación integral antes de liberar REBORN. |
+| REBORN | EARLY / FROZEN | Congelado hasta que la auditoría integral confirme cero gaps materiales o los reduzca a checkpoints acotados. |
 
-## Último checkpoint técnico — PR #165
+## Último checkpoint técnico — PR #167
 
-La arquitectura del scheduler de audio queda cerrada sin incorporar payloads originales de música/SFX.
-
-```text
-reset               $DB9C -> $4015/$04F0/$04EF=0; 8 slots +0=FF
-records              $0440 + $15*N, N=0..7
-cue loader           $DBB6 -> $DC0E + 4*A
-channel selector     slot[+1] & 3
-channel bits         01,02,04,08
-clear masks          0E,0D,0B,07
-frame scheduler      bank0 $8B50+
-frame arbitration    first active slot per channel wins
-4015 shadow          $04F0
-visual request latch $04EF via stream command A5 -> $8904/$8AF1
-```
-
-Scheduler-owned APU routing:
+La integración runtime de texto queda cerrada sin incorporar payloads originales o traducidos al repositorio público.
 
 ```text
-DB9E                 $4015 reset
-8DBC / 8E06          $4015 enable/disable shadow writes
-8E4D / 8E9E          $4000 + channel base
-8DCD                 $4001 + channel base
-8DD1 / 8F0E          $4002 + channel base
-8DEA                 $4003 + channel base
-channel bases         0,4,8,12
+E7B3 -> 066A / 0672=FF
+E7B7 -> 066A / 0672=00
+E7C3 -> 066B / 0672=FF
+E7C7 -> 066B / 0672=00
+identity  MSG_000..MSG_250
+count     251 exactos
+runtime   catálogo CSV externo JP/ES
+fallback  ES -> JP sólo bajo política explícita
 ```
+
+`$0672` permanece como metadata raw de request/presentación; no se le asigna semántica más estrecha sin evidencia canónica adicional.
 
 Verification before state update:
 
 ```text
-PR    #165
-head  10482ab54cefaca61adbeaf14102176a3e87f5b6
-CI    Original Spec #624 SUCCESS
-      ORIGINAL SPEC tests #420 SUCCESS
+PR    #167
+head  1fe8ba3c352f02ba345b4861fc5ee7650011df15
+CI    Original Spec #630 SUCCESS
+      ORIGINAL SPEC tests #426 SUCCESS
 ```
 
-Artifacts: `CanonicalAudioScheduler.cs`, self-test fixtures, `audit_canonical_audio_scheduler.py`, and `CANONICAL_AUDIO_SCHEDULER_DB9C_DBB6.md`. Original note streams, envelopes, instrument data, music and SFX payloads are not committed.
+Artifacts: `CanonicalRuntimeLocalization.cs`, self-test fixtures, `CANONICAL_RUNTIME_TEXT_CONTENT.md`, `TEXT_ENGINE.md` reconciliado y `LOCALIZATION.md` reconciliado. Los fixtures usan únicamente strings sintéticos; el guion JP/ES sigue privado.
 
 ## Frontera operativa actual
 
-La siguiente frontera global es **runtime text/content integration**.
+La siguiente frontera global es la **auditoría integral de cierre de ORIGINAL SPEC**.
 
-Evidence already frozen for entry:
+No consiste en reconstruir otro subsistema por defecto. Debe comprobar que todos los bloques materiales ya reconstruidos tienen ownership, evidencia y regresión coherentes; que los `TODO`/`OPEN` históricos no representen gaps reales ya resueltos; y que no haya contradicciones entre documentación, clean-room contracts y fixtures.
+
+Resultado permitido de la auditoría:
 
 ```text
-message IDs              0..250 (251 total)
-entrypoints               E7B3/E7B7 -> 066A
-                          E7C3/E7C7 -> 066B
-variant byte              0672
-pointer table             bank6 A47B
-message storage           CHR4K 15 || CHR4K 17
-terminator/control        FF / 01 / A4 / 3B / 3C
+A) cero MATERIAL_GAP -> ORIGINAL SPEC puede congelarse y REBORN se desbloquea
+B) uno o más MATERIAL_GAP -> ranking finito + un único NEXT acotado al gap de mayor impacto
 ```
-
-`TEXT_ENGINE.md` and `extract_japanese_script.py` already close physical extraction/codec behavior. `LOCALIZATION.md` fixes immutable public IDs `MSG_000..MSG_250`; full JP/ES content stays private. The active work is therefore the runtime-facing request/catalog contract, not re-extraction and not full soundtrack content.
 
 ## No reabrir sin evidencia nueva
 
@@ -89,11 +72,12 @@ terminator/control        FF / 01 / A4 / 3B / 3C
 - HUD `$9D69-$9EED` — #159;
 - canonical RNG `$E0AC/$065F/$0660` — #163;
 - audio scheduler `$DB9C/$DBB6/$0440+` — #165;
+- runtime text/content integration `MSG_000..MSG_250` — #167;
 - promoted boss damage/resources/dodge/technique boundaries.
 
 ## Áreas abiertas
 
-1. runtime text/content integration con catálogo privado JP/ES;
-2. auditoría integral final de ORIGINAL SPEC;
-3. full audio content queda opcional/separado y no bloquea la arquitectura ya cerrada salvo que la auditoría detecte un requisito material;
+1. auditoría integral final de ORIGINAL SPEC;
+2. cualquier gap material que esa auditoría demuestre, no gaps históricos presumidos;
+3. full audio content queda opcional/separado salvo que la auditoría demuestre que bloquea comportamiento material;
 4. REBORN sólo después del cierre integral.

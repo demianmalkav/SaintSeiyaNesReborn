@@ -4,174 +4,136 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / runtime text-content integration`
+- Phase: `ORIGINAL SPEC / integral closure audit`
 - State: `READY_FOR_NEXT`
-- Last merged technical checkpoint: PR `#165` — canonical audio scheduler `$DB9C/$DBB6/$0440+`.
-- Merge commit: `425e285a2cf2f48a5ceb920d1a6607183f14fb07`.
-- Exact final PR head: `dd9d9bb06c40520062d6252f90bce10f8d38fa9a`.
-- Exact code head verified before documentation-only state synchronization: `10482ab54cefaca61adbeaf14102176a3e87f5b6`.
-- Verification on that code head:
-  - `Original Spec` #624: `SUCCESS`
-  - `ORIGINAL SPEC tests` #420: `SUCCESS`
-- Canonical ROM reverified before analysis: size `262160`, SHA-1 `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`, MD5 `3B0F17C2B6EFC928B3D3FE9B1A389680`, SHA-256 `6917B31D7343A9A17170E833BACDBC3B1EBA3E02D11C51C0D44DBE436C9AD43A`, CRC32 `F8D258A3`.
-- Global presentation, platform frame/rendering, battle/event coverage, canonical RNG and audio scheduler architecture are frozen after their verified checkpoints.
+- Closing checkpoint in PR `#167` — canonical runtime text-content integration for `MSG_000..MSG_250`.
+- Exact code head verified before documentation-only state synchronization: `1fe8ba3c352f02ba345b4861fc5ee7650011df15`.
+- Verification on that exact head:
+  - `Original Spec` #630: `SUCCESS`
+  - `ORIGINAL SPEC tests` #426: `SUCCESS`
+  - build/self-test/password compatibility: `SUCCESS`
+- Canonical ROM identity remains: size `262160`, SHA-1 `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`, MD5 `3B0F17C2B6EFC928B3D3FE9B1A389680`, SHA-256 `6917B31D7343A9A17170E833BACDBC3B1EBA3E02D11C51C0D44DBE436C9AD43A`, CRC32 `F8D258A3`.
+- Global presentation, platform frame/rendering, battle/event coverage, canonical RNG, audio scheduler architecture and runtime text/content integration are frozen after their verified checkpoints.
 
 ## DONE
 
-### Canonical audio scheduler architecture — PR #165
+### Canonical runtime text-content integration — PR #167
 
-The bounded scheduler/voice/APU ownership layer rooted at fixed `$DB9C/$DBB6` and bank-0 `$8B50+` is mechanically closed without versioning original song/SFX payloads.
+The bounded runtime localization boundary around fixed `$E7B3/$E7B7/$E7C3/$E7C7`, `$066A/$066B/$0672` and stable `MSG_000..MSG_250` identity is closed without versioning original or translated dialogue payloads.
 
-#### Reset and slot layout
+#### Canonical request tuple
 
-`$DB9C` proves eight records at:
-
-```text
-$0440 + $15*N, N=0..7
-```
-
-Reset semantics:
+The four entrypoints are frozen as:
 
 ```text
-$4015 = 00
-$04F0 = 00
-$04EF = 00
-slot[+0] = FF for all eight records
+$E7B3 -> message id in $066A ; $0672=$FF ; dispatch $EC6D
+$E7B7 -> message id in $066A ; $0672=$00 ; dispatch $EC6D
+$E7C3 -> message id in $066B ; $0672=$FF ; dispatch $ECB8
+$E7C7 -> message id in $066B ; $0672=$00 ; dispatch $ECB8
 ```
 
-Therefore `+0 == $FF` is inactive.
-
-#### Cue loading and preemption
-
-`$DBB6` maps input cue ID `A` to a four-byte descriptor at `$DC0E + 4*A`:
+The runtime request identity is therefore:
 
 ```text
-descriptor[0] -> slot offset
-descriptor[1] -> slot +1
-descriptor[2] -> slot +2
-descriptor[3] -> slot +3
-slot +0       -> 00
+(message id, canonical slot $066A/$066B, raw $0672 variant)
 ```
 
-The low two bits of slot `+1` select channel class `0..3` -> pulse1, pulse2, triangle, noise.
+`$0672` remains deliberately unnamed beyond raw request/presentation metadata. Current evidence does not justify interpreting it as speaker side, portrait side, player/opponent, or any narrower semantic concept.
 
-If the selected record was already active, the old record channel selects mask `$0E/$0D/$0B/$07` at `$DC0A`; that mask clears the old channel bit from `$04F0` before the new descriptor is installed.
+#### Stable localization identity
 
-#### `$04F0` and `$04EF`
-
-`$04F0` is the software shadow of the low four `$4015` channel-enable bits.
-
-Owners are frozen at:
+Canonical identity remains immutable:
 
 ```text
-$DB9C          reset shadow
-$DBB6          clear old owner on record replacement
-$8DB0-$8DBC    OR channel bit, store shadow, write $4015
-$8DFD-$8E09    AND clear mask, store shadow, write $4015
+numeric ids  0..250
+stable ids   MSG_000..MSG_250
+count        251 exactly
 ```
 
-`$04EF` is not APU state. Bank-0 stream command `$A5` stores an operand to `$04EF`; fixed dispatcher `$DB40+` consumes nonzero `$04EF` by invoking visual-buffer routines `$8904/$8AF1` and then clearing the latch.
+Descriptive `speaker`, `scene` and `semantic_alias` metadata may improve as context is confirmed, but cannot replace or renumber the stable ID.
 
-#### Per-frame scheduler and arbitration
+#### External/private catalog contract
 
-Bank-0 `$8B50+`:
+`CanonicalRuntimeLocalization` accepts the existing external CSV schema and enforces:
 
 ```text
-$04E8 = 0           ; per-frame claimed-channel mask
-INC $04EE           ; modulo-256 phase/update byte
-iterate 8 records in ascending slot order
-channel = slot[+1] & 3
-APU base offset = 0,4,8,12
+exactly 251 entries
+ids exactly 0..250
+no duplicate ids
+stable_id must match MSG_xxx
+Japanese source must exist for every entry
+JP / ES selection is explicit
+missing ES may fall back to JP only under explicit Japanese fallback policy
+fallback never changes message id
+slot and $0672 metadata propagate unchanged
 ```
 
-`$8E0D` suppresses a later slot when an earlier active slot already claimed the same channel. Therefore the first active slot in ascending record order owns that channel for the frame.
+Full JP/ES payloads remain private. The public repository contains only schema/engine semantics, synthetic fixtures and descriptive traceability fields.
 
-A newly loaded record (`+0==0`) enters the initialization path before normal stream processing.
+#### Public artifacts
 
-#### APU ownership
+- `src/SaintSeiyaNesReborn.OriginalSpec/CanonicalRuntimeLocalization.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/CanonicalRuntimeLocalizationChecks.cs`
+- `docs/reverse-engineering/CANONICAL_RUNTIME_TEXT_CONTENT.md`
+- reconciled `docs/reverse-engineering/TEXT_ENGINE.md`
+- reconciled `docs/LOCALIZATION.md`
+- PR #167
 
-Scheduler-relevant executable writers are frozen as:
+Fixtures use generated `JP_SYNTH_xxx` / `ES_SYNTH_xxx` strings only and prove entrypoint mapping, deterministic selection/fallback, slot/variant propagation, exact catalog coverage, duplicate/stable-ID rejection, external CSV quoting behavior and absence of embedded dialogue resources.
 
-```text
-$DB9E                 $4015 reset
-$8DBC                 $4015 enable-shadow write
-$8E06                 $4015 disable-shadow write
-$8E4D / $8E9E         $4000 + channel base
-$8DCD                 $4001 + channel base
-$8DD1 / $8F0E         $4002 + channel base
-$8DEA                 $4003 + channel base
-```
-
-with channel bases `0,4,8,12`. Cold RESET `$C12C+` separately initializes `$4010/$4015/$4017`; no scheduler-owned DMC `$4010-$4013` path was found.
-
-Artifacts:
-
-- `src/SaintSeiyaNesReborn.OriginalSpec/CanonicalAudioScheduler.cs`
-- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/CanonicalAudioSchedulerChecks.cs`
-- `tools/reverse/audit_canonical_audio_scheduler.py`
-- `docs/reverse-engineering/CANONICAL_AUDIO_SCHEDULER_DB9C_DBB6.md`
-- PR #165
-
-The clean-room contract accepts decoded semantic voice-frame operations; original note streams, instruments, envelopes, music and SFX payload bytes remain outside GitHub.
-
-Do not reopen audio scheduler architecture without contradictory canonical-ROM evidence or a failing fixture.
+Do not reopen runtime text-content integration without contradictory canonical evidence, a changed catalog invariant or a failing fixture.
 
 ## EVIDENCE FOR NEXT
 
-The remaining material prerequisite before an integral ORIGINAL SPEC audit is runtime text/content integration, not soundtrack payload reconstruction.
+All material bounded ORIGINAL SPEC subsystems now have executable or mechanically documented closure points:
 
-Already-confirmed text architecture:
+- ROM / boot / mapper / bank architecture;
+- global `$00/$01` state namespace and interruption contracts;
+- front-end/title/password;
+- platform frame, exits/reload, object layers and presentation;
+- maps / CHR / visual resources / HUD;
+- battle/event dispatch, resources, damage, dodge, techniques and stage contexts;
+- canonical RNG `$E0AC/$065F/$0660`;
+- canonical audio scheduler `$DB9C/$DBB6/$0440+`;
+- Japanese message extraction/codec and runtime localization boundary `MSG_000..MSG_250`.
 
-```text
-message IDs                   0..250 (251 total)
-fixed entrypoints             $E7B3/$E7B7 -> $066A
-                              $E7C3/$E7C7 -> $066B
-variant/side byte             $0672
-pointer table                 bank6 $A47B, 251 words
-physical message storage      CHR4K $15 || CHR4K $17
-terminator                    $FF
-space                         $01
-line break                    $A4
-dakuten / handakuten          $3B / $3C
-```
-
-`tools/reverse/extract_japanese_script.py` already reconstructs the private 251-message Japanese source corpus from the canonical ROM. `docs/LOCALIZATION.md` fixes stable public IDs `MSG_000..MSG_250`, and `tools/localization/validate_catalog.py` validates a private localization catalog without embedding copyrighted script content in the repository.
-
-The missing boundary is runtime-facing integration: a content-independent executable contract that resolves stable message IDs through language selection and presentation metadata while preserving the original two-slot/variant semantics needed by canonical callsites. Full Japanese/Spanish dialogue payloads remain private.
+The next boundary is not another subsystem reconstruction. It is an **integral closure audit**: prove that the accumulated ORIGINAL SPEC has no material unowned gameplay/runtime surfaces, contradictory contracts, stale open items or missing regression links before REBORN implementation is unfrozen.
 
 ## OPEN
 
-1. Reconcile `TEXT_ENGINE.md`, `LOCALIZATION.md`, extractor/catalog validator and all existing message-context metadata; do not duplicate already-closed extraction work.
-2. Freeze the runtime message-request contract around `$066A/$066B/$0672` and the four `$E7Bx` entrypoints, including slot/variant semantics only where evidence supports naming them.
-3. Classify message-producing callsites by runtime context sufficiently to bridge canonical `MSG_000..MSG_250` IDs to stable semantic metadata without embedding source dialogue.
-4. Promote a clean-room runtime localization interface that accepts an external/private catalog, supports at least `JP` and `ES`, preserves stable IDs, and cleanly separates dialogue payload from game logic.
-5. Add fixtures proving deterministic message selection/fallback, slot/variant propagation, catalog coverage `0..250`, and absence of hard-coded copyrighted dialogue in the public contract.
-6. Stop after runtime text/content integration. Do not begin REBORN implementation or integral ORIGINAL SPEC closure in the same checkpoint.
+1. Build a subsystem inventory from the authoritative docs/code/tests and classify each as `CLOSED`, `INTENTIONALLY_OUT_OF_SCOPE`, or `MATERIAL_GAP`.
+2. Reconcile stale `TODO`, `OPEN`, `NEXT`, uncertainty markers and historical status text against the latest closed checkpoints; do not reopen a subsystem merely because an old document still contains historical language.
+3. Audit executable ownership for the major runtime surfaces already modeled: state dispatch, NMI/main-thread presentation, platform objects/exits, battle/events, RNG, audio scheduler and text requests.
+4. Cross-check clean-room contracts against their canonical evidence documents and fixtures; identify contradictions or duplicated semantics.
+5. Run the complete existing ORIGINAL SPEC regression suite and record exact verified head/workflows.
+6. Produce one integral closure report with any residual `MATERIAL_GAP` items ranked by impact and evidence. Zero material gaps is the criterion for freezing ORIGINAL SPEC and unblocking REBORN.
+7. Stop after the closure audit. If gaps exist, NEXT must be the highest-impact bounded gap. If none exist, NEXT may transition to REBORN architecture/implementation planning.
 
 ## NEXT
 
-**Close runtime text/content integration around canonical `MSG_000..MSG_250`: prove the request semantics of `$E7B3/$E7B7/$E7C3/$E7C7` through `$066A/$066B/$0672`, classify the runtime metadata needed by canonical callsites, and promote a clean-room JP/ES localization contract that loads private external catalogs while keeping all original/translated dialogue payloads out of GitHub.**
+**Perform the integral ORIGINAL SPEC closure audit: inventory every reconstructed runtime/gameplay subsystem, reconcile stale open markers against verified checkpoints, cross-check evidence ↔ clean-room contracts ↔ fixtures, run the complete regression suite, and determine whether any material unowned or contradictory behavior remains before REBORN is unfrozen.**
 
 Completion criterion:
 
-> Given a canonical message request (stable `MSG_xxx`, message slot and `$0672` variant), selected language and a valid external catalog, the public clean-room contract must deterministically resolve the requested localized entry and propagate the canonical request metadata. It must reject malformed/incomplete catalogs, preserve exact ID coverage `0..250`, provide an explicit fallback policy, and contain no copyrighted dialogue payload. Existing extraction/codec behavior must remain regression-green.
+> Every material ORIGINAL SPEC subsystem must have an explicit owner/status and traceable evidence path. Historical TODOs must be either resolved by a later checkpoint, explicitly out of scope, or promoted to a concrete material gap. All clean-room contracts and regression fixtures must be green on one exact head. The audit must end with either (a) a finite ranked list of material gaps and a single bounded NEXT, or (b) zero material gaps and an evidence-backed declaration that ORIGINAL SPEC is closed enough to begin REBORN implementation.
 
 ## BLOCKERS
 
-- None. Canonical ROM, text engine reconstruction, 251-message extractor, stable IDs, private-catalog validator and battle-context metadata already exist.
+- None. All known prerequisite subsystem checkpoints, public clean-room contracts, regression fixtures and private canonical ROM/localization sources are available.
 
 ## RECOVERY CONTRACT
 
 1. Refresh `main`, then read this file before executing `NEXT`.
-2. Freeze PR #165 audio scheduler architecture and all earlier closed gates unless new contradictory evidence appears.
-3. Treat the 251 message IDs as immutable localization identity; semantic aliases may improve, numeric IDs may not change.
-4. Keep full JP/ES script content private. Public GitHub receives only engine semantics, schemas/contracts, validators, synthetic fixtures and non-copyrighted metadata.
-5. Do not couple localization runtime closure to REBORN UI implementation.
-6. Drive remains private evidence/content storage only and never owns an independent `NEXT`.
+2. Freeze PR #167 runtime text-content integration, PR #165 audio scheduler, PR #163 RNG and all earlier closed gates unless new contradictory evidence appears.
+3. The audit may discover a gap, but discovery alone does not authorize broad rework: promote only evidence-backed material gaps to a new bounded checkpoint.
+4. Treat historical `TODO`/`OPEN` prose as suspect until reconciled against newer checkpoints and tests.
+5. Preserve content separation: ROM/audio/dialogue payloads remain private; public GitHub stores semantic results, tests and evidence summaries.
+6. Do not begin REBORN implementation inside the integral audit checkpoint.
+7. Drive remains private evidence/content storage only and never owns an independent `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `runtime-text-content-msg000-250-e7bx`
+- `last_next_signature`: `original-spec-integral-closure-audit`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
