@@ -6,11 +6,13 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 - Phase: `ORIGINAL SPEC / integral closure audit`
 - State: `READY_FOR_NEXT`
-- Closing checkpoint in PR `#167` — canonical runtime text-content integration for `MSG_000..MSG_250`.
+- Last merged technical checkpoint: PR `#167` — canonical runtime text-content integration for `MSG_000..MSG_250`.
+- Merge commit: `c129a08387604a183ad18d9a76b9c13e8efa7c11`.
+- Exact final PR head: `39d41d9e8d57e8b11a1506a89443f60516e96196`.
 - Exact code head verified before documentation-only state synchronization: `1fe8ba3c352f02ba345b4861fc5ee7650011df15`.
-- Verification on that exact head:
-  - `Original Spec` #630: `SUCCESS`
-  - `ORIGINAL SPEC tests` #426: `SUCCESS`
+- Verification on the exact final PR head:
+  - `Original Spec` #632: `SUCCESS`
+  - `ORIGINAL SPEC tests` #428: `SUCCESS`
   - build/self-test/password compatibility: `SUCCESS`
 - Canonical ROM identity remains: size `262160`, SHA-1 `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`, MD5 `3B0F17C2B6EFC928B3D3FE9B1A389680`, SHA-256 `6917B31D7343A9A17170E833BACDBC3B1EBA3E02D11C51C0D44DBE436C9AD43A`, CRC32 `F8D258A3`.
 - Global presentation, platform frame/rendering, battle/event coverage, canonical RNG, audio scheduler architecture and runtime text/content integration are frozen after their verified checkpoints.
