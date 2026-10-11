@@ -25,6 +25,7 @@ public enum EngineMainDispatchRoute
 public enum EngineNmiDispatchRoute
 {
     CommonTailOnly,
+    State00TailD382,
     Latched50DABC,
     Latched3DE000,
     State12AdvanceTo13,
@@ -138,6 +139,8 @@ public static class EngineStateDispatcherMap
     /// NMI dispatcher beginning at $D269. Two routes are selected from the frame
     /// mirror $01 before the routine reloads live $00: $50 and $3D. All remaining
     /// logical cases below use live $00, matching the canonical instruction order.
+    /// State $00 is a distinct tail entry at $D382: it skips $D367-$D381 rather
+    /// than entering the ordinary common epilogue at $D367.
     /// </summary>
     public static EngineNmiDispatchDecision ResolveNmi(byte mirror01, byte live00)
     {
@@ -152,6 +155,12 @@ public static class EngineStateDispatcherMap
                 EngineNmiDispatchRoute.Latched3DE000,
                 LogicalTargetAddress: 0xE000,
                 SelectedFromMirror01: true);
+
+        if (live00 == 0x00)
+            return new(
+                EngineNmiDispatchRoute.State00TailD382,
+                LogicalTargetAddress: 0xD382,
+                SelectedFromMirror01: false);
 
         if (live00 == 0x12)
             return new(
@@ -211,8 +220,8 @@ public static class EngineStateDispatcherMap
     }
 
     /// <summary>
-    /// The first unresolved states proved to be entered directly from already
-    /// promoted normal-reload destinations through the $C180/$D442 bootstrap.
+    /// Historical helper retained for compatibility. Both direct reload successors
+    /// are now closed by dedicated family models.
     /// </summary>
     public static bool IsDirectUnresolvedReloadSuccessor(byte state00) =>
         state00 is 0x11 or 0x91;

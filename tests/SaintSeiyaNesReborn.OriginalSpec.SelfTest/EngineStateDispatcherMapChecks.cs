@@ -94,6 +94,12 @@ internal static class EngineStateDispatcherMapChecks
 
     private static void CheckNmiLivePartitionAndTransitions()
     {
+        var s00 = EngineStateDispatcherMap.ResolveNmi(0, 0x00);
+        Require(s00.Route == EngineNmiDispatchRoute.State00TailD382
+            && s00.LogicalTargetAddress == 0xD382
+            && !s00.SelectedFromMirror01,
+            "$00 jumps to $D382 and skips the ordinary $D367-$D381 PPUCTRL/PPUMASK segment");
+
         var s12 = EngineStateDispatcherMap.ResolveNmi(0, 0x12);
         Require(s12.Route == EngineNmiDispatchRoute.State12AdvanceTo13
             && s12.ImmediateNextState00 == 0x13
