@@ -51,7 +51,9 @@ Si README, documentos históricos, Drive o contexto de chat contradicen `docs/PR
 
 ## Estado técnico general
 
-ORIGINAL SPEC ya contiene implementaciones semánticas y fixtures para partes sustanciales de plataforma, entidades, hazards, colisiones, recursos, combate, transiciones globales y localización. El frente activo está por encima del gameplay de frame normal: se está cerrando la transición interactiva del **warm reload** normal antes de derivar sus destinos finales.
+La auditoría integral de ORIGINAL SPEC clasifica los subsistemas materiales del juego original como cerrados o deliberadamente fuera de alcance y no identifica gaps materiales pendientes. El detalle y la matriz de ownership viven en `docs/reverse-engineering/ORIGINAL_SPEC_CLOSURE_AUDIT.md`.
+
+ORIGINAL SPEC funciona desde este punto como baseline semántico congelado: puede reabrirse únicamente ante evidencia canónica contradictoria, una fixture fallida o una dependencia original no modelada descubierta durante REBORN. El frente operativo pasa a la arquitectura y planificación inicial de **REBORN**, preservando explícitamente los invariantes que se decida heredar del original.
 
 El detalle global por subsistema vive en `docs/REVERSE_ENGINEERING_STATUS.md`; el punto exacto de continuación vive exclusivamente en `docs/PROJECT_STATE.md`.
 
