@@ -2,7 +2,7 @@
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: message indexing, pointer table, physical text storage, terminator/newline controls, dakuten/handakuten overlay behavior, font mapping and the complete 251-message extraction path are statically reconstructed.
+Status: message indexing, pointer table, physical text storage, terminator/newline controls, dakuten/handakuten overlay behavior, font mapping and the complete 251-message extraction path are statically reconstructed. Runtime request/localization integration is closed separately in `CANONICAL_RUNTIME_TEXT_CONTENT.md`.
 
 The complete extracted Japanese script is **not committed** to the public repository. It is generated locally from a user-owned ROM by `tools/reverse/extract_japanese_script.py`.
 
@@ -15,7 +15,7 @@ Dialogue/event code does not pass raw text pointers. Callers pass an 8-bit **mes
 - `$E7C3`: store message ID in `$066B`, set `$0672=$FF`, call `$ECB8`;
 - `$E7C7`: store message ID in `$066B`, set `$0672=$00`, call `$ECB8`.
 
-`$0672` is preserved as a side/variant flag until its complete presentation semantics are named. `$066A/$066B` are two message slots/channels.
+`$0672` is preserved as raw request/presentation variant metadata; the canonical evidence proves `$00/$FF` behavior but does not justify a narrower presentation name. `$066A/$066B` are the two canonical message request slots/channels.
 
 Immediate `LDA #id ; JSR $E7Bx` patterns account for 184 statically obvious callsites. Other IDs can be reached through dynamic/event paths.
 
@@ -104,15 +104,15 @@ The English fan-translation's documented Huffman work should therefore be treate
 
 ## Stable localization identity
 
-Until individual scenes are semantically aliased, the canonical localization key is:
+The canonical localization key is:
 
 `MSG_000` through `MSG_250`.
 
-The extractor also records static callsites with PRG bank, CPU address, message slot and `$0672` flag. Those callsites will be used to add semantic aliases such as stage/opponent/event names without changing the stable numeric identity.
+The extractor also records static callsites with PRG bank, CPU address, message slot and `$0672` flag. Descriptive metadata such as speaker, scene and semantic alias may be improved as context is confirmed, but it never changes the stable numeric identity or canonical slot/variant request tuple.
 
 The localization pipeline remains:
 
-`ROM message ID -> Japanese decoded source -> semantic context -> Spanish localization`
+`ROM message ID -> Japanese decoded source -> semantic context -> Spanish localization -> external runtime catalog`
 
 English/Portuguese fan translations are secondary technical/reference material only; Spanish is translated from the Japanese source.
 
@@ -131,10 +131,14 @@ English/Portuguese fan translations are secondary technical/reference material o
 
 The generated JSON is derived copyrighted game text and is intentionally excluded from the public source tree.
 
-## Next work
+## Runtime integration
 
-1. associate IDs with stage/battle/event dispatchers and assign semantic aliases;
-2. produce the private Japanese source catalog;
-3. translate directly JP -> ES with a project terminology glossary;
-4. classify non-dialogue text (menus, status UI, names, techniques) separately from the 251-message corpus;
-5. implement a modern UTF-8 localization layer in REBORN rather than preserving NES tile-string restrictions.
+`CanonicalRuntimeLocalization` and `CANONICAL_RUNTIME_TEXT_CONTENT.md` now freeze the content-independent runtime boundary:
+
+- four `$E7Bx` entrypoints map deterministically to message ID + `$066A/$066B` slot + raw `$0672` variant;
+- external catalogs must cover exactly `MSG_000..MSG_250`;
+- JP and ES payloads remain private and are loaded externally;
+- fallback policy is explicit and never changes message identity;
+- public fixtures use synthetic text only.
+
+Non-dialogue text such as menus, status UI, names and techniques remains a separate content class and is not silently folded into the 251-message dialogue corpus.
