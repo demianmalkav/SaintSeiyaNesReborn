@@ -2,7 +2,7 @@
 
 Target: canonical Japanese `Saint Seiya: Ougon Densetsu Kanketsu Hen` ROM.
 
-Status: **static mapping confirmed from fixed-bank MMC1 callsites; shared player/primary-entity metasprite domain mechanically closed.** Visual identity labels remain separate from the proven resource linkage.
+Status: **static platform CHR routing, dynamic `$9915` CHR0 overrides and shared player/primary-entity metasprite resources mechanically closed.** Visual identity labels remain separate from the proven resource linkage.
 
 ## Platform CHR setup
 
@@ -13,7 +13,7 @@ Fixed routine around `$CB04` uses high-level platform substate `$02` as a direct
 
 MMC1 is in 4 KiB CHR mode, so these are 4 KiB bank numbers, not the original iNES 8 KiB units.
 
-## Exact table
+## Static initialization table
 
 | `$02` | CHR 0 | CHR 1 |
 |---:|---:|---:|
@@ -36,7 +36,26 @@ MMC1 is in 4 KiB CHR mode, so these are 4 KiB bank numbers, not the original iNE
 | `$10` | 25 | 15 |
 | `$11` | 25 | 30 |
 
-This groups platform substates `$00-$0B/$0F-$10`, `$0C-$0D`, `$0E`, and `$11` into distinct visual-resource sets.
+This is the platform-entry/static resource selection. It groups substates `$00-$0B/$0F-$10`, `$0C-$0D`, `$0E`, and `$11` into distinct initial visual-resource sets.
+
+## Dynamic CHR0 override from bank-1 `$9915`
+
+The static `$CACF` table is not the final word for every frame. The state-`$20` NMI can call bank-1 `$9915`; its one-shot special refresh route selects a six-byte CHR0 table at `$9966` after `$03A4` is armed for substates `$0C-$11`.
+
+| `$02` | static `$CACF` CHR0 | `$9915/$9966` CHR0 |
+|---:|---:|---:|
+| `$0C` | `$1D` | `$1D` |
+| `$0D` | `$1D` | `$1D` |
+| `$0E` | `$1B` | `$1B` |
+| `$0F` | `$19` | `$00` |
+| `$10` | `$19` | `$19` |
+| `$11` | `$19` | `$00` |
+
+The zero entries are canonical ROM bytes. They are not absent mappings: `$0F` and `$11` intentionally switch CHR0 to bank 0 when the one-shot refresh fires.
+
+The `$9915` write is a raw MMC1 CHR0 serial transaction (`INC $FFFF` followed by five writes in the `$A000-$BFFF` register window). It is a transient presentation/resource mutation and does not modify the static initialization table or persistent PRG-bank mirror `$3B`.
+
+`PLATFORM_VISUAL_REFRESH_9915.md` closes the arming gates, palette descriptor transfer and this dynamic CHR0 ownership.
 
 ## CHR0 versus CHR1
 
@@ -50,7 +69,7 @@ background pattern table = $1000 -> MMC1 CHR1
 NMI enabled
 ```
 
-Therefore the `$CACF` values are the sprite-resource banks consumed by platform OAM/metasprite code, while `$CABD` supplies background/metatile graphics.
+Therefore the `$CACF` values and later `$9915/$9966` overrides are sprite-resource banks consumed by platform OAM/metasprite code, while `$CABD` supplies background/metatile graphics.
 
 ## Corrected ownership of the bank-3 metasprite tables
 
@@ -125,7 +144,9 @@ These do not need to be misrepresented as ordinary entries in the shared `$B987`
 
 `tools/reverse/audit_platform_visual_resources.py` reads a user-provided canonical ROM and audits the complete primary pointer domain plus direct special-resource metadata. It emits addresses/counts/selector metadata only; no original graphics are written into the repository.
 
-`tools/reverse/render_platform_entities.py` now distinguishes:
+`tools/reverse/audit_platform_visual_refresh.py` independently audits the bank-1 palette-pointer domains and `$9966` dynamic CHR0 selectors without emitting original palette bytes.
+
+`tools/reverse/render_platform_entities.py` distinguishes:
 
 ```text
 --domain player   shared indices $00-$04
@@ -139,6 +160,6 @@ All pixel data are read from the supplied ROM at runtime. Generated PNG contact 
 ## Remaining visual work outside this closure
 
 1. optional screenshot/capture correlation for visual/narrative names;
-2. palette semantics beyond the already-proven selector plumbing;
-3. complete PPU/NMI/OAM transfer scheduling and final renderer integration;
-4. preserve only semantic descriptions and clean-room tools in GitHub, never extracted original art.
+2. platform HUD/name-table refresh downstream of `$9915` at `$9D69+`;
+3. presentation paths for non-platform global NMI states, if required by final ORIGINAL SPEC audit;
+4. preserve only semantic descriptions and clean-room tools in GitHub, never extracted original art or palette payloads.
