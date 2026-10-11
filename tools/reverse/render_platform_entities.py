@@ -182,13 +182,11 @@ def add_special_cells(
     chr_index: int,
     scale: int,
 ) -> None:
-    # Direct blank/flash definition selected at $B97C.
     cells.append((
         f"CHR{chr_index} direct $B647",
         render_metasprite(chr_bank, parse_metasprite(prg, DIRECT_BLANK_DEFINITION), scale),
     ))
 
-    # $A908 attached primary visual: nonzero $C0E3 entries create one tile.
     attached_tiles = list(fixed(prg, 0xC0E3, 11))
     for offset, tile in enumerate(attached_tiles):
         if tile == 0:
@@ -199,20 +197,18 @@ def add_special_cells(
             render_direct_group(chr_bank, [tile], scale, columns=1),
         ))
 
-    # Independent $9B93 ordinary bootstrap resources. Selector zero is no-spawn.
-    sprite_bases = list(switched(prg, 1, 0x9B65, 7))
+    # $9B93 and its direct resource tables are in switchable PRG bank 3.
+    sprite_bases = list(switched(prg, 3, 0x9B65, 7))
     for selector, base in enumerate(sprite_bases[1:], start=1):
         cells.append((
             f"CHR{chr_index} 9B93 S{selector} 2x2",
             render_direct_group(chr_bank, [base, base + 1, base + 2, base + 3], scale),
         ))
-        # Substate $0C skips two sprite values before the second row.
         cells.append((
             f"CHR{chr_index} 9B93 S{selector} sub0C",
             render_direct_group(chr_bank, [base, base + 1, base + 4, base + 5], scale),
         ))
 
-    # Dedicated substate-$0D bootstrap owns one direct sprite tile $8C.
     cells.append((
         f"CHR{chr_index} 9B93 sub0D tile8C",
         render_direct_group(chr_bank, [0x8C], scale, columns=1),
