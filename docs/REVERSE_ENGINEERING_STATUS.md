@@ -15,71 +15,68 @@
 | Platform maps / CHR / metasprites | **HIGH / CLOSED** | Kits `$00-$11`, routing CHR estático/dinámico y visual resources cerrados. |
 | Platform / global presentation | **HIGH / CLOSED-SEMANTIC** | State-$20 NMI, palette/CHR, HUD y coverage NMI global con cero gaps materiales. |
 | RNG / pseudo-random source `$065F/$0660` | **HIGH / CLOSED** | PR #163: `$E0AC`, bank-sensitive `$94F0,X`, seeds/resets y consumer masks/parity cerrados. |
-| Audio scheduler `$DB9C/$DBB6/$0440+` | **ACTIVE** | Ocho slots de `$15` bytes y cue loader visibles; falta lifecycle/updater/APU ownership. |
-| Texto/localización | MEDIUM | Corpus JP + borrador ES; integración runtime final pendiente. |
-| Auditoría integral ORIGINAL SPEC | PENDING | Después de cerrar audio y runtime text/content integration necesaria. |
+| Audio scheduler `$DB9C/$DBB6/$0440+` | **HIGH / CLOSED** | PR #165: ocho slots, cue loader/preemption, `$04F0/$04EF`, `$8B50+` arbitration y ownership APU cerrados. |
+| Texto/localización | **MEDIUM / ACTIVE** | Motor/corpus de 251 mensajes cerrado estáticamente; falta contrato runtime JP/ES con catálogo privado externo. |
+| Auditoría integral ORIGINAL SPEC | PENDING | Después de cerrar runtime text/content integration. |
 | REBORN | EARLY | Congelado hasta cierre integral de ORIGINAL SPEC. |
 
-## Último checkpoint técnico — PR #163
+## Último checkpoint técnico — PR #165
 
-El source pseudo-random/phase queda cerrado.
-
-```text
-caller único       $E09C -> $E0AC
-update gate        $9C!=0 && ($9D|$9E|$A0)==0
-recurrence         065F' = 065F + visible_prg[94F0+0660]
-                   0660' = 0660 + 1
-source window      bank-sensitive, $94F0-$95EF
-queue priority     0641 -> 0526 -> 0538 -> 057D
-forced banks       0/6, 6, 5, 6 respectively
-mapper busy        preserve incoming committed bank
-```
-
-Reset/seed ownership:
+La arquitectura del scheduler de audio queda cerrada sin incorporar payloads originales de música/SFX.
 
 ```text
-C13D cold clear    (00,00)
-AD4A clear+fill    (01,01)
-959D clear         (00,00)
-AF0D clear         (00,00)
-B38A $0648,Y       Y=17 -> 065F; Y=18 -> 0660
+reset               $DB9C -> $4015/$04F0/$04EF=0; 8 slots +0=FF
+records              $0440 + $15*N, N=0..7
+cue loader           $DBB6 -> $DC0E + 4*A
+channel selector     slot[+1] & 3
+channel bits         01,02,04,08
+clear masks          0E,0D,0B,07
+frame scheduler      bank0 $8B50+
+frame arbitration    first active slot per channel wins
+4015 shadow          $04F0
+visual request latch $04EF via stream command A5 -> $8904/$8AF1
 ```
 
-Consumer masks/ranges are frozen at `$E33D`, `$EC18/$EC20/$EC2B`, `$F65D/$F665`, `$FAC9/$FAD7`, bank6 `$913E/$92E2`; `$F995` maps `$0660` parity to `$FF/$01` and closes the dodge-direction source.
-
-Technical checkpoint:
+Scheduler-owned APU routing:
 
 ```text
-PR    #163
-merge b89a5fb7d86e7b7b322cca1ea13a416ed9ca050f
-head  cb003c01db8370d1195d1e8a527dfad4a40f68da
-CI    #416 SUCCESS / #620 SUCCESS
+DB9E                 $4015 reset
+8DBC / 8E06          $4015 enable/disable shadow writes
+8E4D / 8E9E          $4000 + channel base
+8DCD                 $4001 + channel base
+8DD1 / 8F0E          $4002 + channel base
+8DEA                 $4003 + channel base
+channel bases         0,4,8,12
 ```
 
-Artifacts: `CanonicalRandomSourceE0AC.cs`, self-test fixtures, `audit_canonical_random_source.py`, and `CANONICAL_RANDOM_SOURCE_E0AC.md`. No original `$94F0` table payload is committed.
+Verification before state update:
+
+```text
+PR    #165
+head  10482ab54cefaca61adbeaf14102176a3e87f5b6
+CI    Original Spec #624 SUCCESS
+      ORIGINAL SPEC tests #420 SUCCESS
+```
+
+Artifacts: `CanonicalAudioScheduler.cs`, self-test fixtures, `audit_canonical_audio_scheduler.py`, and `CANONICAL_AUDIO_SCHEDULER_DB9C_DBB6.md`. Original note streams, envelopes, instrument data, music and SFX payloads are not committed.
 
 ## Frontera operativa actual
 
-La siguiente frontera global es **audio scheduler architecture**.
+La siguiente frontera global es **runtime text/content integration**.
 
 Evidence already frozen for entry:
 
 ```text
-$DB9C:
-  $4015=0
-  $04EF/$04F0=0
-  8 records: $0440 + $15*N, N=0..7
-  record +0 = FF on reset
-
-$DBB6:
-  cue A -> descriptor $DC0E + 4*A
-  descriptor[0] -> slot offset
-  descriptor[1..3] -> slot +1..+3
-  slot +0 = 0 (active)
-  existing-slot replacement mutates $04F0 through $DC0A mask
+message IDs              0..250 (251 total)
+entrypoints               E7B3/E7B7 -> 066A
+                          E7C3/E7C7 -> 066B
+variant byte              0672
+pointer table             bank6 A47B
+message storage           CHR4K 15 || CHR4K 17
+terminator/control        FF / 01 / A4 / 3B / 3C
 ```
 
-The active work is to identify slot lifecycle/preemption, the per-frame updater and semantic ownership of APU writes `$4000-$4015`. Full music/SFX payload reconstruction remains a later boundary.
+`TEXT_ENGINE.md` and `extract_japanese_script.py` already close physical extraction/codec behavior. `LOCALIZATION.md` fixes immutable public IDs `MSG_000..MSG_250`; full JP/ES content stays private. The active work is therefore the runtime-facing request/catalog contract, not re-extraction and not full soundtrack content.
 
 ## No reabrir sin evidencia nueva
 
@@ -91,12 +88,12 @@ The active work is to identify slot lifecycle/preemption, the per-frame updater 
 - state-$20 NMI — #154;
 - HUD `$9D69-$9EED` — #159;
 - canonical RNG `$E0AC/$065F/$0660` — #163;
+- audio scheduler `$DB9C/$DBB6/$0440+` — #165;
 - promoted boss damage/resources/dodge/technique boundaries.
 
 ## Áreas abiertas
 
-1. audio scheduler/voice/APU ownership;
-2. full audio content only after scheduler architecture;
-3. texto runtime/localización final;
-4. auditoría integral final de ORIGINAL SPEC;
-5. REBORN sólo después del cierre integral.
+1. runtime text/content integration con catálogo privado JP/ES;
+2. auditoría integral final de ORIGINAL SPEC;
+3. full audio content queda opcional/separado y no bloquea la arquitectura ya cerrada salvo que la auditoría detecte un requisito material;
+4. REBORN sólo después del cierre integral.
