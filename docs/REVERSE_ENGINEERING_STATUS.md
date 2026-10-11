@@ -22,7 +22,7 @@
 | REBORN architecture | **CLOSED INITIAL BOUNDARY** | PR #171: Core determinista + anti-corruption bridge + ports + save schema + slice de texto sintético. |
 | REBORN gameplay / horizontal grounded | **CLOSED** | PR #173: world-space locomotion/facing, perfiles 1/1 y 1/2, bridge y parity fixtures. |
 | REBORN gameplay / standing vertical | **CLOSED** | PR #175: iniciación + 30-sample standing-jump trajectory, positive-up semantic Y y paridad completa. |
-| REBORN gameplay / standing air control | **CLOSED PENDING MERGE** | PR #177: free-space 0/1 parity drift, facing preservado, world-space X y composición vertical-first. |
+| REBORN gameplay / standing air control | **CLOSED** | PR #177: free-space 0/1 parity drift, facing preservado, world-space X y composición vertical-first. |
 | REBORN gameplay / high standing jump | **NEXT** | Per-Saint high-jump vertical profiles, sin collision/landing/terminal fall. |
 
 ## ORIGINAL SPEC freeze
@@ -81,12 +81,14 @@ facing       se preserva desde takeoff
 
 La composición REBORN preserva el orden observable `vertical -> horizontal -> advance phase`. La fixture recorre las 30 muestras contra `PlatformAirborneSession`, cruza el handoff original player-X/camera-scroll y verifica que `WorldX` permanece equivalente sin importar cámara al dominio.
 
-Verification del code head del checkpoint:
+Verification del checkpoint:
 
 ```text
-head                       d98a7c5d5739739ee7430c7f99abc1ea954e5ba6
-REBORN architecture #35    SUCCESS
-ORIGINAL SPEC tests #458   SUCCESS
+code head                  d98a7c5d5739739ee7430c7f99abc1ea954e5ba6
+final PR head              f080c36f0598797c6fa9320f1f0d33f2acb170df
+merge                      c511bb03f9f1bc45df394f966bbd0f2728b4fb51
+REBORN architecture #38    SUCCESS
+ORIGINAL SPEC tests #460   SUCCESS
 ```
 
 ## Frontera operativa actual
