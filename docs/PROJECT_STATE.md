@@ -6,12 +6,15 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 - Phase: `REBORN / platform movement reconstruction`
 - State: `READY_FOR_NEXT`
-- Closing technical checkpoint: PR `#177` — ordinary standing-jump airborne horizontal control in collision-free space.
-- Exact verified code head before documentation-only state synchronization: `d98a7c5d5739739ee7430c7f99abc1ea954e5ba6`.
-- Verification on that exact code head:
-  - `REBORN architecture` #35: `SUCCESS`;
-  - `ORIGINAL SPEC tests` #458: `SUCCESS`;
+- Last merged technical checkpoint: PR `#177` — ordinary standing-jump airborne horizontal control in collision-free space.
+- Merge commit: `c511bb03f9f1bc45df394f966bbd0f2728b4fb51`.
+- Exact final PR head: `f080c36f0598797c6fa9320f1f0d33f2acb170df`.
+- Exact air-control code head before documentation-only state synchronization: `d98a7c5d5739739ee7430c7f99abc1ea954e5ba6`.
+- Verification on the exact final PR head:
+  - `REBORN architecture` #38: `SUCCESS`;
+  - `ORIGINAL SPEC tests` #460: `SUCCESS`;
   - frozen OriginalSpec build, REBORN Core build, OriginalBridge build, hardware-leak gate and complete REBORN self-test: `SUCCESS`.
+- The exact air-control code head also passed `REBORN architecture` #35 and `ORIGINAL SPEC tests` #458 before documentation-only synchronization.
 - ORIGINAL SPEC remains frozen at PR #169 / `MATERIAL_GAP=0`; no OriginalSpec source or oracle semantics changed.
 - Initial REBORN architecture from PR #171, grounded horizontal locomotion from PR #173 and ordinary standing vertical trajectory from PR #175 remain frozen.
 
@@ -115,7 +118,7 @@ Completion criterion:
 ## RECOVERY CONTRACT
 
 1. Refresh `main`, then read this file before executing `NEXT`.
-2. Freeze PR #171 architecture, PR #173 grounded locomotion, PR #175 standing vertical trajectory and PR #177 standing air-control contract after merge unless a failing fixture or explicit REBORN design decision requires a bounded change.
+2. Freeze PR #171 architecture, PR #173 grounded locomotion, PR #175 standing vertical trajectory and PR #177 standing air-control contract unless a failing fixture or explicit REBORN design decision requires a bounded change.
 3. Read `docs/reborn/ARCHITECTURE.md`, `docs/reborn/PLATFORM_HORIZONTAL_LOCOMOTION.md`, `docs/reborn/PLATFORM_STANDING_JUMP.md` and `docs/reborn/PLATFORM_STANDING_JUMP_AIR_CONTROL.md` before expanding player movement.
 4. Keep canonical-address/storage translation inside `Reborn.OriginalBridge`; gameplay/domain types remain semantic.
 5. Do not use REBORN behavior as evidence for ORIGINAL SPEC.
