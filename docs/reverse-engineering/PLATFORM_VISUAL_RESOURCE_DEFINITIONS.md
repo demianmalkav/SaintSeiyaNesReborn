@@ -310,7 +310,7 @@ This corrects an earlier provisional interpretation of `$C0EF`: it is a **vertic
 
 ## Independent `$9B93` multisprite visuals
 
-The already-closed `$9B93` object class is independent of the primary slots and uses its own direct resource tables in bank 1:
+The already-closed `$9B93` object class is independent of the primary slots and uses its own direct resource tables in **switchable PRG bank 3**:
 
 ```text
 $9B65 -> selector sprite bases
