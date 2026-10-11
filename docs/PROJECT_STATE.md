@@ -6,12 +6,15 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 - Phase: `REBORN / platform movement reconstruction`
 - State: `READY_FOR_NEXT`
-- Closing technical checkpoint: PR `#179` — canonical high standing-jump initiation and complete table-controlled vertical profiles.
-- Exact verified code head before documentation-only state synchronization: `71452b23ec179ce975b6340c58913cf753b07771`.
-- Verification on that exact code head:
-  - `REBORN architecture` #44: `SUCCESS`;
-  - `ORIGINAL SPEC tests` #464: `SUCCESS`;
+- Last merged technical checkpoint: PR `#179` — canonical high standing-jump initiation and complete table-controlled vertical profiles.
+- Merge commit: `d9ed0be3cdc95cbdac766ee488325666fc7e10a3`.
+- Exact final PR head: `adff7cc1b107011b478c4afd0f035dd0e0f3d1b4`.
+- Exact high-standing-jump code head before documentation-only state synchronization: `71452b23ec179ce975b6340c58913cf753b07771`.
+- Verification on the exact final PR head:
+  - `REBORN architecture` #47: `SUCCESS`;
+  - `ORIGINAL SPEC tests` #466: `SUCCESS`;
   - frozen OriginalSpec build, REBORN Core build, OriginalBridge build, hardware-leak gate and complete REBORN self-test: `SUCCESS`.
+- The exact code head also passed `REBORN architecture` #44 and `ORIGINAL SPEC tests` #464 before documentation-only synchronization.
 - ORIGINAL SPEC remains frozen at PR #169 / `MATERIAL_GAP=0`; no OriginalSpec source or oracle semantics changed.
 - PR #171 architecture, PR #173 grounded locomotion, PR #175 ordinary standing vertical and PR #177 standing air control remain frozen.
 
