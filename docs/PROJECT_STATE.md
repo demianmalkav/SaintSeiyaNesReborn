@@ -4,179 +4,179 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 ## CURRENT
 
-- Phase: `ORIGINAL SPEC / platform state-$20 NMI presentation boundary`
+- Phase: `ORIGINAL SPEC / platform visual-refresh palette-CHR closure — $9915/$9EEF`
 - State: `READY_FOR_NEXT`
-- Last verified technical checkpoint: PR `#151` — complete platform visual-resource definition layer.
-- Merge commit: `f0e36cf9b3f73988ac9b59b62aa93f9b269f4042`
-- Exact final PR head: `fe2d0e16a3ace099be4d580c4878abf86c4ba5d6`
+- Last verified technical checkpoint: PR `#154` — canonical platform `$00=$20` NMI presentation boundary.
+- Merge commit: `52886987465b9455304f1fd735733650891dfa27`
+- Exact final PR head: `fe272f74366eb15b8510a4a1d1032db580f7518a`
 - Verification on that exact head:
-  - `ORIGINAL SPEC tests` #388: `SUCCESS`
-  - `Original Spec` #597: `SUCCESS`
+  - `ORIGINAL SPEC tests` #393: `SUCCESS`
+  - `Original Spec` #601: `SUCCESS`
   - build/self-test/password compatibility: `SUCCESS`
-- Battle/event `$050E=$00-$0B` remains frozen with zero material stage-local gaps.
-- Platform map kits, CHR routing and mechanical sprite-definition ownership are now closed. Do not reopen them without contradictory ROM evidence or a failing fixture.
+- Canonical ROM reverified before analysis: size `262160`, SHA-1 `F871D9B3DAFDDCDAD5F2ACD71044292E5169064E`, SHA-256 `6917B31D7343A9A17170E833BACDBC3B1EBA3E02D11C51C0D44DBE436C9AD43A`.
+- Battle/event coverage, map kits, CHR routing, mechanical sprite definitions and platform state-$20 NMI boundary are frozen.
 
 ## DONE
 
-### Platform visual-resource definitions — PR #151
+### Platform `$00=$20` NMI presentation — PR #154
 
-The bank-3 compositor rooted at `$B987` is now correctly modeled as a **shared player / primary-entity renderer**, not an entity-only table family.
-
-Caller ownership:
+Canonical fixed-bank flow:
 
 ```text
-player $B94B+:
-  $26 = $03 internal Saint index
-  entries $00-$04 = Seiya / Shun / Hyoga / Shiryu / Ikki
-
-primary entity $A8DC-$A907:
-  $26 = logical +$09 numeric type
-  entries $05-$0F = canonical primary entity types
-```
-
-Eleven 16-entry pointer-table families are mechanically closed:
-
-```text
-$B671 $B699 $B6C1 $B6E9 $B711 $B739
-$B761 $B789 $B7B1 $B7D9 $B801
-```
-
-Direct hidden/flash definition `$B647` is separately owned.
-
-`PlatformMetaspriteResourceSelector` reproduces `$B987-$BACF` for primary types `$05-$0F`, including:
-
-- `$40/$70/$80/$A0/$D0/$E0` family routing;
-- nonzero logical `+$04` routing;
-- `$00/$20/$30/$50/$10` control-zero paths;
-- type-specific `$08/$09/$0C/$0E/$0F` branches;
-- dynamic `$B669` phase map `B699/B671/B699/B6C1`;
-- renderer-owned mutation `action = (action + 1) & $13` when `$03B9==0`;
-- unsupported original `$BA58` self-loop combinations remain unsupported rather than invented.
-
-The ROM-fed audit covers:
-
-```text
-11 tables × 11 primary types = 121 pointer selections
-51 distinct primary definitions on the canonical ROM
-```
-
-Every audited pointer/definition terminates inside bank 3 and every tile index resolves inside a selected 4 KiB CHR0 bank.
-
-Maximum hardware-sprite counts:
-
-```text
-05=10 06=10 07=10 08=11 09=9  0A=6
-0B=7  0C=7  0D=12 0E=4  0F=4
-```
-
-Type `$0D` is the sole twelve-record exception. Table `$B761` / definition `$B324` reaches 12 records, exactly matching the independently closed `$A647` rule that retires the extra visual record at `+$2C/+2D` only for `$0D`.
-
-Separately selected direct resources are also frozen:
-
-```text
-$A908:
-  $C0E3 -> tile table
-  $C0EF -> signed vertical/Y offset table
-  nonzero visuals only for $05/$06/$08/$09/$0C
-
-$9B93 independent multisprite bootstrap, PRG bank 3:
-  $9B65 sprite bases
-  $9B6C $03A9 values
-  $9B73 selector profiles
-  $9B8F dedicated substate-$0D profile
-  dedicated substate-$0D tile = $8C
-```
-
-The earlier provisional interpretation of `$C0EF` as horizontal was corrected: it is a **vertical/Y offset** added to logical Y.
-
-Tools/artifacts:
-
-- `PlatformMetaspriteResourceSelector.cs`
-- `PlatformMetaspriteResourceSelectorChecks.cs`
-- `tools/reverse/audit_platform_visual_resources.py`
-- `tests/test_platform_visual_resources_spec.py`
-- extended `tools/reverse/render_platform_entities.py`
-- `PLATFORM_VISUAL_RESOURCE_DEFINITIONS.md`
-- corrected `PLATFORM_CHR_MAP.md`
-
-No ROM/CHR bytes or generated PNGs were committed.
-
-## EVIDENCE FOR NEXT
-
-The next contiguous global gap is no longer sprite-definition discovery. It is the **platform NMI presentation boundary**: how the already-modeled main-thread/OAM state reaches the NES presentation registers on the `$00=$20` platform branch.
-
-Frozen NMI foundations:
-
-```text
-NMI vector $C000 -> $D269
-```
-
-`$D269+` already proves the common prologue:
-
-- save A/X/Y;
-- set `$3A=1` to mark MMC1-write interruption;
-- reset MMC1 serial state;
-- read `$2002`;
-- set OAM address `$2003=0`;
-- perform `$4014=$07` DMA from shadow page `$0700-$07FF`;
-- dispatch by global `$00/$01` state.
-
-For platform state `$00=$20`, direct ROM flow reaches:
-
-```text
+$C000 -> $D269 NMI
 $D2BA JSR $D7F2
 $D2BD JSR $D988
 $D2C0 JMP $D367
 ```
 
-The exact semantics and write ownership of `$D7F2/$D988` must be re-audited from canonical ROM rather than inherited from stale labels.
+#### Prologue / OAM boundary
 
-The shared NMI epilogue at `$D367+` is mechanically visible:
+`$D269+` pushes A/X/Y, writes `$3A=1`, resets the MMC1 serial latch, reads `$2002`, writes `$2003=0`, then `$4014=$07`.
 
-- derives nametable/control bit 0 in mirror `$77` from camera/page state;
-- writes `$77 -> $2000`;
-- writes `$78 -> $2001`;
-- writes scroll components `$44/$46 -> $2005/$2005`;
-- waits on the relevant `$2002` status condition;
-- restores persistent PRG bank `$3B` through the mapper helper;
-- restores Y/X/A and `RTI`.
+Therefore the current NMI DMA snapshot is exactly the already-built `$0700-$07FF` OAM shadow **before** any state-$20-specific work. Main-thread platform simulation remains a separate phase and was not duplicated inside NMI.
 
-Main-thread platform ordering and late-object state are already composed separately in `PlatformPersistentLateObjectFrame`; do not duplicate that simulation inside NMI.
+#### `$D7F2` reclassified: platform background streamer
+
+Two routes are now frozen.
+
+Refresh route:
+
+```text
+($44 & $06) != 0:
+  $03A3=0
+  raw PRG bank 1
+  JSR $9915
+  raw PRG bank 3
+
+($44 & $06)==0 and $03A3!=0:
+  same bank1 $9915 refresh
+```
+
+New-column route:
+
+```text
+($44 & $06)==0 and $03A3==0:
+  $03A3=$FF
+  $2000 = $77 | $04        ; temporary increment-by-32
+  address high = $20 + ((($45+1)&1)<<2)
+  address low  = $44 >> 3
+  $0362-$0377 -> $2007     ; exactly 22 tile bytes
+```
+
+`$D844` adds the eight-byte attribute column only when `($44 & $1E)==0`:
+
+```text
+$2000 = $77
+attribute high = $23 + ((($45+1)&1)<<2)
+attribute low0 = $C0 + ($44>>5)
+$0378-$037F -> low0 + 8*N, N=0..7
+```
+
+The bank switches around `$9915` use raw `$C0B4` and do not steal persistent `$3B` ownership.
+
+#### `$D988` reclassified: NMI-owned platform pause toggle
+
+Start bit `$10` in `$3D` is edge-gated by `$05`.
+
+```text
+Start released -> $05=0
+fresh Start edge -> $05=$FF; JSR $CB6A; toggle $0386
+held Start with $05!=0 -> no retrigger
+```
+
+Main-thread `$C302-$C305` proves `$0386` is the pause gate: nonzero skips the normal platform simulation.
+
+Entering pause from `$0386=0` additionally executes `$DB9C` and loads audio cue `$63` through `$DBB6`, then stores `$0386=$FF`. Leaving pause stores `$0386=0` without the pause-entry reset/cue path.
+
+Canonical fixed byte:
+
+```text
+$FFDE=$00
+```
+
+therefore `$D9BA+` resource/debug mutation code is unreachable normal gameplay and is not promoted.
+
+#### Common `$D367+` presentation commit
+
+```text
+$77 = ($77 & $FE) | ($45 & 1)
+$2000 = $77
+$2001 = $78
+$2005 = $44
+$2005 = $46
+```
+
+The status loop uses A=`$40` and waits while PPUSTATUS bit 6 is set, i.e. until sprite-zero-hit clears.
+
+Finally `$3B` is passed to raw `$C0B4`, restoring the persistent PRG bank, then Y/X/A are restored and `RTI` executes.
+
+Artifacts:
+
+- `src/SaintSeiyaNesReborn.OriginalSpec/Platform/PlatformState20NmiPhase.cs`
+- `tests/SaintSeiyaNesReborn.OriginalSpec.SelfTest/PlatformState20NmiPhaseChecks.cs`
+- `docs/reverse-engineering/PLATFORM_STATE20_NMI.md`
+- PR #154
+
+Do not reopen this state-$20 boundary without contradictory ROM evidence or a failing fixture.
+
+## EVIDENCE FOR NEXT
+
+The contiguous unresolved platform-presentation owner exposed by the completed NMI work is bank-1 `$9915` and its palette/CHR helper chain.
+
+Direct canonical-ROM evidence already established during PR #154:
+
+```text
+$9915:
+  tests $07C0 and $03A4
+  chooses pointer state using platform substate $02
+  calls $9EEF
+  then performs a raw MMC1 CHR0 serial write at $BFFF
+
+$9EEF:
+  writes $2000=0 / $2001=0
+  targets palette address $3F10
+  consumes pointer pairs $0392-$0399 through $9F29
+  then calls $9D58
+```
+
+The exact semantic ownership of `$0392-$0399`, `$03A4`, `$07C0`, the palette transfer record format in `$9F29+`, the `$9D58` tail and the selected CHR0 values must be proven before declaring platform palette/frame presentation globally closed.
+
+This is narrower and more contiguous than jumping to unrelated RNG/audio work.
 
 ## OPEN
 
-1. Freeze exact NMI prologue `$D269+` through the `$00=$20` dispatch, including OAM DMA ordering and the mapper-interruption contract `$3A/$3B`.
-2. Re-disassemble `$D7F2` and `$D988` from the canonical ROM and classify every platform-state-20 RAM/PPU write, bank switch and early return. Reconcile any stale documentation instead of preserving an old label by assumption.
-3. Freeze the exact `$D367+` presentation commit: `$77/$78`, `$44/$46`, `$2000/$2001/$2005`, status wait and persistent-bank restore.
-4. Model the **semantic ordering boundary** between main-thread `$0700` OAM mutations and NMI DMA. Do not emulate cycle-level PPU timing unless ROM evidence makes it gameplay-relevant.
-5. Add a clean-room `PlatformState20NmiPhase` (or equivalently scoped model) plus discriminating fixtures for OAM-DMA source, state-20 branch effects, scroll/control commit and bank restoration.
-6. Update focused NMI/renderer documentation, explicitly correcting any contradicted earlier `D7F2` interpretation.
-7. Stop at platform state `$20`. Do not absorb every non-platform NMI state, complete palette semantics, audio or unrelated mapper code in this checkpoint.
+1. Re-disassemble canonical bank-1 `$9915-$9960`, `$9EEF+`, `$9F29+` and `$9D58` far enough to close their reachable call graph.
+2. Classify the gates `$07C0/$03A4/$02` and distinguish palette-refresh ownership from CHR0 animation/bank ownership.
+3. Decode the four pointer pairs `$0392-$0399` and exact palette bytes/lengths transferred through `$9F29` without embedding extracted palette payloads in source.
+4. Freeze the raw MMC1 CHR0 serial write selected by `$9966+` for reachable platform substates, including whether it duplicates or transiently overrides the already-closed static CHR map.
+5. Model a clean-room `PlatformVisualRefresh9915` (or equivalently scoped phase) with discriminating fixtures for gate behavior, palette transfer descriptors, CHR0 selection and restoration/ownership.
+6. Reconcile `PLATFORM_CHR_MAP.md` and NMI documentation if the dynamic `$9915` path refines the static CHR interpretation.
+7. Stop after the platform palette/CHR refresh path. Do not absorb the full audio engine, RNG or every non-platform NMI state.
 
 ## NEXT
 
-**Close the platform `$00=$20` NMI presentation boundary from `$D269` through the state-20 calls `$D7F2/$D988` and common `$D367+` epilogue: prove OAM DMA ownership/order, reclassify the two platform NMI subroutines from canonical ROM, model the PPU-control/mask/scroll commit and persistent-bank restore, and promote an executable clean-room phase with fixtures without duplicating the already-closed main-thread platform simulation.**
+**Close the platform bank-1 visual-refresh path rooted at `$9915`: prove its `$07C0/$03A4/$02` gates, decode `$9EEF/$9F29/$9D58` palette-transfer ownership, freeze the dynamic CHR0 serial-write selection at `$9966+`, and promote an executable clean-room phase with fixtures that composes with the already-closed state-$20 NMI without reopening main-thread rendering.**
 
 Completion criterion:
 
-> Given the already-composed platform main-thread state and its `$0700-$07FF` OAM shadow, the model must deterministically describe what a platform-state-`$20` NMI snapshots/commits and in what semantic order: DMA source, relevant `$D7F2/$D988` side effects, `$77/$78` control/mask commit, `$44/$46` scroll commit, mapper interruption/restoration and return. Any existing document that conflicts with direct ROM flow must be corrected in the same checkpoint. Other NMI global states and full palette/audio systems remain outside scope.
+> Given the platform NMI's decision to invoke `$9915`, the model must deterministically state whether refresh work occurs, what palette-transfer descriptors are consumed, which PPU palette region is committed, which CHR0 bank value is selected for each reachable platform substate, and what persistent/transient state is mutated. The result must be supported by canonical ROM addresses and executable fixtures, with extracted original palette/CHR data remaining outside GitHub.
 
 ## BLOCKERS
 
-- None. Canonical ROM, boot/MMC1/NMI entry, OAM shadow ownership, platform main-thread frame composition, CHR routing and visual-resource definitions are already available.
+- None. Canonical ROM, state-$20 NMI callsite, static CHR map, mapper helpers and clean-room test harness are available.
 
 ## RECOVERY CONTRACT
 
 1. Read this file from `main` and reconcile it with newer merged history before executing `NEXT`.
-2. Freeze PR #151 visual-resource closure and PR #149 battle-stage closure.
-3. Reuse `BOOT_AND_MAPPER.md`, `PERSISTENT_LATE_OBJECT_FRAME.md`, `PLATFORM_VISUAL_RESOURCE_DEFINITIONS.md` and existing NMI documents, but treat direct canonical-ROM bytes as authority when older prose disagrees.
-4. Keep main-thread simulation and NMI presentation as separate ownership phases.
-5. Do not commit ROM/OAM dumps or extracted art. Semantic code/tests/docs only.
+2. Freeze PR #154 state-$20 NMI, PR #151 visual-resource closure and PR #149 battle-stage closure.
+3. Treat direct canonical-ROM bytes as authority over historical labels.
+4. Keep `$9915` refresh semantics separate from main-thread entity simulation and from full audio semantics.
+5. Do not commit ROM, extracted CHR, palette dumps or gameplay captures.
 6. Drive remains private ROM/evidence storage and never owns an independent `NEXT`.
 
 ## ANTI-LOOP
 
-- `last_next_signature`: `platform-state20-nmi-oam-ppu-commit`
+- `last_next_signature`: `platform-visual-refresh-9915-palette-chr0`
 - `same_result_count`: `0`
 - `retry_budget_per_strategy`: `2`
 
