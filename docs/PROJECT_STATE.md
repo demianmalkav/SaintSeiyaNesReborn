@@ -6,11 +6,12 @@ This file is the **single operational source of truth for `continúa` / `next`**
 
 - Phase: `REBORN / architecture planning`
 - State: `READY_FOR_NEXT`
-- Integral ORIGINAL SPEC closure checkpoint: PR `#169` — zero-material-gap audit and baseline freeze.
-- Exact audit regression head before documentation-only closure synchronization: `4f4f107dc874a60ad53a116f0fe3e7d12003c87f`.
-- Verification on that exact head:
-  - `Original Spec` #635: `SUCCESS`
-  - `ORIGINAL SPEC tests` #432: `SUCCESS`
+- Last merged technical checkpoint: PR `#169` — integral ORIGINAL SPEC closure audit and baseline freeze.
+- Merge commit: `ab3950c5b1bf27c6473a5e2c4a6ab272ed2940a2`.
+- Exact final PR head: `58c14e9348c545f162d30374be94a36687f355b4`.
+- Verification on that exact final PR head:
+  - `Original Spec` #637: `SUCCESS`
+  - `ORIGINAL SPEC tests` #434: `SUCCESS`
   - build/self-test/password compatibility: `SUCCESS`
 - Audit verdict: `MATERIAL_GAP = 0`.
 - `src/` currently contains only `SaintSeiyaNesReborn.OriginalSpec`; no REBORN implementation project has been created yet.
